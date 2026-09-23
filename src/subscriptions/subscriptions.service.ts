@@ -1,60 +1,52 @@
+import { Inject } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 @Injectable()
 export class SubscriptionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async findAll() {
-    const subscriptions =
-      await this.prisma.subscription.findMany({
-        orderBy: {
-          createdAt: 'desc',
-        },
+    const subscriptions = await this.prisma.subscription.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
 
-        include: {
-          company: true,
+      include: {
+        company: true,
 
-          plan: true,
+        plan: true,
 
-          payments: {
-            orderBy: {
-              createdAt: 'desc',
-            },
-            take: 1,
+        payments: {
+          orderBy: {
+            createdAt: 'desc',
           },
+          take: 1,
         },
-      });
+      },
+    });
 
     return subscriptions.map((subscription) => {
-      const lastPayment =
-        subscription.payments[0] ?? null;
+      const lastPayment = subscription.payments[0] ?? null;
 
       return {
         id: subscription.id,
 
         status: subscription.status,
 
-        trialStartsAt:
-          subscription.trialStartedAt,
+        trialStartsAt: subscription.trialStartedAt,
 
-        trialEndsAt:
-          subscription.trialEndsAt,
+        trialEndsAt: subscription.trialEndsAt,
 
-        currentPeriodStart:
-          subscription.currentPeriodStart,
+        currentPeriodStart: subscription.currentPeriodStart,
 
-        currentPeriodEnd:
-          subscription.currentPeriodEnd,
+        currentPeriodEnd: subscription.currentPeriodEnd,
 
-        canceledAt:
-          subscription.canceledAt,
+        canceledAt: subscription.canceledAt,
 
-        createdAt:
-          subscription.createdAt,
+        createdAt: subscription.createdAt,
 
-        updatedAt:
-          subscription.updatedAt,
+        updatedAt: subscription.updatedAt,
 
         company: {
           id: subscription.company.id,
@@ -67,10 +59,8 @@ export class SubscriptionsService {
           id: subscription.plan.id,
           name: subscription.plan.name,
           code: subscription.plan.code,
-          monthlyPriceCents:
-            subscription.plan.monthlyPriceCents,
-          yearlyPriceCents:
-            subscription.plan.yearlyPriceCents,
+          monthlyPriceCents: subscription.plan.monthlyPriceCents,
+          yearlyPriceCents: subscription.plan.yearlyPriceCents,
         },
 
         lastPayment: lastPayment

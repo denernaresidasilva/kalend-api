@@ -1,9 +1,10 @@
+import { Inject } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 @Injectable()
 export class FinanceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async findAll() {
     const payments = await this.prisma.payment.findMany({
@@ -12,6 +13,7 @@ export class FinanceService {
       },
 
       include: {
+        company: true,
         subscription: {
           include: {
             company: true,
@@ -31,11 +33,11 @@ export class FinanceService {
       createdAt: payment.createdAt,
       updatedAt: payment.updatedAt,
 
-      company: payment.subscription?.company
+      company: payment.company
         ? {
-            id: payment.subscription.company.id,
-            name: payment.subscription.company.name,
-            slug: payment.subscription.company.slug,
+            id: payment.company.id,
+            name: payment.company.name,
+            slug: payment.company.slug,
           }
         : null,
 
@@ -57,67 +59,41 @@ export class FinanceService {
   }
 
   async summary() {
-    const payments = await this.prisma.payment.findMany({
-      select: {
-        status: true,
-        amountCents: true,
-        paidAt: true,
-        createdAt: true,
-      },
-    });
-
     const now = new Date();
-
     const monthStart = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      1,
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
     );
-
-    const approvedPayments = payments.filter(
-      (payment) =>
-        payment.status === 'APPROVED',
+    return this.prisma.$transaction(
+      async (tx) => {
+        const [groups, monthly] = await Promise.all([
+          tx.payment.groupBy({
+            by: ['status'],
+            _count: { _all: true },
+            _sum: { amountCents: true },
+          }),
+          tx.payment.aggregate({
+            where: {
+              status: 'APPROVED',
+              paidAt: { gte: monthStart, lte: now },
+            },
+            _sum: { amountCents: true },
+          }),
+        ]);
+        const count = (status: string) =>
+          groups.find((p) => p.status === status)?._count._all ?? 0;
+        return {
+          revenueCents:
+            groups.find((p) => p.status === 'APPROVED')?._sum.amountCents ?? 0,
+          monthlyRevenueCents: monthly._sum.amountCents ?? 0,
+          paymentsCount: groups.reduce((sum, p) => sum + p._count._all, 0),
+          approvedCount: count('APPROVED'),
+          pendingCount: count('PENDING'),
+          failedCount: count('FAILED'),
+          canceledCount: count('CANCELED'),
+          refundedCount: count('REFUNDED'),
+        };
+      },
+      { isolationLevel: 'RepeatableRead' },
     );
-
-    const revenueCents = approvedPayments.reduce(
-      (total, payment) =>
-        total + payment.amountCents,
-      0,
-    );
-
-    const monthlyRevenueCents =
-      approvedPayments
-        .filter((payment) => {
-          const date =
-            payment.paidAt ?? payment.createdAt;
-
-          return date >= monthStart;
-        })
-        .reduce(
-          (total, payment) =>
-            total + payment.amountCents,
-          0,
-        );
-
-    const pendingCount = payments.filter(
-      (payment) =>
-        payment.status === 'PENDING',
-    ).length;
-
-    const failedCount = payments.filter(
-      (payment) =>
-        payment.status === 'FAILED' ||
-        payment.status === 'CANCELED',
-    ).length;
-
-    return {
-      revenueCents,
-      monthlyRevenueCents,
-      paymentsCount: payments.length,
-      approvedCount: approvedPayments.length,
-      pendingCount,
-      failedCount,
-    };
   }
 }
-

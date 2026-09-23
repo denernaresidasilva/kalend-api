@@ -1,12 +1,14 @@
+import { Inject } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async findAll() {
     const users = await this.prisma.user.findMany({
+      omit: { passwordHash: true },
       orderBy: {
         createdAt: 'desc',
       },
@@ -34,27 +36,26 @@ export class UsersService {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
 
-      memberships: user.memberships.map(
-        (membership) => ({
-          id: membership.id,
-          role: membership.role,
-          isActive: membership.isActive,
-          createdAt: membership.createdAt,
+      memberships: user.memberships.map((membership) => ({
+        id: membership.id,
+        role: membership.role,
+        isActive: membership.isActive,
+        createdAt: membership.createdAt,
 
-          company: {
-            id: membership.company.id,
-            name: membership.company.name,
-            slug: membership.company.slug,
-            status: membership.company.status,
-            isActive: membership.company.isActive,
-          },
-        }),
-      ),
+        company: {
+          id: membership.company.id,
+          name: membership.company.name,
+          slug: membership.company.slug,
+          status: membership.company.status,
+          isActive: membership.company.isActive,
+        },
+      })),
     }));
   }
 
   async findOne(id: string) {
     const user = await this.prisma.user.findUnique({
+      omit: { passwordHash: true },
       where: {
         id,
       },
@@ -96,47 +97,38 @@ export class UsersService {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
 
-      memberships: user.memberships.map(
-        (membership) => ({
-          id: membership.id,
-          role: membership.role,
-          isActive: membership.isActive,
-          createdAt: membership.createdAt,
-          updatedAt: membership.updatedAt,
+      memberships: user.memberships.map((membership) => ({
+        id: membership.id,
+        role: membership.role,
+        isActive: membership.isActive,
+        createdAt: membership.createdAt,
+        updatedAt: membership.updatedAt,
 
-          company: {
-            id: membership.company.id,
-            name: membership.company.name,
-            slug: membership.company.slug,
-            status: membership.company.status,
-            isActive: membership.company.isActive,
+        company: {
+          id: membership.company.id,
+          name: membership.company.name,
+          slug: membership.company.slug,
+          status: membership.company.status,
+          isActive: membership.company.isActive,
 
-            subscription:
-              membership.company.subscriptions[0]
-                ? {
-                    id: membership.company.subscriptions[0].id,
-                    status:
-                      membership.company.subscriptions[0]
-                        .status,
+          subscription: membership.company.subscriptions[0]
+            ? {
+                id: membership.company.subscriptions[0].id,
+                status: membership.company.subscriptions[0].status,
 
-                    plan: membership.company
-                      .subscriptions[0].plan
-                      ? {
-                          id: membership.company
-                            .subscriptions[0].plan.id,
+                plan: membership.company.subscriptions[0].plan
+                  ? {
+                      id: membership.company.subscriptions[0].plan.id,
 
-                          name: membership.company
-                            .subscriptions[0].plan.name,
+                      name: membership.company.subscriptions[0].plan.name,
 
-                          code: membership.company
-                            .subscriptions[0].plan.code,
-                        }
-                      : null,
-                  }
-                : null,
-          },
-        }),
-      ),
+                      code: membership.company.subscriptions[0].plan.code,
+                    }
+                  : null,
+              }
+            : null,
+        },
+      })),
     };
   }
 
@@ -203,4 +195,3 @@ export class UsersService {
     };
   }
 }
-

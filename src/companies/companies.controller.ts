@@ -1,3 +1,6 @@
+import { Inject } from '@nestjs/common';
+import { UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import { AdminGuard } from '../common/admin.guard.js';
 import {
   Body,
   Controller,
@@ -9,9 +12,11 @@ import {
 
 import { CompaniesService } from './companies.service.js';
 
+@UseGuards(AdminGuard)
 @Controller('companies')
 export class CompaniesController {
   constructor(
+    @Inject(CompaniesService)
     private readonly companiesService: CompaniesService,
   ) {}
 
@@ -42,14 +47,11 @@ export class CompaniesController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    const company =
-      await this.companiesService.findOne(id);
+  async findOne(@Param('id', new ParseUUIDPipe()) id: string) {
+    const company = await this.companiesService.findOne(id);
 
     if (!company) {
-      throw new NotFoundException(
-        'Empresa não encontrada.',
-      );
+      throw new NotFoundException('Empresa não encontrada.');
     }
 
     return company;

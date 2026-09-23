@@ -66,7 +66,8 @@ model User {
   isActive     Boolean @default(true)
   isSuperAdmin Boolean @default(false)
 
-  memberships Membership[]
+  memberships  Membership[]
+  authSessions AuthSession[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -83,6 +84,8 @@ model Company {
   memberships   Membership[]
   subscriptions Subscription[]
   payments      Payment[]
+  webhookEvents WebhookEvent[]
+  authSessions  AuthSession[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -130,6 +133,7 @@ model Plan {
 
   features      PlanFeature[]
   subscriptions Subscription[]
+  payments      Payment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -184,6 +188,7 @@ model Subscription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([gateway, externalSubscriptionId])
   @@index([companyId])
   @@index([planId])
   @@index([status])
@@ -199,6 +204,14 @@ model Payment {
   status      PaymentStatus
   gateway     PaymentGateway
 
+  planId            String?             @db.Uuid
+  plan              Plan?               @relation(fields: [planId], references: [id])
+  environment       GatewayEnvironment?
+  idempotencyKey    String?             @unique
+  currency          String              @default("BRL")
+  periodStart       DateTime?
+  periodEnd         DateTime?
+  webhookEvents     WebhookEvent[]
   externalPaymentId String?
   description       String?
 
@@ -211,6 +224,7 @@ model Payment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([gateway, externalPaymentId])
   @@index([companyId])
   @@index([subscriptionId])
   @@index([status])
@@ -226,12 +240,18 @@ model WebhookEvent {
   externalEventId String
   eventType       String?
 
-  payload Json
+  companyId   String?             @db.Uuid
+  paymentId   String?             @db.Uuid
+  company     Company?            @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  payment     Payment?            @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  environment GatewayEnvironment?
+  attempts    Int                 @default(0)
+  payload     Json
 
   status       WebhookStatus @default(RECEIVED)
   errorMessage String?
 
-  receivedAt  DateTime @default(now())
+  receivedAt  DateTime  @default(now())
   processedAt DateTime?
 
   createdAt DateTime @default(now())
@@ -241,4 +261,68 @@ model WebhookEvent {
   @@index([gateway])
   @@index([status])
   @@index([receivedAt])
+}
+
+enum GatewayEnvironment {
+  SANDBOX
+  PRODUCTION
+}
+
+enum IntegrationStatus {
+  NOT_CONFIGURED
+  PENDING_VALIDATION
+  CONNECTED
+  FAILED
+}
+
+model GatewayConfiguration {
+  gateway                PaymentGateway     @id
+  enabled                Boolean            @default(false)
+  environment            GatewayEnvironment @default(SANDBOX)
+  publicId               String?
+  credentialsEncrypted   String?
+  webhookSecretEncrypted String?
+  status                 IntegrationStatus  @default(NOT_CONFIGURED)
+  lastValidatedAt        DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+}
+
+model AuthSession {
+  credentialHash    String             @db.Char(64)
+  id                String             @id @default(uuid()) @db.Uuid
+  userId            String             @db.Uuid
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  selectedCompanyId String?            @db.Uuid
+  selectedCompany   Company?           @relation(fields: [selectedCompanyId], references: [id], onDelete: SetNull)
+  createdAt         DateTime           @default(now())
+  lastUsedAt        DateTime           @default(now())
+  expiresAt         DateTime
+  refreshExpiresAt  DateTime
+  revokedAt         DateTime?
+  refreshTokens     AuthRefreshToken[]
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model AuthRefreshToken {
+  id        String      @id @default(uuid()) @db.Uuid
+  sessionId String      @db.Uuid
+  session   AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  tokenHash String      @unique @db.Char(64)
+  createdAt DateTime    @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([sessionId])
+  @@index([expiresAt])
+}
+
+model AuthRateLimit {
+  key       String   @id @db.Char(64)
+  attempts  Int      @default(1)
+  expiresAt DateTime
+
+  @@index([expiresAt])
 }

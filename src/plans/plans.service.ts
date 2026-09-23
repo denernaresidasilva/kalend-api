@@ -1,3 +1,5 @@
+import { Inject } from '@nestjs/common';
+import { validatePlan } from './plan.validation.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -35,7 +37,7 @@ interface UpdatePlanInput extends Partial<CreatePlanInput> {}
 
 @Injectable()
 export class PlansService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async findAll() {
     return this.prisma.plan.findMany({
@@ -101,6 +103,7 @@ export class PlansService {
   }
 
   async create(data: CreatePlanInput) {
+    validatePlan(data);
     return this.prisma.plan.create({
       data: {
         name: data.name,
@@ -140,6 +143,7 @@ export class PlansService {
   }
 
   async update(id: string, data: UpdatePlanInput) {
+    validatePlan(data, true);
     await this.findOne(id);
 
     return this.prisma.$transaction(async (tx) => {

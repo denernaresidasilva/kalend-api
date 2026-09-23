@@ -1,16 +1,15 @@
-import {
-  Controller,
-  Get,
-  NotFoundException,
-  Param,
-} from '@nestjs/common';
+import { Inject } from '@nestjs/common';
+import { UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import { AdminGuard } from '../common/admin.guard.js';
+import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
 
 import { UsersService } from './users.service.js';
 
+@UseGuards(AdminGuard)
 @Controller('users')
 export class UsersController {
   constructor(
-    private readonly usersService: UsersService,
+    @Inject(UsersService) private readonly usersService: UsersService,
   ) {}
 
   @Get()
@@ -24,16 +23,13 @@ export class UsersController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id', new ParseUUIDPipe()) id: string) {
     const user = await this.usersService.findOne(id);
 
     if (!user) {
-      throw new NotFoundException(
-        'Usuário não encontrado.',
-      );
+      throw new NotFoundException('Usuário não encontrado.');
     }
 
     return user;
   }
 }
-
