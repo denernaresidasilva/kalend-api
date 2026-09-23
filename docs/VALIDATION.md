@@ -1,5 +1,45 @@
 # Evidências de validação local
 
+## Correção do lockfile após 3a23b04
+
+Validação em 23/09/2026 com Node 22.23.2 e npm 9.2.0 (lockfile v3).
+O procedimento com `--legacy-peer-deps` registrado abaixo é histórico e não deve
+ser repetido: ele removeu peers necessários do lockfile e quebrou `npm ci` normal.
+
+- `package.json` não declara React, ReactDOM ou scheduler. Também não possui
+  `peerDependencies`, `optionalDependencies`, `overrides` ou `workspaces` na raiz.
+- A cadeia é `prisma@7.10.0` → `@prisma/studio-core@0.33.0`, que declara peers
+  React/ReactDOM `^18.0.0 || ^19.0.0`. Radix/Visx também usam esses peers.
+  A resolução seleciona React/ReactDOM 19.3.0; ReactDOM exige scheduler `^0.28.0`.
+  São dependências transitivas da ferramenta Studio, não da aplicação NestJS.
+- A autenticação adicionou somente `jose@6.2.12`, sem dependências React.
+  As versões dos três pacotes Prisma foram fixadas em 7.10.0 naquele commit.
+- A reprodução também identificou TypeScript 5.9.3 ausente: peer opcional
+  `^5.0.0` de `vite-tsconfig-paths` → `tsconfck@3.1.6`. A resolução normal
+  instala essa versão aninhada, mantendo TypeScript 6.0.3 na raiz.
+- O lock foi regenerado localmente, em diretório temporário contendo os dois
+  manifests, com `npm install --package-lock-only --ignore-scripts --no-audit
+  --no-fund` (cache previamente preenchido; execução com `--offline`). Nenhuma
+  versão existente mudou e nenhum pacote foi removido. Foram acrescentadas
+  as quatro entradas ausentes e recalculadas somente as marcações
+  `dev`/`devOptional` das entradas existentes. `package.json` permaneceu intacto.
+
+Resultados: `npm ci` passou tanto no workspace quanto em cópia limpa criada
+com `git archive HEAD` e o lock corrigido, sem `node_modules` ou `.env` prévios,
+sem `--legacy-peer-deps`, `--force` ou `--ignore-scripts`. A instalação não
+alterou o lock. O postinstall existente (`prisma skills sync || exit 0`)
+informou ausência de `DATABASE_URL`; esse aviso não impediu a instalação.
+O client Prisma foi gerado localmente com URL fictícia, sem conexão ao banco.
+
+`npm run build`: OK. `npm test`: 48 testes passaram (10 arquivos).
+`npm run test:e2e`: 51 testes passaram (2 arquivos); exigiu execução fora do
+sandbox para a porta HTTP local do Supertest, com persistência mockada.
+`npm run lint`: OK. `git diff --check`: OK.
+Sem alterações em `.env`, banco, migrations ou código da aplicação; sem commit
+ou push. Alterações limitadas a `package-lock.json` e este registro.
+
+## Validação original do commit 3a23b04
+
 Data: 23/09/2026. Branch: develop. Runtime utilizado: Node **22.23.2** disponível no ambiente; o Node padrão era 18.19.0, incompatível com as dependências atuais. Nenhum teste conectou a banco DEV ou produção.
 
 | Verificação                                       | Resultado final                                                      |
