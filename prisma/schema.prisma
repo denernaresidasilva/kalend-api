@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  RECEPTIONIST
+  PROFESSIONAL
+  CLIENT
+}
+
+enum CompanyStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  FAILED
+  REFUNDED
+  CANCELED
+}
+
+enum PaymentGateway {
+  MANUAL
+  MERCADO_PAGO
+  STRIPE
+  PAGBANK
+}
+
+enum WebhookStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+model User {
+  id           String  @id @default(uuid()) @db.Uuid
+  email        String  @unique
+  passwordHash String
+  name         String
+  phone        String?
+  isActive     Boolean @default(true)
+  isSuperAdmin Boolean @default(false)
+
+  memberships Membership[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Company {
+  id       String        @id @default(uuid()) @db.Uuid
+  name     String
+  slug     String        @unique
+  status   CompanyStatus @default(TRIAL)
+  timezone String        @default("America/Sao_Paulo")
+  isActive Boolean       @default(true)
+
+  memberships   Membership[]
+  subscriptions Subscription[]
+  payments      Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Membership {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @db.Uuid
+  companyId String         @db.Uuid
+  role      MembershipRole
+  isActive  Boolean        @default(true)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, companyId])
+  @@index([companyId, role])
+  @@index([userId])
+}
+
+model Plan {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String
+  code        String  @unique
+  description String?
+
+  monthlyPriceCents Int
+  yearlyPriceCents  Int?
+
+  trialEnabled Boolean @default(true)
+  trialDays    Int     @default(7)
+
+  badge        String?
+  isFeatured   Boolean @default(false)
+  displayOrder Int     @default(0)
+
+  maxProfessionals Int?
+  maxClients       Int?
+  maxUnits         Int? @default(1)
+
+  isActive Boolean @default(true)
+
+  features      PlanFeature[]
+  subscriptions Subscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, displayOrder])
+}
+
+model PlanFeature {
+  id     String @id @default(uuid()) @db.Uuid
+  planId String @db.Uuid
+
+  code String
+  name String
+
+  enabled Boolean @default(true)
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([planId, code])
+  @@index([planId])
+}
+
+model Subscription {
+  id        String @id @default(uuid()) @db.Uuid
+  companyId String @db.Uuid
+  planId    String @db.Uuid
+
+  status          SubscriptionStatus @default(TRIALING)
+  billingInterval BillingInterval    @default(MONTHLY)
+
+  trialStartedAt DateTime?
+  trialEndsAt    DateTime?
+
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+
+  canceledAt DateTime?
+  endedAt    DateTime?
+
+  gateway PaymentGateway @default(MANUAL)
+
+  externalSubscriptionId String?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan    Plan    @relation(fields: [planId], references: [id])
+
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([planId])
+  @@index([status])
+  @@index([externalSubscriptionId])
+}
+
+model Payment {
+  id             String  @id @default(uuid()) @db.Uuid
+  companyId      String  @db.Uuid
+  subscriptionId String? @db.Uuid
+
+  amountCents Int
+  status      PaymentStatus
+  gateway     PaymentGateway
+
+  externalPaymentId String?
+  description       String?
+
+  paidAt     DateTime?
+  refundedAt DateTime?
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([gateway])
+  @@index([externalPaymentId])
+}
+
+model WebhookEvent {
+  id String @id @default(uuid()) @db.Uuid
+
+  gateway PaymentGateway
+
+  externalEventId String
+  eventType       String?
+
+  payload Json
+
+  status       WebhookStatus @default(RECEIVED)
+  errorMessage String?
+
+  receivedAt  DateTime @default(now())
+  processedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([gateway, externalEventId])
+  @@index([gateway])
+  @@index([status])
+  @@index([receivedAt])
+}
