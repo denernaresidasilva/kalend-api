@@ -1,5 +1,7 @@
 # Auditoria Kalend API — 23/09/2026
 
+> Atualização comercial local de 23/09/2026: consulte [COMMERCIAL-ENGINE.md](COMMERCIAL-ENGINE.md), [GATEWAY-PROVIDERS.md](GATEWAY-PROVIDERS.md) e [COMMERCIAL-VALIDATION.md](COMMERCIAL-VALIDATION.md). Eles substituem as descrições abaixo de adapters ausentes, três gateways, bloqueio comercial de regularização e reconciliação apenas por datas. O restante deste documento registra os contratos e a auditoria anteriores.
+
 ## Escopo e limites
 
 Auditoria estática do backend, schema, duas migrations existentes, controllers, services e testes. Branch `develop`. Nenhum acesso a DEV/produção, nenhum deploy, nenhum `.env` alterado, nenhuma migration aplicada, nenhum commit/push. Prisma fixado em **7.10.0** (client, adapter e CLI).

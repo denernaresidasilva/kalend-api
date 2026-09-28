@@ -22,6 +22,8 @@ enum CompanyStatus {
 }
 
 enum SubscriptionStatus {
+  PENDING
+  SUSPENDED
   TRIALING
   ACTIVE
   PAST_DUE
@@ -35,6 +37,7 @@ enum BillingInterval {
 }
 
 enum PaymentStatus {
+  OVERDUE
   PENDING
   APPROVED
   FAILED
@@ -47,6 +50,14 @@ enum PaymentGateway {
   MERCADO_PAGO
   STRIPE
   PAGBANK
+  ASAAS
+}
+
+enum PaymentCreationState {
+  READY
+  CREATING
+  CREATED
+  UNCERTAIN
 }
 
 enum WebhookStatus {
@@ -129,7 +140,9 @@ model Plan {
   maxClients       Int?
   maxUnits         Int? @default(1)
 
-  isActive Boolean @default(true)
+  isActive    Boolean @default(true)
+  isPublic    Boolean @default(true)
+  maxMessages Int?
 
   features      PlanFeature[]
   subscriptions Subscription[]
@@ -178,7 +191,13 @@ model Subscription {
 
   gateway PaymentGateway @default(MANUAL)
 
-  externalSubscriptionId String?
+  environment             GatewayEnvironment?
+  expectedAmountCents     Int?
+  currency                String              @default("BRL")
+  graceEndsAt             DateTime?
+  cancelAtPeriodEnd       Boolean             @default(false)
+  cancellationRequestedAt DateTime?
+  externalSubscriptionId  String?
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   plan    Plan    @relation(fields: [planId], references: [id])
@@ -188,7 +207,7 @@ model Subscription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([gateway, externalSubscriptionId])
+  @@unique([gateway, environment, externalSubscriptionId])
   @@index([companyId])
   @@index([planId])
   @@index([status])
@@ -200,9 +219,16 @@ model Payment {
   companyId      String  @db.Uuid
   subscriptionId String? @db.Uuid
 
-  amountCents Int
-  status      PaymentStatus
-  gateway     PaymentGateway
+  billingInterval     BillingInterval      @default(MONTHLY)
+  externalCheckoutId  String?
+  checkoutUrl         String?
+  creationState       PaymentCreationState @default(READY)
+  creationStartedAt   DateTime?
+  recurring           Boolean              @default(false)
+  refundedAmountCents Int                  @default(0)
+  amountCents         Int
+  status              PaymentStatus
+  gateway             PaymentGateway
 
   planId            String?             @db.Uuid
   plan              Plan?               @relation(fields: [planId], references: [id])
@@ -224,7 +250,7 @@ model Payment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([gateway, externalPaymentId])
+  @@unique([gateway, environment, externalPaymentId])
   @@index([companyId])
   @@index([subscriptionId])
   @@index([status])
@@ -257,7 +283,7 @@ model WebhookEvent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([gateway, externalEventId])
+  @@unique([gateway, environment, externalEventId])
   @@index([gateway])
   @@index([status])
   @@index([receivedAt])
@@ -276,16 +302,18 @@ enum IntegrationStatus {
 }
 
 model GatewayConfiguration {
-  gateway                PaymentGateway     @id
-  enabled                Boolean            @default(false)
-  environment            GatewayEnvironment @default(SANDBOX)
-  publicId               String?
-  credentialsEncrypted   String?
-  webhookSecretEncrypted String?
-  status                 IntegrationStatus  @default(NOT_CONFIGURED)
-  lastValidatedAt        DateTime?
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
+  gateway                       PaymentGateway     @id
+  enabled                       Boolean            @default(false)
+  environment                   GatewayEnvironment @default(SANDBOX)
+  publicId                      String?
+  credentialsEncrypted          String?
+  recurringCredentialsEncrypted String?
+  recurringEnabled              Boolean            @default(false)
+  webhookSecretEncrypted        String?
+  status                        IntegrationStatus  @default(NOT_CONFIGURED)
+  lastValidatedAt               DateTime?
+  createdAt                     DateTime           @default(now())
+  updatedAt                     DateTime           @updatedAt
 }
 
 model AuthSession {

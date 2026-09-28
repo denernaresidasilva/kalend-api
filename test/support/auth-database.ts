@@ -199,6 +199,8 @@ export function authDatabase(passwordHash: string) {
       }),
     },
     gatewayConfiguration: { findUnique: vi.fn(async () => null) },
+    subscription: { findFirst: vi.fn(async () => null) },
+    payment: { findFirst: vi.fn(async () => null) },
     plan: { findMany: vi.fn(async () => []) },
     $transaction: vi.fn(),
   };
@@ -215,6 +217,7 @@ export function authDatabase(passwordHash: string) {
     for (const m of memberships) {
       m.isActive = true;
       m.company.isActive = true;
+      m.company.status = m.companyId === COMPANY_ID ? 'ACTIVE' : 'TRIAL';
     }
   }
   return { db, users, sessions, refreshes, counters, memberships, reset };

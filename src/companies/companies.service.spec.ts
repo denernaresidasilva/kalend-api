@@ -49,6 +49,19 @@ function setup(existing = false) {
   return { db, service: new CompaniesService(db as unknown as PrismaService) };
 }
 describe('manual company', () => {
+  it('changing catalog trial days only affects trials created afterwards', async () => {
+    const { db, service } = setup();
+    const first = await service.createManual(input);
+    const originalEnd = first.subscription.trialEndsAt!.getTime();
+    const plan = await db.plan.findUnique();
+    plan.trialDays = 14;
+    const second = await service.createManual(input);
+    expect(first.subscription.trialEndsAt!.getTime()).toBe(originalEnd);
+    expect(
+      second.subscription.trialEndsAt!.getTime() -
+        second.subscription.trialStartedAt!.getTime(),
+    ).toBe(14 * 86400000);
+  });
   it('atomically creates owner, membership and trial without fabricating payment', async () => {
     const { db, service } = setup();
     const result = await service.createManual(input);

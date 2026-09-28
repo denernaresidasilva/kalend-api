@@ -69,22 +69,27 @@ export class FinanceService {
           tx.payment.groupBy({
             by: ['status'],
             _count: { _all: true },
-            _sum: { amountCents: true },
+            _sum: { amountCents: true, refundedAmountCents: true },
           }),
           tx.payment.aggregate({
             where: {
               status: 'APPROVED',
               paidAt: { gte: monthStart, lte: now },
             },
-            _sum: { amountCents: true },
+            _sum: { amountCents: true, refundedAmountCents: true },
           }),
         ]);
         const count = (status: string) =>
           groups.find((p) => p.status === status)?._count._all ?? 0;
         return {
           revenueCents:
-            groups.find((p) => p.status === 'APPROVED')?._sum.amountCents ?? 0,
-          monthlyRevenueCents: monthly._sum.amountCents ?? 0,
+            (groups.find((p) => p.status === 'APPROVED')?._sum.amountCents ??
+              0) -
+            (groups.find((p) => p.status === 'APPROVED')?._sum
+              .refundedAmountCents ?? 0),
+          monthlyRevenueCents:
+            (monthly._sum.amountCents ?? 0) -
+            (monthly._sum.refundedAmountCents ?? 0),
           paymentsCount: groups.reduce((sum, p) => sum + p._count._all, 0),
           approvedCount: count('APPROVED'),
           pendingCount: count('PENDING'),

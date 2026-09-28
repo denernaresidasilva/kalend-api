@@ -2,18 +2,21 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types';
+import type { Server } from 'node:http';
 import { AppModule } from './../src/app.module.js';
 
 describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+  let app: INestApplication<Server>;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideProvider(PrismaService)
-      .useValue({ $queryRaw: async () => [{ value: 1 }] })
+      .useValue({
+        $queryRaw: async () => [{ value: 1 }],
+        gatewayConfiguration: { findUnique: async () => null },
+      })
       .compile();
 
     app = moduleFixture.createNestApplication({ rawBody: true });
@@ -38,7 +41,7 @@ describe('AppController (e2e)', () => {
   ])('blocks unauthenticated administration %s', async (path) => {
     await request(app.getHttpServer()).get(path).expect(401);
   });
-  it.each(['stripe', 'mercado-pago', 'pagbank'])(
+  it.each(['stripe', 'mercado-pago', 'pagbank', 'asaas'])(
     'does not accept unverified %s webhooks',
     async (gateway) => {
       await request(app.getHttpServer())
@@ -54,7 +57,7 @@ describe('AppController (e2e)', () => {
 
 // Test-only bypass to exercise serializers. Production AdminGuard validates session and global role.
 describe('administrative response contracts (mock database)', () => {
-  let app: INestApplication<App>;
+  let app: INestApplication<Server>;
   beforeEach(async () => {
     const { AdminGuard } = await import('../src/common/admin.guard.js');
     const fixture = await Test.createTestingModule({ imports: [AppModule] })

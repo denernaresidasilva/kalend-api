@@ -16,6 +16,8 @@ export function validatePlan(input: unknown, partial = false) {
     'maxClients',
     'maxUnits',
     'isActive',
+    'isPublic',
+    'maxMessages',
     'features',
   ]);
   for (const key of ['name', 'code'])
@@ -30,7 +32,19 @@ export function validatePlan(input: unknown, partial = false) {
     'maxProfessionals',
     'maxClients',
     'maxUnits',
+    'maxMessages',
   ]) {
+    if (
+      data[key] === null &&
+      [
+        'yearlyPriceCents',
+        'maxProfessionals',
+        'maxClients',
+        'maxUnits',
+        'maxMessages',
+      ].includes(key)
+    )
+      continue;
     if (data[key] !== undefined || (!partial && key === 'monthlyPriceCents'))
       integer(
         data[key],
@@ -39,7 +53,7 @@ export function validatePlan(input: unknown, partial = false) {
         key === 'trialDays' ? 365 : 2147483647,
       );
   }
-  for (const key of ['trialEnabled', 'isFeatured', 'isActive'])
+  for (const key of ['trialEnabled', 'isFeatured', 'isActive', 'isPublic'])
     boolean(data[key], key);
   if (data.features !== undefined) {
     if (!Array.isArray(data.features) || data.features.length > 100)

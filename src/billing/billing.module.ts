@@ -1,7 +1,18 @@
+import { ProductAccessGuard } from './product-access.guard.js';
+import {
+  TenantGuard,
+  TenantRoles,
+  BillingRecovery,
+} from '../auth/tenant.guard.js';
+import type { AuthRequest } from '../auth/auth.types.js';
+import { PlansService } from '../plans/plans.service.js';
+import { RegularizationService } from './regularization.service.js';
+import { EntitlementsService } from './entitlements.service.js';
 import { Inject } from '@nestjs/common';
 import { LifecycleService } from './lifecycle.service.js';
 import {
   Body,
+  HttpCode,
   Controller,
   Get,
   Module,
@@ -67,14 +78,30 @@ export class WebhookReceiverController {
   constructor(
     @Inject(WebhookProcessor) private readonly service: WebhookProcessor,
   ) {}
-  @Post('mercado-pago') mercadoPago(@Req() req: RawBodyRequest<Request>) {
-    return this.service.receive('MERCADO_PAGO', req.rawBody, req.headers);
+  @HttpCode(200)
+  @Post('mercado-pago')
+  mercadoPago(@Req() req: RawBodyRequest<Request>) {
+    return this.service.receive(
+      'MERCADO_PAGO',
+      req.rawBody,
+      req.headers,
+      req.query,
+    );
   }
-  @Post('stripe') stripe(@Req() req: RawBodyRequest<Request>) {
+  @HttpCode(200)
+  @Post('stripe')
+  stripe(@Req() req: RawBodyRequest<Request>) {
     return this.service.receive('STRIPE', req.rawBody, req.headers);
   }
-  @Post('pagbank') pagbank(@Req() req: RawBodyRequest<Request>) {
+  @HttpCode(200)
+  @Post('pagbank')
+  pagbank(@Req() req: RawBodyRequest<Request>) {
     return this.service.receive('PAGBANK', req.rawBody, req.headers);
+  }
+  @HttpCode(200)
+  @Post('asaas')
+  asaas(@Req() req: RawBodyRequest<Request>) {
+    return this.service.receive('ASAAS', req.rawBody, req.headers);
   }
   @Post(':id/reprocess')
   @UseGuards(AdminGuard)
@@ -82,14 +109,44 @@ export class WebhookReceiverController {
     return this.service.reprocess(id);
   }
 }
+@Controller('billing')
+@UseGuards(TenantGuard)
+@TenantRoles('OWNER', 'ADMIN')
+@BillingRecovery()
+export class CommercialController {
+  constructor(
+    @Inject(RegularizationService)
+    private readonly regularization: RegularizationService,
+    @Inject(PaymentsService) private readonly payments: PaymentsService,
+  ) {}
+  @Get('regularization') get(@Req() req: AuthRequest) {
+    return this.regularization.get(req.tenant!.companyId);
+  }
+  @Post('checkout') checkout(@Req() req: AuthRequest, @Body() body: unknown) {
+    return this.payments.checkout(req.tenant!.companyId, body);
+  }
+  @Post('subscriptions/:id/cancel') cancel(
+    @Req() req: AuthRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.regularization.cancel(req.tenant!.companyId, id, body);
+  }
+}
 @Module({
   controllers: [
+    CommercialController,
     LifecycleController,
     GatewaysController,
     PaymentsController,
     WebhookReceiverController,
   ],
+  exports: [EntitlementsService, ProductAccessGuard],
   providers: [
+    EntitlementsService,
+    ProductAccessGuard,
+    RegularizationService,
+    PlansService,
     LifecycleService,
     GatewaysService,
     GatewayRegistry,

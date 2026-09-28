@@ -11,6 +11,8 @@ import { AuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
 import { AuthConfig } from './auth.config.js';
 import type { AuthRequest } from './auth.types.js';
+export const BillingRecovery = () =>
+  SetMetadata('kalend:billing-recovery', true);
 const TENANT_ROLES = 'kalend:tenant-roles';
 export const TenantRoles = (...roles: MembershipRole[]) =>
   SetMetadata(TENANT_ROLES, roles);
@@ -32,6 +34,10 @@ export class TenantGuard extends AuthGuard {
     const membership = await this.auth.membership(
       request.auth.user.id,
       companyId,
+      this.reflector.getAllAndOverride<boolean>('kalend:billing-recovery', [
+        context.getHandler(),
+        context.getClass(),
+      ]) ?? false,
     );
     const roles = this.reflector.getAllAndOverride<MembershipRole[]>(
       TENANT_ROLES,

@@ -59,6 +59,33 @@ describe('authentication HTTP with real bcrypt/JWT and mock persistence', () => 
     expect(fixture.refreshes[0].tokenHash).toMatch(/^[0-9a-f]{64}$/);
     expect(fixture.refreshes[0].tokenHash).not.toBe(rawRefresh);
   });
+  it('suspended company can login, select tenant and regularize; product tenant remains blocked', async () => {
+    fixture.memberships[0].company.status = 'SUSPENDED';
+    fixture.memberships[0].company.isActive = false;
+    const response = await login('member@example.test').expect(200);
+    const authCookie = cookie(response, ACCESS_COOKIE);
+    await request(app.getHttpServer())
+      .post('/auth/tenant')
+      .set('Cookie', authCookie)
+      .set('Origin', origin)
+      .send({ companyId: COMPANY_ID })
+      .expect(200);
+    const result = await request(app.getHttpServer())
+      .get('/billing/regularization')
+      .set('Cookie', authCookie)
+      .expect(200);
+    expect(result.body.accessAllowed).toBe(false);
+    await request(app.getHttpServer())
+      .get('/auth/tenant')
+      .set('Cookie', authCookie)
+      .expect(403);
+    await request(app.getHttpServer())
+      .post('/billing/checkout')
+      .set('Cookie', authCookie)
+      .set('Origin', origin)
+      .send({ companyId: OTHER_COMPANY_ID, amountCents: 1 })
+      .expect(400);
+  });
   it('returns identical errors for wrong password and unknown user', async () => {
     const wrong = await request(app.getHttpServer())
       .post('/auth/login')
@@ -343,14 +370,14 @@ describe('authentication HTTP with real bcrypt/JWT and mock persistence', () => 
     await login().expect(429);
     expect(fixture.sessions).toHaveLength(0);
   });
-  it.each(['mercado-pago', 'stripe', 'pagbank'])(
+  it.each(['mercado-pago', 'stripe', 'pagbank', 'asaas'])(
     'external %s receiver does not require administrative JWT',
     async (gateway) => {
       const result = await request(app.getHttpServer())
         .post(`/webhooks/${gateway}`)
         .send({})
         .expect(503);
-      expect(result.body.message).toBe('GATEWAY_ADAPTER_PENDING');
+      expect(result.body.message).toBe('GATEWAY_NOT_ENABLED');
     },
   );
   it('keeps public plans public', async () => {

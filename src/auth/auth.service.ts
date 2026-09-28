@@ -249,7 +249,9 @@ export class AuthService {
     });
     const available = memberships.filter(
       (m) =>
-        m.company.isActive && ['ACTIVE', 'TRIAL'].includes(m.company.status),
+        (['ACTIVE', 'TRIAL'].includes(m.company.status) &&
+          m.company.isActive) ||
+        ['SUSPENDED', 'CANCELED'].includes(m.company.status),
     );
     const selected = available.find(
       (m) => m.companyId === identity.session.selectedCompanyId,
@@ -274,7 +276,7 @@ export class AuthService {
       },
     };
   }
-  async membership(userId: string, companyId: string) {
+  async membership(userId: string, companyId: string, recovery = false) {
     const membership = await this.prisma.membership.findUnique({
       where: { userId_companyId: { userId, companyId } },
       select: membershipSelect,
@@ -282,15 +284,19 @@ export class AuthService {
     if (
       !membership ||
       !membership.isActive ||
-      !membership.company.isActive ||
-      !['ACTIVE', 'TRIAL'].includes(membership.company.status)
+      (!recovery &&
+        (!membership.company.isActive ||
+          !['ACTIVE', 'TRIAL'].includes(membership.company.status))) ||
+      (recovery &&
+        !membership.company.isActive &&
+        !['SUSPENDED', 'CANCELED'].includes(membership.company.status))
     )
       throw new ForbiddenException('Acesso à empresa não permitido.');
     return membership;
   }
   async selectTenant(identity: AuthIdentity, input: unknown) {
     const { companyId } = parseSelectTenantDto(input);
-    if (companyId) await this.membership(identity.user.id, companyId);
+    if (companyId) await this.membership(identity.user.id, companyId, true);
     const result = await this.prisma.authSession.updateMany({
       where: {
         id: identity.session.id,

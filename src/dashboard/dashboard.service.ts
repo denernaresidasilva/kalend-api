@@ -30,7 +30,7 @@ export class DashboardService {
           tx.payment.groupBy({
             by: ['status'],
             _count: { _all: true },
-            _sum: { amountCents: true },
+            _sum: { amountCents: true, refundedAmountCents: true },
           }),
           tx.webhookEvent.findMany({
             select: safeEventSelect,
@@ -45,7 +45,7 @@ export class DashboardService {
               status: 'APPROVED',
               paidAt: { gte: monthStart, lte: now },
             },
-            _sum: { amountCents: true },
+            _sum: { amountCents: true, refundedAmountCents: true },
           }),
         ]);
         const companyCount = (status?: string) =>
@@ -87,9 +87,13 @@ export class DashboardService {
             canceled: paymentCount('CANCELED'),
             refunded: paymentCount('REFUNDED'),
             revenueCents:
-              payments.find((p) => p.status === 'APPROVED')?._sum.amountCents ??
-              0,
-            monthlyRevenueCents: monthly._sum.amountCents ?? 0,
+              (payments.find((p) => p.status === 'APPROVED')?._sum
+                .amountCents ?? 0) -
+              (payments.find((p) => p.status === 'APPROVED')?._sum
+                .refundedAmountCents ?? 0),
+            monthlyRevenueCents:
+              (monthly._sum.amountCents ?? 0) -
+              (monthly._sum.refundedAmountCents ?? 0),
           },
           recentEvents,
         };

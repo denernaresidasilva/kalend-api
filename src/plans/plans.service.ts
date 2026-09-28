@@ -15,7 +15,7 @@ interface CreatePlanInput {
   description?: string;
 
   monthlyPriceCents: number;
-  yearlyPriceCents?: number;
+  yearlyPriceCents?: number | null;
 
   trialEnabled?: boolean;
   trialDays?: number;
@@ -24,11 +24,13 @@ interface CreatePlanInput {
   isFeatured?: boolean;
   displayOrder?: number;
 
-  maxProfessionals?: number;
-  maxClients?: number;
-  maxUnits?: number;
+  maxProfessionals?: number | null;
+  maxClients?: number | null;
+  maxUnits?: number | null;
 
   isActive?: boolean;
+  isPublic?: boolean;
+  maxMessages?: number | null;
 
   features?: PlanFeatureInput[];
 }
@@ -61,27 +63,32 @@ export class PlansService {
 
   async findPublic() {
     return this.prisma.plan.findMany({
-      where: {
+      where: { isActive: true, isPublic: true },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        description: true,
+        monthlyPriceCents: true,
+        yearlyPriceCents: true,
+        trialEnabled: true,
+        trialDays: true,
+        badge: true,
+        isFeatured: true,
+        displayOrder: true,
+        maxProfessionals: true,
+        maxClients: true,
+        maxUnits: true,
+        maxMessages: true,
         isActive: true,
-      },
-      include: {
+        isPublic: true,
         features: {
-          where: {
-            enabled: true,
-          },
-          orderBy: {
-            createdAt: 'asc',
-          },
+          where: { enabled: true },
+          select: { id: true, code: true, name: true, enabled: true },
+          orderBy: { createdAt: 'asc' },
         },
       },
-      orderBy: [
-        {
-          displayOrder: 'asc',
-        },
-        {
-          monthlyPriceCents: 'asc',
-        },
-      ],
+      orderBy: [{ displayOrder: 'asc' }, { monthlyPriceCents: 'asc' }],
     });
   }
 
@@ -122,9 +129,11 @@ export class PlansService {
 
         maxProfessionals: data.maxProfessionals,
         maxClients: data.maxClients,
-        maxUnits: data.maxUnits ?? 1,
+        maxUnits: data.maxUnits === undefined ? 1 : data.maxUnits,
 
         isActive: data.isActive ?? true,
+        isPublic: data.isPublic ?? true,
+        maxMessages: data.maxMessages,
 
         features: data.features?.length
           ? {
@@ -182,6 +191,8 @@ export class PlansService {
           maxUnits: data.maxUnits,
 
           isActive: data.isActive,
+          isPublic: data.isPublic,
+          maxMessages: data.maxMessages,
 
           features:
             data.features !== undefined

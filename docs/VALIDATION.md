@@ -1,5 +1,7 @@
 # Evidências de validação local
 
+> Atualização comercial local de 23/09/2026: consulte [COMMERCIAL-ENGINE.md](COMMERCIAL-ENGINE.md), [GATEWAY-PROVIDERS.md](GATEWAY-PROVIDERS.md) e [COMMERCIAL-VALIDATION.md](COMMERCIAL-VALIDATION.md). Eles substituem as descrições abaixo de adapters ausentes, três gateways, bloqueio comercial de regularização e reconciliação apenas por datas. O restante deste documento registra os contratos e a auditoria anteriores.
+
 ## Correção do lockfile após 3a23b04
 
 Validação em 23/09/2026 com Node 22.23.2 e npm 9.2.0 (lockfile v3).
