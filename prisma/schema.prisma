@@ -354,3 +354,143 @@ model AuthRateLimit {
 
   @@index([expiresAt])
 }
+
+enum CommunicationScope {
+  GLOBAL
+}
+
+enum CommunicationChannel {
+  EMAIL
+  WHATSAPP
+  PUSH
+}
+
+enum CommunicationProvider {
+  SMTP
+  GMAIL
+  META
+  EVOLUTION
+  PUSH_PENDING
+}
+
+enum CommunicationDeliveryStatus {
+  PENDING
+  SENDING
+  ACCEPTED
+  DELIVERED
+  READ
+  RETRY
+  FAILED
+  UNSENDABLE
+  UNCERTAIN
+  SKIPPED
+}
+
+model GlobalCommunicationProvider {
+  provider             CommunicationProvider @id
+  scope                CommunicationScope    @default(GLOBAL)
+  environment          GatewayEnvironment    @default(SANDBOX)
+  enabled              Boolean               @default(false)
+  config               Json
+  credentialsEncrypted String?
+  status               IntegrationStatus     @default(NOT_CONFIGURED)
+  revision             Int                   @default(1)
+  lastVerifiedAt       DateTime?
+  lastSentAt           DateTime?
+  lastError            String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+}
+
+// One global event/channel policy and its channel-specific content; no redundant template parent.
+model GlobalCommunicationTemplate {
+  id        String                @id @default(uuid()) @db.Uuid
+  scope     CommunicationScope    @default(GLOBAL)
+  event     String
+  channel   CommunicationChannel
+  provider  CommunicationProvider
+  enabled   Boolean               @default(false)
+  content   Json
+  revision  Int                   @default(1)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@unique([event, channel])
+}
+
+model GlobalCommunicationOutbox {
+  id          String                        @id @default(uuid()) @db.Uuid
+  scope       CommunicationScope            @default(GLOBAL)
+  event       String
+  businessKey String                        @unique
+  companyId   String?                       @db.Uuid
+  userId      String?                       @db.Uuid
+  variables   Json
+  lastError   String?
+  expandedAt  DateTime?
+  createdAt   DateTime                      @default(now())
+  deliveries  GlobalCommunicationDelivery[]
+
+  @@index([expandedAt, createdAt])
+}
+
+model GlobalCommunicationDelivery {
+  id                    String                      @id @default(uuid()) @db.Uuid
+  scope                 CommunicationScope          @default(GLOBAL)
+  outboxId              String                      @db.Uuid
+  outbox                GlobalCommunicationOutbox   @relation(fields: [outboxId], references: [id])
+  userId                String                      @db.Uuid
+  channel               CommunicationChannel
+  provider              CommunicationProvider
+  environment           GatewayEnvironment
+  configurationRevision Int
+  templateId            String                      @db.Uuid
+  templateRevision      Int
+  recipientMasked       String
+  payloadEncrypted      String?
+  status                CommunicationDeliveryStatus @default(PENDING)
+  attempts              Int                         @default(0)
+  nextAttemptAt         DateTime                    @default(now())
+  startedAt             DateTime?
+  providerMessageId     String?
+  lastError             String?
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  logs                  GlobalCommunicationLog[]
+
+  @@unique([outboxId, userId, channel])
+  @@index([status, nextAttemptAt])
+  @@index([provider, environment, providerMessageId])
+}
+
+model GlobalCommunicationLog {
+  id         String                       @id @default(uuid()) @db.Uuid
+  scope      CommunicationScope           @default(GLOBAL)
+  deliveryId String?                      @db.Uuid
+  delivery   GlobalCommunicationDelivery? @relation(fields: [deliveryId], references: [id])
+  outboxId   String?                      @db.Uuid
+  actorId    String?                      @db.Uuid
+  action     String
+  code       String?
+  attempt    Int?
+  createdAt  DateTime                     @default(now())
+
+  @@index([createdAt])
+}
+
+// Remote status is never administratively writable or inferred from submission.
+model GlobalCommunicationMetaTemplate {
+  id                String             @id @default(uuid()) @db.Uuid
+  scope             CommunicationScope @default(GLOBAL)
+  environment       GatewayEnvironment
+  businessAccountId String
+  externalId        String
+  name              String
+  language          String
+  category          String
+  status            String
+  components        Json
+  syncedAt          DateTime           @default(now())
+
+  @@unique([environment, businessAccountId, externalId])
+}

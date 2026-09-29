@@ -130,6 +130,13 @@ describe('authentication HTTP with real bcrypt/JWT and mock persistence', () => 
     ]);
   });
   it.each([
+    '/communication/providers',
+    '/communication/events',
+    '/communication/templates',
+    '/communication/outbox',
+    '/communication/deliveries',
+    '/communication/logs',
+    '/communication/meta/templates',
     '/dashboard/summary',
     '/companies',
     '/plans',
@@ -168,6 +175,39 @@ describe('authentication HTTP with real bcrypt/JWT and mock persistence', () => 
       .set('Origin', origin)
       .send({})
       .expect(401);
+  });
+  it('allows global communication catalog only to Super Admin and blocks tenant writes/CSRF', async () => {
+    const admin = await login(),
+      member = await login('member@example.test');
+    const result = await request(app.getHttpServer())
+      .get('/communication/events')
+      .set('Cookie', cookie(admin, ACCESS_COOKIE))
+      .expect(200);
+    expect(result.body).toHaveLength(13);
+    for (const path of [
+      '/communication/providers/SMTP/test',
+      '/communication/providers/SMTP/send-test',
+      '/communication/meta/templates',
+      '/communication/meta/templates/sync',
+    ]) {
+      await request(app.getHttpServer())
+        .post(path)
+        .set('Cookie', cookie(member, ACCESS_COOKIE))
+        .set('Origin', origin)
+        .send({})
+        .expect(403);
+      await request(app.getHttpServer())
+        .post(path)
+        .set('Cookie', cookie(admin, ACCESS_COOKIE))
+        .send({})
+        .expect(403);
+    }
+    await request(app.getHttpServer())
+      .patch('/communication/providers/SMTP')
+      .set('Cookie', cookie(member, ACCESS_COOKIE))
+      .set('Origin', origin)
+      .send({ companyId: COMPANY_ID })
+      .expect(403);
   });
   it('refresh rotates; replay revokes entire session including newly issued access', async () => {
     const first = await login();
