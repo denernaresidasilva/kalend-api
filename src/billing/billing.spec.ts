@@ -92,6 +92,7 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
         'valid',
         'duplicate',
         'invalid-signature',
+        'missing-signature',
         'tampered',
         'unknown',
         'wrong-reference',
@@ -173,7 +174,8 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
                 : raw;
             const receive = () =>
               f.service.receive('PAGBANK', body, {
-                'x-payload-signature': signature,
+                'x-payload-signature':
+                  condition === 'missing-signature' ? undefined : signature,
               });
             if (condition === 'valid' || condition === 'duplicate') {
               await receive();
@@ -193,8 +195,17 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
               expect(f.db.payment.update).not.toHaveBeenCalled();
               expect(f.db.subscription.update).not.toHaveBeenCalled();
               expect(f.db.company.update).not.toHaveBeenCalled();
-              if (condition === 'tampered' || condition === 'invalid-signature')
+              if (
+                condition === 'tampered' ||
+                condition === 'invalid-signature' ||
+                condition === 'missing-signature'
+              )
                 expect(f.db.webhookEvent.upsert).not.toHaveBeenCalled();
+              if (condition === 'missing-signature') {
+                expect(network).not.toHaveBeenCalled();
+                expect(f.payment.status).not.toBe('APPROVED');
+                expect(f.payment.subscription.status).toBe('PENDING');
+              }
             }
           } finally {
             vi.unstubAllGlobals();

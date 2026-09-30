@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import type { INestApplication } from '@nestjs/common';
+import { Logger, type INestApplication } from '@nestjs/common';
 import { createHmac, generateKeyPairSync, sign } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
@@ -119,7 +119,7 @@ describe('external webhook HTTP authentication and raw body', () => {
     await request(app.getHttpServer())
       .post('/webhooks/pagbank')
       .set('Content-Type', 'application/json')
-      .set('x-payload-signature', `bad!, ${signature}`)
+      .set('X-Payload-Signature', `bad!, ${signature}`)
       .send(raw)
       .expect(200);
     expect(receive.mock.calls.at(-1)?.[1]).toEqual(Buffer.from(raw));
@@ -181,6 +181,56 @@ describe('external webhook HTTP authentication and raw body', () => {
       'PAGBANK',
       expect.objectContaining({ status: 'APPROVED', amountCents: 199 }),
     );
+  });
+  it('diagnoses missing signature safely over HTTP and rejects repeated unauthenticated PAID notifications', async () => {
+    const warning = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
+    try {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const req = request(app.getHttpServer())
+          .post('/webhooks/pagbank?private=secret-query')
+          .set('Authorization', 'Bearer secret-auth')
+          .set('Cookie', 'secret-cookie')
+          .set('User-Agent', 'secret-agent')
+          .set('X-Product-Origin', 'secret-origin')
+          .set('X-Authenticity-Token', 'secret-legacy');
+        if (attempt === 1) req.set('X-Payload-Signature', ' , ');
+        await req
+          .send({ id: 'CHAR_secret-payload', status: 'PAID' })
+          .expect(401);
+      }
+      expect(process).not.toHaveBeenCalled();
+      expect(network).not.toHaveBeenCalled();
+      const logs = warning.mock.calls.map(([entry]) => entry);
+      const diagnostics = logs.filter(
+        (entry) =>
+          entry.event === 'PAGBANK_WEBHOOK_SIGNATURE_MISSING_DIAGNOSTICS',
+      );
+      expect(diagnostics).toHaveLength(2);
+      expect(diagnostics[1]).toMatchObject({
+        environment: 'SANDBOX',
+        method: 'POST',
+        path: '/webhooks/pagbank',
+        signaturePresent: true,
+        signatureValueCount: 0,
+        rawSignaturePresent: true,
+        productOriginPresent: true,
+      });
+      expect(diagnostics[0].headerNames).toContain('x-authenticity-token');
+      expect(diagnostics[1].rawHeaderNames).toContain('X-Payload-Signature');
+      expect(diagnostics[0]).toMatchObject({
+        signaturePresent: false,
+        rawSignaturePresent: false,
+        signatureValueCount: 0,
+        rawSignatureValueCount: 0,
+      });
+      expect(JSON.stringify(logs)).not.toContain('secret-');
+      expect(JSON.stringify(logs)).not.toContain('PAID');
+      expect(JSON.stringify(logs)).not.toContain('Bearer');
+    } finally {
+      warning.mockRestore();
+    }
   });
   it.each([
     ['missing', undefined, 'SIGNATURE_MISSING'],

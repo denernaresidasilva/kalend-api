@@ -1,4 +1,5 @@
 import { AuthRateLimit } from '../auth/auth-rate-limit.service.js';
+import { pagbankWebhookDiagnostics } from './pagbank-webhook-diagnostics.js';
 import { ProductAccessGuard } from './product-access.guard.js';
 import {
   TenantGuard,
@@ -104,7 +105,13 @@ export class WebhookReceiverController {
   @HttpCode(200)
   @Post('pagbank')
   pagbank(@Req() req: RawBodyRequest<Request>) {
-    return this.service.receive('PAGBANK', req.rawBody, req.headers);
+    return this.service.receive(
+      'PAGBANK',
+      req.rawBody,
+      req.headers,
+      {},
+      pagbankWebhookDiagnostics(req),
+    );
   }
   @HttpCode(200)
   @Post('asaas')

@@ -3,7 +3,9 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -18,6 +20,7 @@ import { GatewaysService } from './gateways.service.js';
 import { safeEventSelect, integer, string } from '../common/validation.js';
 import { nextPeriod } from '../common/period.js';
 import { graceEnd, suspendIfUnentitled } from './commercial-policy.js';
+import type { pagbankWebhookDiagnostics } from './pagbank-webhook-diagnostics.js';
 @Injectable()
 export class WebhookProcessor {
   constructor(
@@ -30,13 +33,32 @@ export class WebhookProcessor {
     raw: Buffer | undefined,
     headers: Record<string, string | string[] | undefined>,
     query: Record<string, unknown> = {},
+    diagnostics?: ReturnType<typeof pagbankWebhookDiagnostics>,
   ) {
     if (!raw || raw.length > 262144)
       throw new BadRequestException('Payload inválido.');
     const context = await this.gateways.context(gateway, false);
-    const events = await this.registry
-      .get(gateway)
-      .verifyWebhook(raw, headers, context, query);
+    let events: ProviderEvent[];
+    try {
+      events = await this.registry
+        .get(gateway)
+        .verifyWebhook(raw, headers, context, query);
+    } catch (error) {
+      if (
+        gateway === 'PAGBANK' &&
+        diagnostics &&
+        error instanceof UnauthorizedException &&
+        (error.getResponse() as { reason?: string }).reason ===
+          'SIGNATURE_MISSING'
+      ) {
+        new Logger('PagBankWebhook').warn({
+          event: 'PAGBANK_WEBHOOK_SIGNATURE_MISSING_DIAGNOSTICS',
+          environment: context.environment,
+          ...diagnostics,
+        });
+      }
+      throw error;
+    }
     const results: unknown[] = [];
     for (const e of events) {
       if (e.environment !== context.environment)
