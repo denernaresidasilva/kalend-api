@@ -12,11 +12,7 @@ Nodemailer 10.0.12, versão fixada no lock; Node 22 usado na validação. `host`
 
 ## Gmail
 
-Fontes oficiais: [SASL XOAUTH2](https://developers.google.com/workspace/gmail/imap/xoauth2-protocol), [OAuth web server/offline](https://developers.google.com/identity/protocols/oauth2/web-server), [scopes Gmail](https://developers.google.com/workspace/gmail/api/auth/scopes).
-
-A base aceita `clientId`, `fromEmail`, `secrets.clientSecret` e `secrets.refreshToken`; rejeita senha Google. É explicitamente **indisponível para ativar/testar/enviar**, sem OAuth simulado. SMTP `smtp.gmail.com` não aceita fallback de senha por este módulo.
-
-SMTP XOAUTH2 usa `https://mail.google.com/`, amplo demais para presumir uma decisão de envio apenas. Preferência para a implementação futura: Gmail API com `https://www.googleapis.com/auth/gmail.send`, sujeita a consentimento/verificação. Não há aplicativo OAuth/callback registrado no repositório nem fluxo de autorização existente que possa ser reaproveitado. Antes de implementar: projeto Google, tela de consentimento, test users, redirect HTTPS exato, state opaco de uso único vinculado à sessão Super Admin, PKCE quando aplicável, escopos mínimos, armazenamento de refresh token, revogação e reconexão. Endpoints documentados: `https://accounts.google.com/o/oauth2/v2/auth`, `https://oauth2.googleapis.com/token`, `https://oauth2.googleapis.com/revoke`; **não chamados nem implementados** nesta base. Confirmar expiração/limites no modo Testing e requisitos para publicação do app. Não há API key ou senha de conta como substituto de OAuth.
+Implementado na Fase 3 via Gmail API e OAuth 2.0 (gmail.send + openid/email), state single-use, PKCE S256, binding de navegador/sessão e tokens cifrados. Não aceita senha Google ou refresh token administrativo. Fonte/contratos completos e configuração operacional: [Fase 3](PHASE3-COMMUNICATION.md). SMTP smtp.gmail.com permanece bloqueado.
 
 ## Meta WhatsApp Cloud API
 
@@ -60,4 +56,4 @@ Não há sandbox padronizado Evolution: usar instância e número exclusivamente
 
 ## Push
 
-Contrato Transport + canal PUSH + conteúdo title/text e provider indisponível PUSH_PENDING. O repositório não tem Expo/React Native, app IDs, registro de dispositivos ou provider Push. Nenhum token é aceito/persistido e nenhum canal Push pode ser ativado. Definir FCM/APNs/Expo, consentimento, device ownership, credenciais e deep links em fase própria; o motor global não reutilizará tokens tenant.
+O identificador compatível PUSH_PENDING agora possui transporte WEB_PUSH real, VAPID write-only, subscriptions globais cifradas e delivery por dispositivo no outbox existente. Android/iOS nativo continuam indisponíveis explicitamente. Contratos, segurança de rede, operação e fontes: [Fase 3](PHASE3-COMMUNICATION.md).

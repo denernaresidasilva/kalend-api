@@ -1,3 +1,4 @@
+import { adminList, listStatus } from '../common/admin-list.js';
 import { Inject } from '@nestjs/common';
 import { nextPeriod } from '../common/period.js';
 import {
@@ -292,11 +293,27 @@ export class CompaniesService {
     }
   }
 
-  async findAll() {
+  async findAll(query: unknown = {}) {
+    const page = adminList(query);
     const companies = await this.prisma.company.findMany({
-      orderBy: {
-        createdAt: 'desc',
+      take: page.take,
+      skip: page.skip,
+      where: {
+        status: listStatus(page.status, [
+          'TRIAL',
+          'ACTIVE',
+          'SUSPENDED',
+          'CANCELED',
+        ]),
+        ...(page.q
+          ? {
+              OR: ['name', 'slug'].map((field) => ({
+                [field]: { contains: page.q, mode: 'insensitive' as const },
+              })),
+            }
+          : {}),
       },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
 
       include: {
         memberships: {

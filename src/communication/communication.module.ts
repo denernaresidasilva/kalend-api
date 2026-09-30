@@ -1,3 +1,8 @@
+import { adminList } from '../common/admin-list.js';
+import { GoogleApi } from './google-api.js';
+import { GmailTransport } from './gmail.js';
+import { GlobalPush } from './push.js';
+import { GmailController, PushController } from './phase3.controller.js';
 import { MetaWebhook, MetaWebhookController } from './meta-webhook.js';
 import { MetaTemplates } from './meta.js';
 import {
@@ -11,6 +16,7 @@ import {
   Patch,
   Post,
   Req,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AdminGuard } from '../common/admin.guard.js';
@@ -99,25 +105,34 @@ export class CommunicationController {
   ) {
     return this.engine.template(event, channel, body, req.auth.user.id);
   }
-  @Get('outbox') outbox() {
+  @Get('outbox') outbox(@Query() query: Record<string, string> = {}) {
+    const page = adminList(query, []);
     return this.db.globalCommunicationOutbox.findMany({
-      take: 100,
-      orderBy: { createdAt: 'desc' },
+      take: page.take,
+      skip: page.skip,
+      where: { scope: 'GLOBAL' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       omit: { variables: true },
     });
   }
-  @Get('deliveries') deliveries() {
-    return this.engine.listDeliveries();
+  @Get('deliveries') deliveries(@Query() query: Record<string, string> = {}) {
+    return this.engine.listDeliveries({}, query);
   }
-  @Get('failures') failures() {
-    return this.engine.listDeliveries({
-      status: { in: ['FAILED', 'UNSENDABLE', 'UNCERTAIN'] },
-    });
+  @Get('failures') failures(@Query() query: Record<string, string> = {}) {
+    return this.engine.listDeliveries(
+      {
+        status: { in: ['FAILED', 'UNSENDABLE', 'UNCERTAIN'] },
+      },
+      query,
+    );
   }
-  @Get('logs') logs() {
+  @Get('logs') logs(@Query() query: Record<string, string> = {}) {
+    const page = adminList(query, []);
     return this.db.globalCommunicationLog.findMany({
-      take: 100,
-      orderBy: { createdAt: 'desc' },
+      take: page.take,
+      skip: page.skip,
+      where: { scope: 'GLOBAL' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
   }
   @Post('deliveries/:id/reprocess') async reprocess(
@@ -129,8 +144,16 @@ export class CommunicationController {
   }
 }
 @Module({
-  controllers: [CommunicationController, MetaWebhookController],
+  controllers: [
+    CommunicationController,
+    MetaWebhookController,
+    GmailController,
+    PushController,
+  ],
   providers: [
+    GoogleApi,
+    GmailTransport,
+    GlobalPush,
     MetaTemplates,
     MetaWebhook,
     CommunicationConfiguration,

@@ -6,6 +6,7 @@ import {
 } from 'node:crypto';
 import {
   BadRequestException,
+  Logger,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -30,6 +31,7 @@ import {
 } from './http.js';
 import type { Remote } from './http.js';
 export class PagBankAdapter implements GatewayProvider {
+  private readonly logger = new Logger('PagBankWebhook');
   readonly capabilities = {
     checkout: true,
     recurring: true,
@@ -115,7 +117,17 @@ export class PagBankAdapter implements GatewayProvider {
     this.loading.set(scope, promise);
     return promise;
   }
-  private base64(value: unknown): Buffer | null {
+  private base64(value: unknown, unpadded = false): Buffer | null {
+    // Some Base64 encoders omit padding. Normalize that representation only;
+    // alphabet, unused bits and the mandatory ECDSA verification stay strict.
+    if (
+      unpadded &&
+      typeof value === 'string' &&
+      value.length <= 16384 &&
+      /^[A-Za-z0-9+/]+$/.test(value) &&
+      value.length % 4 !== 1
+    )
+      value = value.padEnd(Math.ceil(value.length / 4) * 4, '=');
     if (
       typeof value !== 'string' ||
       value.length > 16384 ||
@@ -145,6 +157,12 @@ export class PagBankAdapter implements GatewayProvider {
     c: GatewayContext,
     recurring: boolean,
   ) {
+    const notificationUrl = callback('/webhooks/pagbank');
+    const redirectUrl = new URL(returnUrl());
+    // Correlation for UX only. The authenticated status endpoint reads the DB.
+    redirectUrl.searchParams.set('paymentId', i.paymentId);
+    if (notificationUrl.length > 100 || redirectUrl.href.length > 255)
+      throw new ServiceUnavailableException('PAGBANK_CHECKOUT_URL_INVALID');
     const r = await this.api(c, '/checkouts', 'POST', {
       reference_id: i.paymentId,
       ...(recurring
@@ -167,10 +185,11 @@ export class PagBankAdapter implements GatewayProvider {
           unit_amount: i.amountCents,
         },
       ],
-      redirect_url: returnUrl(),
-      return_url: returnUrl(),
-      notification_urls: [callback('/webhooks/pagbank')],
-      payment_notification_urls: [callback('/webhooks/pagbank')],
+      redirect_url: redirectUrl.href,
+      return_url: redirectUrl.href,
+      // Independent PagBank contracts: checkout lifecycle and financial events.
+      notification_urls: [notificationUrl],
+      payment_notification_urls: [notificationUrl],
     });
     return {
       externalCheckoutId: id(r.id),
@@ -381,13 +400,26 @@ export class PagBankAdapter implements GatewayProvider {
       .flatMap((v) => v.split(','))
       .map((v) => v.trim())
       .filter(Boolean);
-    if (!values.length || values.length > 16)
-      throw new UnauthorizedException('WEBHOOK_INVALID_SIGNATURE');
+    const reject = (reason: string): never => {
+      // Public diagnostics contain no signature, body, key, token or reference.
+      this.logger.warn({
+        event: 'PAGBANK_WEBHOOK_REJECTED',
+        environment: c.environment,
+        reason,
+      });
+      throw new UnauthorizedException({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'WEBHOOK_INVALID_SIGNATURE',
+        reason,
+      });
+    };
+    if (!values.length) reject('SIGNATURE_MISSING');
+    if (values.length > 16) reject('SIGNATURE_LIMIT');
     const signatures = values
-      .map((v) => this.base64(v))
+      .map((v) => this.base64(v, true))
       .filter((v): v is Buffer => v !== null);
-    if (!signatures.length)
-      throw new UnauthorizedException('WEBHOOK_INVALID_SIGNATURE');
+    if (!signatures.length) reject('SIGNATURE_ENCODING_INVALID');
     const matches = (key: KeyObject) =>
       signatures
         .map((signature) => {
@@ -401,8 +433,7 @@ export class PagBankAdapter implements GatewayProvider {
     let key = await this.webhookKey(c);
     if (!matches(key)) {
       key = await this.webhookKey(c, true);
-      if (!matches(key))
-        throw new UnauthorizedException('WEBHOOK_INVALID_SIGNATURE');
+      if (!matches(key)) reject('SIGNATURE_MISMATCH');
     }
     {
       const e = json(raw),

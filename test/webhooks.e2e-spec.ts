@@ -11,6 +11,7 @@ describe('external webhook HTTP authentication and raw body', () => {
     process: ReturnType<typeof vi.spyOn>,
     network: ReturnType<typeof vi.fn>;
   const secret = 'test-only-webhook-secret';
+  const pagbankKeys = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
   beforeAll(async () => {
     vi.stubEnv('GATEWAY_ENCRYPTION_KEY', 'cd'.repeat(32));
     const vault = new SecretVault();
@@ -90,9 +91,7 @@ describe('external webhook HTTP authentication and raw body', () => {
     expect(process).not.toHaveBeenCalled();
   });
   it('PagBank HTTP preserves whitespace, newlines and UTF-8 through ECDSA verification', async () => {
-    const { publicKey, privateKey } = generateKeyPairSync('ec', {
-      namedCurve: 'prime256v1',
-    });
+    const { publicKey, privateKey } = pagbankKeys;
     const raw = '{\n "id": "CHAR_http", "label": "ação"\n}';
     const signature = sign('sha256', Buffer.from(raw), privateKey).toString(
       'base64',
@@ -142,4 +141,79 @@ describe('external webhook HTTP authentication and raw body', () => {
     expect(process).not.toHaveBeenCalled();
     receive.mockRestore();
   });
+  it('PagBank unpadded Base64 reaches the verifier over HTTP without JWT, Origin or incoming Bearer', async () => {
+    const raw = '{\n "id": "CHAR_unpadded", "label": "ação"\n}';
+    const signature = Array.from({ length: 32 }, () =>
+      sign('sha256', Buffer.from(raw), pagbankKeys.privateKey).toString(
+        'base64',
+      ),
+    ).find((value) => value.endsWith('='))!;
+    expect(signature).toBeDefined();
+    network.mockImplementation(async (url: URL, options) => {
+      expect(options.headers.Authorization).toBe('Bearer sk_test_fixture');
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify(
+            url.pathname === '/public-keys/webhook'
+              ? {
+                  public_key: pagbankKeys.publicKey
+                    .export({ format: 'der', type: 'spki' })
+                    .toString('base64'),
+                }
+              : {
+                  id: 'CHAR_unpadded',
+                  status: 'PAID',
+                  reference_id: 'payment',
+                  amount: { value: 199, currency: 'BRL' },
+                },
+          ),
+      };
+    });
+    await request(app.getHttpServer())
+      .post('/webhooks/pagbank')
+      .set('Content-Type', 'application/json')
+      .set('x-payload-signature', signature.replace(/=+$/, ''))
+      .send(raw)
+      .expect(200);
+    expect(process).toHaveBeenCalledWith(
+      'PAGBANK',
+      expect.objectContaining({ status: 'APPROVED', amountCents: 199 }),
+    );
+  });
+  it.each([
+    ['missing', undefined, 'SIGNATURE_MISSING'],
+    ['encoding', 'bad!', 'SIGNATURE_ENCODING_INVALID'],
+    ['mismatch', 'Zg==', 'SIGNATURE_MISMATCH'],
+  ])(
+    'PagBank HTTP %s rejection has safe reason, remains 401 and does not process an event',
+    async (_label, signature, reason) => {
+      network.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            public_key: pagbankKeys.publicKey
+              .export({ format: 'der', type: 'spki' })
+              .toString('base64'),
+          }),
+      });
+      const req = request(app.getHttpServer())
+        .post('/webhooks/pagbank')
+        .set('Content-Type', 'application/json')
+        .set('x-authenticity-token', 'legacy-not-accepted');
+      if (signature !== undefined) req.set('x-payload-signature', signature);
+      const result = await req.send('{ "id": "CHAR_fixture" }').expect(401);
+      expect(result.body).toEqual({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'WEBHOOK_INVALID_SIGNATURE',
+        reason,
+      });
+      expect(process).not.toHaveBeenCalled();
+      if (reason !== 'SIGNATURE_MISMATCH')
+        expect(network).not.toHaveBeenCalled();
+    },
+  );
 });

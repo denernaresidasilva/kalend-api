@@ -3,6 +3,7 @@ import { SecretVault } from './secret-vault.js';
 import { GatewayRegistry } from './gateway.provider.js';
 import { GatewaysService } from './gateways.service.js';
 import { nextPeriod } from '../common/period.js';
+import { generateKeyPairSync, sign } from 'node:crypto';
 const companyId = '11111111-1111-4111-8111-111111111111';
 const subscriptionId = '22222222-2222-4222-8222-222222222222';
 const planId = '33333333-3333-4333-8333-333333333333';
@@ -27,6 +28,7 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
         amountCents: 9900,
         currency: 'BRL',
         status: 'PENDING',
+        externalPaymentId: null as string | null,
         periodStart: new Date(),
         periodEnd: new Date(Date.now() + 30 * 86400000),
         subscription: {
@@ -40,6 +42,7 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
       const db = {
         payment: {
           findUnique: vi.fn().mockImplementation(async () => payment),
+          findFirst: vi.fn().mockResolvedValue(null),
           update: vi
             .fn()
             .mockImplementation(async ({ data }) =>
@@ -65,9 +68,14 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
         $transaction: vi.fn(),
       };
       db.$transaction.mockImplementation((fn) => fn(db));
-      const service = new WebhookProcessor(db as never, new GatewayRegistry(), {
+      const gatewayContext = {
         context: vi.fn().mockRejectedValue(new Error('GATEWAY_NOT_ENABLED')),
-      } as never);
+      };
+      const service = new WebhookProcessor(
+        db as never,
+        new GatewayRegistry(),
+        gatewayContext as never,
+      );
       const event = {
         environment: 'SANDBOX' as const,
         eventId: 'evt-1',
@@ -77,7 +85,122 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
         amountCents: 9900,
         currency: 'BRL',
       };
-      return { db, service, event, payment, eventRow };
+      return { db, service, event, payment, eventRow, gatewayContext };
+    }
+    if (gateway === 'PAGBANK') {
+      it.each([
+        'valid',
+        'duplicate',
+        'invalid-signature',
+        'tampered',
+        'unknown',
+        'wrong-reference',
+      ])(
+        'signed PagBank order goes through verification and real processor: %s',
+        async (condition) => {
+          const f = setup();
+          f.payment.subscription.status = 'PENDING';
+          const key = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+          const wrong = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+          f.gatewayContext.context.mockResolvedValue({
+            environment: 'SANDBOX',
+            credentials: 'fixture',
+          } as never);
+          f.db.payment.findUnique.mockImplementation(async ({ where }) => {
+            expect(where.gateway_environment_externalPaymentId).toEqual({
+              gateway: 'PAGBANK',
+              environment: 'SANDBOX',
+              externalPaymentId: 'CHAR_fixture',
+            });
+            return condition !== 'unknown' &&
+              f.payment.externalPaymentId === 'CHAR_fixture'
+              ? f.payment
+              : (null as never);
+          });
+          f.db.payment.findFirst.mockImplementation(async ({ where }) => {
+            expect(where.gateway).toBe('PAGBANK');
+            expect(where.environment).toBe('SANDBOX');
+            return condition !== 'unknown' && where.id === f.payment.id
+              ? f.payment
+              : null;
+          });
+          const raw = Buffer.from(
+            '{\n "id": "ORDE_fixture", "label": "ação", "status": "PAID"\n}',
+          );
+          const signature = sign(
+            'sha256',
+            raw,
+            condition === 'invalid-signature'
+              ? wrong.privateKey
+              : key.privateKey,
+          ).toString('base64');
+          const network = vi.fn(async (url: URL) => {
+            const data =
+              url.pathname === '/public-keys/webhook'
+                ? {
+                    public_key: key.publicKey
+                      .export({ format: 'der', type: 'spki' })
+                      .toString('base64'),
+                  }
+                : url.pathname === '/orders/ORDE_fixture'
+                  ? {
+                      id: 'ORDE_fixture',
+                      reference_id:
+                        condition === 'wrong-reference' ? 'wrong' : 'payment',
+                      charges: [{ id: 'CHAR_fixture' }],
+                    }
+                  : {
+                      id: 'CHAR_fixture',
+                      status: 'PAID',
+                      amount: { value: 9900, currency: 'BRL' },
+                    };
+            expect([
+              'https://sandbox.api.pagseguro.com/public-keys/webhook',
+              'https://sandbox.api.pagseguro.com/orders/ORDE_fixture',
+              'https://sandbox.api.pagseguro.com/charges/CHAR_fixture',
+            ]).toContain(url.href);
+            return {
+              ok: true,
+              status: 200,
+              text: async () => JSON.stringify(data),
+            };
+          });
+          vi.stubGlobal('fetch', network);
+          try {
+            const body =
+              condition === 'tampered'
+                ? Buffer.from(JSON.stringify(JSON.parse(raw.toString())))
+                : raw;
+            const receive = () =>
+              f.service.receive('PAGBANK', body, {
+                'x-payload-signature': signature,
+              });
+            if (condition === 'valid' || condition === 'duplicate') {
+              await receive();
+              if (condition === 'duplicate') await receive();
+              expect(f.payment.status).toBe('APPROVED');
+              expect(f.db.payment.update).toHaveBeenCalledOnce();
+              expect(f.db.subscription.update).toHaveBeenCalledOnce();
+              expect(
+                f.db.subscription.update.mock.calls[0][0].data,
+              ).toMatchObject({
+                status: 'ACTIVE',
+                currentPeriodEnd: f.payment.periodEnd,
+              });
+              expect(f.db.company.update).toHaveBeenCalledOnce();
+            } else {
+              await expect(receive()).rejects.toThrow();
+              expect(f.db.payment.update).not.toHaveBeenCalled();
+              expect(f.db.subscription.update).not.toHaveBeenCalled();
+              expect(f.db.company.update).not.toHaveBeenCalled();
+              if (condition === 'tampered' || condition === 'invalid-signature')
+                expect(f.db.webhookEvent.upsert).not.toHaveBeenCalled();
+            }
+          } finally {
+            vi.unstubAllGlobals();
+          }
+        },
+      );
     }
     it('approval atomically activates correct subscription/company', async () => {
       const { db, service, event } = setup();
@@ -223,6 +346,16 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
         }),
       ).rejects.toThrow('WEBHOOK_PROCESSING_FAILED');
       expect(db.payment.update).not.toHaveBeenCalled();
+    });
+    it('unknown financial payment cannot activate a company or create a subscription', async () => {
+      const f = setup();
+      f.db.payment.findUnique.mockResolvedValue(null as never);
+      await expect(f.service.processVerified(gateway, f.event)).rejects.toThrow(
+        'WEBHOOK_PROCESSING_FAILED',
+      );
+      expect(f.db.payment.update).not.toHaveBeenCalled();
+      expect(f.db.subscription.update).not.toHaveBeenCalled();
+      expect(f.db.company.update).not.toHaveBeenCalled();
     });
     it('webhook and reconcile competing events activate once under serialized transactions', async () => {
       const { service, event, db } = setup();

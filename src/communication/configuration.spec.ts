@@ -1,14 +1,15 @@
+import webpush from 'web-push';
 import { randomBytes } from 'node:crypto';
 import { CommunicationConfiguration } from './configuration.js';
 import { SecretVault } from '../billing/secret-vault.js';
-function setup() {
+function setup(availableProviders = ['SMTP']) {
   let row: Record<string, unknown> | null = null;
   const db = {
     globalCommunicationProvider: {
       findUnique: vi.fn(async () => row),
       findMany: vi.fn(async () => (row ? [row] : [])),
       create: vi.fn(async ({ data }) => {
-        row = { revision: 1, ...data };
+        row = { revision: 1, scope: 'GLOBAL', ...data };
         return row;
       }),
       updateMany: vi.fn(async ({ where, data }) => {
@@ -37,7 +38,7 @@ function setup() {
   const verify = vi.fn().mockResolvedValue(undefined),
     send = vi.fn().mockResolvedValue('id');
   const transports = {
-    available: (p: string) => p === 'SMTP',
+    available: (p: string) => availableProviders.includes(p),
     get: () => ({ verify, send }),
   };
   return {
@@ -166,4 +167,61 @@ describe('global configuration lifecycle', () => {
       expect.objectContaining({ to: 'admin@example.test' }),
     );
   });
+});
+
+it('stores VAPID private key write-only in GLOBAL vault and requires validation before enable', async () => {
+  const f = setup(['PUSH_PENDING']),
+    keys = webpush.generateVAPIDKeys();
+  await f.service.patch(
+    'PUSH_PENDING',
+    {
+      config: {
+        publicKey: keys.publicKey,
+        subject: 'mailto:admin@example.test',
+      },
+      secrets: { privateKey: keys.privateKey },
+    },
+    'admin',
+  );
+  expect(JSON.stringify(await f.service.list())).not.toContain(keys.privateKey);
+  expect(
+    (await f.service.context('PUSH_PENDING', false)).secret.privateKey,
+  ).toBe(keys.privateKey);
+  await expect(
+    f.service.patch('PUSH_PENDING', { enabled: true }, 'admin'),
+  ).rejects.toThrow('CONNECTION_TEST_REQUIRED');
+  await f.service.test('PUSH_PENDING', 'admin');
+  await f.service.patch('PUSH_PENDING', { enabled: true }, 'admin');
+  expect(f.row()!.enabled).toBe(true);
+  await expect(
+    f.service.patch(
+      'PUSH_PENDING',
+      { secrets: { privateKey: webpush.generateVAPIDKeys().privateKey } },
+      'admin',
+    ),
+  ).rejects.toThrow('VAPID_PAIR_INVALID');
+});
+
+it('changes Gmail environment with new client secret before OAuth, without accepting an injected refresh token', async () => {
+  const f = setup(['GMAIL']);
+  const config = {
+    clientId: '123.apps.googleusercontent.com',
+    fromEmail: 'sender@example.test',
+  };
+  await f.service.patch(
+    'GMAIL',
+    { config, secrets: { clientSecret: 'OLD' } },
+    'admin',
+  );
+  await f.service.patch(
+    'GMAIL',
+    { environment: 'PRODUCTION', secrets: { clientSecret: 'NEW' } },
+    'admin',
+  );
+  expect(f.row()!.environment).toBe('PRODUCTION');
+  expect(f.row()!.enabled).toBe(false);
+  expect(JSON.stringify(await f.service.list())).not.toContain('NEW');
+  await expect(f.service.context('GMAIL', false)).rejects.toThrow(
+    'COMMUNICATION_SECRETS_REQUIRED',
+  );
 });

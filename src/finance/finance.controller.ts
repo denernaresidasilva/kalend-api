@@ -1,3 +1,4 @@
+import { Query } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../common/admin.guard.js';
@@ -12,8 +13,8 @@ export class FinanceController {
   ) {}
 
   @Get()
-  async findAll() {
-    return this.financeService.findAll();
+  async findAll(@Query() query: Record<string, string> = {}) {
+    return this.financeService.findAll(query);
   }
 
   @Get('summary')

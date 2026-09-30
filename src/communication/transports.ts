@@ -1,7 +1,9 @@
 import { connect, type Socket } from 'node:net';
 import { MetaTransport } from './meta.js';
 import nodemailer from 'nodemailer';
-import { Injectable } from '@nestjs/common';
+import { GmailTransport } from './gmail.js';
+import { GlobalPush } from './push.js';
+import { Inject, Injectable } from '@nestjs/common';
 import { allowedHost, jsonRequest, resolvePublic } from './network.js';
 import { email, TransportFailure } from './contracts.js';
 import type { Message, Provider, Transport, Variables } from './contracts.js';
@@ -166,7 +168,13 @@ export class PendingTransport implements Transport {
 }
 @Injectable()
 export class CommunicationTransports {
+  constructor(
+    @Inject(GmailTransport) private readonly gmail?: GmailTransport,
+    @Inject(GlobalPush) private readonly push?: GlobalPush,
+  ) {}
   get(provider: Provider): Transport {
+    if (provider === 'GMAIL' && this.gmail) return this.gmail;
+    if (provider === 'PUSH_PENDING' && this.push) return this.push;
     if (provider === 'META') return new MetaTransport();
     if (provider === 'SMTP') return new SmtpTransport();
     if (provider === 'EVOLUTION') return new EvolutionTransport();
@@ -174,7 +182,11 @@ export class CommunicationTransports {
   }
   available(provider: Provider) {
     return (
-      provider === 'SMTP' || provider === 'EVOLUTION' || provider === 'META'
+      provider === 'SMTP' ||
+      provider === 'EVOLUTION' ||
+      provider === 'META' ||
+      (provider === 'GMAIL' && !!this.gmail) ||
+      (provider === 'PUSH_PENDING' && !!this.push)
     );
   }
 }

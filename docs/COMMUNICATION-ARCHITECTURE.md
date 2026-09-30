@@ -48,3 +48,7 @@ Variáveis: nome/empresa nos eventos comerciais; trial acrescenta plano/dias_tri
 Cada evento/canal tem habilitação independente; sem configuração habilitada não há envio. Políticas/templates são lidos na expansão; snapshots congelam revisão de configuração/template/destinatário para retry. Worker revalida OWNER ativo, contato atual e revisões; mudança invalida snapshot e produz SKIPPED. Falha num telefone não impede email. Um fato expandido sem canal ativo não será reenviado retroativamente ao ligar um canal.
 
 Fluxo: fato commitado → expansão com row lock SKIP LOCKED → entrega PENDING única → claim SENDING fora de qualquer transação financeira → provider → ACCEPTED ou erro classificado → logs. Meta pode avançar para DELIVERED/READ por recibo autenticado. SMTP/Evolution não presumem entrega. Falha ambígua fica UNCERTAIN e não tem retry. Política/execução: [COMMUNICATION-OPERATIONS.md](COMMUNICATION-OPERATIONS.md). Fontes: [COMMUNICATION-PROVIDERS.md](COMMUNICATION-PROVIDERS.md). Ameaças: [COMMUNICATION-SECURITY.md](COMMUNICATION-SECURITY.md).
+
+## Fase 3
+
+GMAIL e PUSH_PENDING passam a adapters reais Gmail API e WEB_PUSH. Delivery ganha targetKey (USER para dados existentes; ID do dispositivo para Push), com idempotência por evento/usuário/canal/dispositivo. A fila e as garantias de quarantine/retry continuam únicas. Consulte [contratos Fase 3](PHASE3-COMMUNICATION.md).

@@ -1,3 +1,4 @@
+import { Query } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
 import { UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { AdminGuard } from '../common/admin.guard.js';
@@ -12,8 +13,8 @@ export class WebhooksController {
   ) {}
 
   @Get()
-  async findAll() {
-    return this.webhooksService.findAll();
+  async findAll(@Query() query: Record<string, string> = {}) {
+    return this.webhooksService.findAll(query);
   }
 
   @Get('summary')

@@ -1,3 +1,4 @@
+import { validateVapid } from './push.js';
 import { isDeepStrictEqual } from 'node:util';
 import {
   BadRequestException,
@@ -32,14 +33,14 @@ const fields: Record<Provider, string[]> = {
   EVOLUTION: ['baseUrl', 'instance', 'version'],
   GMAIL: ['clientId', 'fromEmail'],
   META: ['phoneNumberId', 'businessAccountId', 'graphVersion'],
-  PUSH_PENDING: [],
+  PUSH_PENDING: ['subject', 'publicKey'],
 };
 const secrets: Record<Provider, string[]> = {
   SMTP: ['password'],
   EVOLUTION: ['apiKey'],
   GMAIL: ['clientSecret', 'refreshToken'],
   META: ['accessToken', 'appSecret', 'verifyToken'],
-  PUSH_PENDING: [],
+  PUSH_PENDING: ['privateKey'],
 };
 export function validateConfig(p: Provider, value: unknown): Variables {
   const d = object(value, fields[p]);
@@ -62,7 +63,12 @@ export function validateConfig(p: Provider, value: unknown): Variables {
     if (c.host === 'smtp.gmail.com')
       throw new BadRequestException('GMAIL_OAUTH_REQUIRED');
   }
-  if (p === 'GMAIL') email(c.fromEmail);
+  if (p === 'GMAIL') {
+    email(c.fromEmail);
+    if (!/^[a-zA-Z0-9.-]+\.apps\.googleusercontent\.com$/.test(c.clientId))
+      throw new BadRequestException('GMAIL_CLIENT_ID_INVALID');
+  }
+  if (p === 'PUSH_PENDING') validateVapid(c);
   if (
     p === 'META' &&
     (!/^\d+$/.test(c.phoneNumberId + c.businessAccountId) ||
@@ -123,7 +129,9 @@ export class CommunicationConfiguration {
     private readonly transports: CommunicationTransports,
   ) {}
   async list() {
-    const rows = await this.db.globalCommunicationProvider.findMany();
+    const rows = await this.db.globalCommunicationProvider.findMany({
+      where: { scope: 'GLOBAL' },
+    });
     return rows.map((r) => ({
       provider: r.provider,
       scope: r.scope,
@@ -173,8 +181,16 @@ export class CommunicationConfiguration {
                 ),
               ) as Variables)
             : {};
+        // OAuth tokens are accepted only from Google's callback, never from administrative input.
+        if (p === 'GMAIL' && d.secrets !== undefined)
+          object(d.secrets, ['clientSecret']);
         const next = mergeSecrets(p, previous, d.secrets);
-        if (changedEnvironment && !secrets[p].every((k) => !!next[k]))
+        if (
+          changedEnvironment &&
+          !secrets[p]
+            .filter((k) => p !== 'GMAIL' || k === 'clientSecret')
+            .every((k) => !!next[k])
+        )
           throw new BadRequestException('ENVIRONMENT_REQUIRES_NEW_SECRETS');
         const config = validateConfig(p, d.config ?? old?.config ?? {});
         const identityKeys =
@@ -193,6 +209,17 @@ export class CommunicationConfiguration {
           }))
         )
           throw new ConflictException('PROVIDER_ACCOUNT_HAS_HISTORY');
+        if (
+          p === 'GMAIL' &&
+          (!isDeepStrictEqual(config, old?.config) ||
+            next.clientSecret !== previous.clientSecret ||
+            changedEnvironment)
+        ) {
+          for (const key of Object.keys(next))
+            if (key !== 'clientSecret') delete next[key];
+        }
+        if (p === 'PUSH_PENDING' && next.privateKey)
+          validateVapid(config, next);
         const changed =
           !old ||
           changedEnvironment ||
@@ -249,6 +276,7 @@ export class CommunicationConfiguration {
     });
     if (
       !row?.credentialsEncrypted ||
+      row.scope !== 'GLOBAL' ||
       (requireEnabled && !row.enabled) ||
       !this.transports.available(p)
     )
@@ -290,8 +318,29 @@ export class CommunicationConfiguration {
     });
     if (!actor) throw new BadRequestException('TEST_RECIPIENT_UNAUTHORIZED');
     const ctx = await this.context(p, false);
+    const devices =
+      p === 'PUSH_PENDING'
+        ? await this.db.globalPushSubscription.findMany({
+            where: {
+              userId: actorId,
+              scope: 'GLOBAL',
+              active: true,
+              provider: 'WEB_PUSH',
+              platform: 'WEB',
+              OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+            },
+            select: { id: true },
+            take: 20,
+          })
+        : [];
+    if (p === 'PUSH_PENDING' && !devices.length)
+      throw new BadRequestException('PUSH_NO_DEVICE');
     const to =
-      p === 'SMTP' || p === 'GMAIL' ? email(actor.email) : phone(actor.phone);
+      p === 'PUSH_PENDING'
+        ? devices[0].id
+        : p === 'SMTP' || p === 'GMAIL'
+          ? email(actor.email)
+          : phone(actor.phone);
     const message =
       p === 'META'
         ? render(
@@ -304,6 +353,7 @@ export class CommunicationConfiguration {
         : {
             to,
             subject: 'Teste de comunicação Kalend',
+            title: 'Kalend',
             text: 'Teste do canal global Kalend.',
           };
     // Test recipient is the authenticated administrator, never a supplied address.
@@ -311,7 +361,12 @@ export class CommunicationConfiguration {
       data: { actorId, action: `SEND_TEST_STARTED_${p}` },
     });
     try {
-      await this.transports.get(p).send(ctx.config, ctx.secret, message);
+      if (p === 'PUSH_PENDING') {
+        for (const device of devices)
+          await this.transports
+            .get(p)
+            .send(ctx.config, ctx.secret, { ...message, to: device.id });
+      } else await this.transports.get(p).send(ctx.config, ctx.secret, message);
       await this.db.$transaction(async (tx) => {
         await tx.globalCommunicationProvider.updateMany({
           where: { provider: p, revision: ctx.row.revision },

@@ -100,6 +100,71 @@ describe('authentication HTTP with real bcrypt/JWT and mock persistence', () => 
     expect(unknown.body).toEqual(wrong.body);
     expect(fixture.sessions).toHaveLength(0);
   });
+  it('return-page payment status requires a session and selected tenant', async () => {
+    await request(app.getHttpServer())
+      .get(`/billing/payments/${COMPANY_ID}`)
+      .expect(401);
+    const response = await login('member@example.test').expect(200);
+    await request(app.getHttpServer())
+      .get(`/billing/payments/${COMPANY_ID}`)
+      .set('Cookie', cookie(response, ACCESS_COOKIE))
+      .expect(403);
+  });
+  it('return-page status is read-only, available for suspended company and ignores forged approval parameters', async () => {
+    fixture.memberships[0].company.status = 'SUSPENDED';
+    fixture.memberships[0].company.isActive = false;
+    const response = await login('member@example.test').expect(200);
+    const authCookie = cookie(response, ACCESS_COOKIE);
+    await request(app.getHttpServer())
+      .post('/auth/tenant')
+      .set('Cookie', authCookie)
+      .set('Origin', origin)
+      .send({ companyId: COMPANY_ID })
+      .expect(200);
+    fixture.db.payment.findFirst.mockResolvedValueOnce({
+      id: COMPANY_ID,
+      status: 'PENDING',
+      subscription: { status: 'PENDING' },
+    } as never);
+    const result = await request(app.getHttpServer())
+      .get(
+        `/billing/payments/${COMPANY_ID}?status=APPROVED&companyId=${OTHER_COMPANY_ID}`,
+      )
+      .set('Cookie', authCookie)
+      .expect(200);
+    expect(result.body.status).toBe('PENDING');
+    expect(result.body.subscription.status).toBe('PENDING');
+    expect(fixture.db.payment.findFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { id: COMPANY_ID, companyId: COMPANY_ID },
+      }),
+    );
+    expect(result.headers['cache-control']).toBe('no-store');
+  });
+  it('return-page status rejects inaccessible payment and PROFESSIONAL role', async () => {
+    const response = await login('member@example.test').expect(200);
+    const authCookie = cookie(response, ACCESS_COOKIE);
+    await request(app.getHttpServer())
+      .post('/auth/tenant')
+      .set('Cookie', authCookie)
+      .set('Origin', origin)
+      .send({ companyId: COMPANY_ID })
+      .expect(200);
+    await request(app.getHttpServer())
+      .get(`/billing/payments/${OTHER_COMPANY_ID}`)
+      .set('Cookie', authCookie)
+      .expect(404);
+    await request(app.getHttpServer())
+      .post('/auth/tenant')
+      .set('Cookie', authCookie)
+      .set('Origin', origin)
+      .send({ companyId: OTHER_COMPANY_ID })
+      .expect(200);
+    await request(app.getHttpServer())
+      .get(`/billing/payments/${COMPANY_ID}`)
+      .set('Cookie', authCookie)
+      .expect(403);
+  });
   it('rejects inactive user even with correct password', async () => {
     fixture.users[0].isActive = false;
     await login().expect(401);

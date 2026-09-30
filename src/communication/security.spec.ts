@@ -230,7 +230,7 @@ describe('global communication security contracts', () => {
     ] as const)
       expect(retry(kind, 1, now)).toBeNull();
   });
-  it('keeps Gmail and Push unavailable and requires an explicitly pinned Graph version', async () => {
+  it('fails closed when Gmail/Push adapters are absent and requires an explicitly pinned Graph version', async () => {
     const registry = new CommunicationTransports();
     expect(registry.available('GMAIL')).toBe(false);
     expect(registry.available('PUSH_PENDING')).toBe(false);

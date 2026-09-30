@@ -1,3 +1,4 @@
+import { adminList, listStatus } from '../common/admin-list.js';
 import { Inject } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -6,11 +7,23 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export class SubscriptionsService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(query: unknown = {}) {
+    const page = adminList(query, ['status']);
     const subscriptions = await this.prisma.subscription.findMany({
-      orderBy: {
-        createdAt: 'desc',
+      take: page.take,
+      skip: page.skip,
+      where: {
+        status: listStatus(page.status, [
+          'PENDING',
+          'SUSPENDED',
+          'TRIALING',
+          'ACTIVE',
+          'PAST_DUE',
+          'CANCELED',
+          'EXPIRED',
+        ]),
       },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
 
       include: {
         company: true,

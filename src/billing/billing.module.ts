@@ -1,3 +1,4 @@
+import { AuthRateLimit } from '../auth/auth-rate-limit.service.js';
 import { ProductAccessGuard } from './product-access.guard.js';
 import {
   TenantGuard,
@@ -36,6 +37,7 @@ import { WebhookProcessor } from './webhook-processor.service.js';
 export class GatewaysController {
   constructor(
     @Inject(GatewaysService) private readonly service: GatewaysService,
+    @Inject(AuthRateLimit) private readonly limit: AuthRateLimit,
   ) {}
   @Get() list() {
     return this.service.list();
@@ -49,7 +51,12 @@ export class GatewaysController {
   ) {
     return this.service.update(gateway, body);
   }
-  @Post(':gateway/test') test(@Param('gateway') gateway: string) {
+  @Post(':gateway/test') async test(
+    @Param('gateway') gateway: string,
+    @Req() req: AuthRequest,
+  ) {
+    await this.limit.consume('gateway-test', req.auth.user.id, 5, 300);
+    await this.limit.consume('gateway-test-global', 'GLOBAL', 20, 300);
     return this.service.test(gateway);
   }
 }
@@ -77,6 +84,7 @@ export class PaymentsController {
 export class WebhookReceiverController {
   constructor(
     @Inject(WebhookProcessor) private readonly service: WebhookProcessor,
+    @Inject(AuthRateLimit) private readonly limit: AuthRateLimit,
   ) {}
   @HttpCode(200)
   @Post('mercado-pago')
@@ -105,7 +113,11 @@ export class WebhookReceiverController {
   }
   @Post(':id/reprocess')
   @UseGuards(AdminGuard)
-  reprocess(@Param('id', new ParseUUIDPipe()) id: string) {
+  async reprocess(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() req: AuthRequest,
+  ) {
+    await this.limit.consume('webhook-reprocess', req.auth.user.id, 10, 300);
     return this.service.reprocess(id);
   }
 }
@@ -121,6 +133,12 @@ export class CommercialController {
   ) {}
   @Get('regularization') get(@Req() req: AuthRequest) {
     return this.regularization.get(req.tenant!.companyId);
+  }
+  @Get('payments/:id') status(
+    @Req() req: AuthRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.payments.status(req.tenant!.companyId, id);
   }
   @Post('checkout') checkout(@Req() req: AuthRequest, @Body() body: unknown) {
     return this.payments.checkout(req.tenant!.companyId, body);
@@ -143,6 +161,7 @@ export class CommercialController {
   ],
   exports: [EntitlementsService, ProductAccessGuard],
   providers: [
+    AuthRateLimit,
     EntitlementsService,
     ProductAccessGuard,
     RegularizationService,

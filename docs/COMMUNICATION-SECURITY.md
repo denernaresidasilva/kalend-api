@@ -7,7 +7,7 @@ Revisão local em 29/09/2026, sem pentest remoto, dados reais ou homologação. 
 | SSRF SMTP | Allowlist exata de host definida por env; DNS A/AAAA público; IP fixado no socket; somente 465/TLS ou 587/STARTTLS; certificado/hostname verificados; sem acesso a arquivo/URL de conteúdo | Egress firewall recomendado; nenhum IP interno permitido nem em DEV. Testar provedor real após revisão |
 | SSRF Evolution | HTTPS root/443, sem userinfo/query/fragment, host em allowlist, DNS/IP público fixado, sem redirects/proxy | Instância interna exige futura política explícita; não há bypass administrativo |
 | DNS rebinding | Revalida a cada conexão; não re-resolve hostname após selecionar IP; rejeita respostas privadas/mistas | Resolver operacional deve ser confiável; falha de DNS sem socket é transitória |
-| OAuth theft | Cofre write-only; sem OAuth callback fictício, sem senha Google; Gmail permanece indisponível | State/PKCE/consentimento/revogação/reconexão pendentes de implementação com app registrado |
+| OAuth theft | Cofre write-only; OAuth real com state single-use, PKCE S256, binding de navegador/sessão e callback servidor | Homologação Google, cadastro externo do cliente e supressão de query do callback em proxy/APM pendentes |
 | Secret leakage | AES-256-GCM e AAD segregado de gateways; listagem explícita; sem exceptions/payloads externos persistidos | Configurar redaction de proxy/APM e controle de acesso ao banco/backups; chave não deve ser logada |
 | Mass assignment | Parsers runtime com allowlist; IDs/ambiente/provider/status não são aceitos fora do contrato | Não existe API tenant para config global |
 | Template injection | Expressões limitadas a `{{variavel}}`, allowlist por evento e campos escalares; não executa JS/objetos nem substituição recursiva | Conteúdo válido pode ser inadequado editorialmente; revisão do Super Admin continua necessária |
@@ -37,5 +37,5 @@ Rotação da chave exige recriptografia de gateways, credenciais globais e snaps
 - A captura usa triggers PostgreSQL: precisam ser mantidos junto da migration, pois Prisma schema não representa triggers. `db push` não substitui migrations. Não existe backfill automático nem envio de pagamentos históricos.
 - Credenciais SANDBOX não são tecnicamente isoladas pelo provedor SMTP/Evolution: usar instâncias/contas de teste, separados de produção.
 - SMTP/Evolution não têm confirmação de leitura/entrega implementada; ACCEPTED é somente aceitação pelo transporte.
-- Gmail/PUSH indisponíveis deliberadamente até infraestrutura/contratos necessários. Meta suporta subconjunto documentado de templates e não sincroniza inventário completo numa única chamada.
+- Gmail/Web Push implementados na Fase 3; infraestrutura externa e homologação real ainda necessárias. Veja PHASE3-COMMUNICATION.md. Meta suporta subconjunto documentado de templates e não sincroniza inventário completo numa única chamada.
 - Proteção de rede adicional, opt-in/política de mensagens, retenção e homologação são etapas de operação. Nenhum dado/ambiente real foi usado para alegar conformidade legal.

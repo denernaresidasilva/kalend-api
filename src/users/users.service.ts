@@ -1,3 +1,4 @@
+import { adminList } from '../common/admin-list.js';
 import { Inject } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -6,12 +7,20 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export class UsersService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(query: unknown = {}) {
+    const page = adminList(query, ['q']);
     const users = await this.prisma.user.findMany({
+      take: page.take,
+      skip: page.skip,
+      where: page.q
+        ? {
+            OR: ['name', 'email'].map((field) => ({
+              [field]: { contains: page.q, mode: 'insensitive' as const },
+            })),
+          }
+        : {},
       omit: { passwordHash: true },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
 
       include: {
         memberships: {

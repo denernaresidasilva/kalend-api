@@ -1,3 +1,4 @@
+import { adminList, listStatus } from '../common/admin-list.js';
 import { Inject } from '@nestjs/common';
 import { safeEventSelect } from '../common/validation.js';
 import { Injectable } from '@nestjs/common';
@@ -7,13 +8,23 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export class WebhooksService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(query: unknown = {}) {
+    const page = adminList(query, ['status']);
     const events = await this.prisma.webhookEvent.findMany({
-      select: safeEventSelect,
-      take: 100,
-      orderBy: {
-        receivedAt: 'desc',
+      take: page.take,
+      skip: page.skip,
+      where: {
+        status: listStatus(page.status, [
+          'RECEIVED',
+          'PROCESSING',
+          'PROCESSED',
+          'FAILED',
+          'IGNORED',
+        ]),
       },
+      select: safeEventSelect,
+
+      orderBy: [{ receivedAt: 'desc' }, { id: 'desc' }],
     });
 
     return events.map((event) => ({

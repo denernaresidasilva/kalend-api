@@ -1,3 +1,5 @@
+import { adminList, listStatus } from '../common/admin-list.js';
+import { pushPayload } from './push.js';
 import {
   BadRequestException,
   ConflictException,
@@ -150,66 +152,95 @@ export class CommunicationEngine {
               const cfg = await tx.globalCommunicationProvider.findUnique({
                 where: { provider: t.provider },
               });
-              if (!cfg?.enabled) continue;
-              const deliveryId = randomUUID();
-              let payloadEncrypted: string | null = null,
-                recipientMasked = 'unavailable';
-              let status: 'PENDING' | 'UNSENDABLE' = 'PENDING';
-              let lastError: string | null = null;
-              let message: Message | undefined;
-              try {
-                const to =
-                  t.channel === 'EMAIL'
-                    ? email(member.user.email)
-                    : t.channel === 'WHATSAPP'
-                      ? phone(member.user.phone)
-                      : '';
-                if (!to) throw new Error();
-                recipientMasked =
-                  t.channel === 'EMAIL'
-                    ? `${to[0]}***@***`
-                    : `***${to.slice(-4)}`;
-                message = render(
-                  t.content as Variables,
-                  t.channel,
-                  name,
-                  {
-                    ...(event.variables as Variables),
-                    nome: member.user.name,
-                    empresa: member.company.name,
-                  },
-                  to,
-                );
-              } catch {
-                status = 'UNSENDABLE';
-                lastError = 'RECIPIENT_OR_TEMPLATE_INVALID';
+              if (!cfg?.enabled || cfg.scope !== 'GLOBAL') continue;
+              const targets =
+                t.channel === 'PUSH'
+                  ? await tx.globalPushSubscription.findMany({
+                      where: {
+                        userId: member.userId,
+                        scope: 'GLOBAL',
+                        active: true,
+                        provider: 'WEB_PUSH',
+                        platform: 'WEB',
+                        OR: [
+                          { expiresAt: null },
+                          { expiresAt: { gt: new Date() } },
+                        ],
+                      },
+                      select: { id: true },
+                      take: 20,
+                    })
+                  : [{ id: 'USER' }];
+              // Keep a visible non-sendable record when no device exists.
+              if (!targets.length) targets.push({ id: 'NO_DEVICE' });
+              for (const target of targets) {
+                const deliveryId = randomUUID();
+                let payloadEncrypted: string | null = null,
+                  recipientMasked = 'unavailable';
+                let status: 'PENDING' | 'UNSENDABLE' = 'PENDING';
+                let lastError: string | null = null;
+                let message: Message | undefined;
+                try {
+                  const to =
+                    t.channel === 'EMAIL'
+                      ? email(member.user.email)
+                      : t.channel === 'WHATSAPP'
+                        ? phone(member.user.phone)
+                        : target.id === 'NO_DEVICE'
+                          ? ''
+                          : target.id;
+                  if (!to) throw new Error();
+                  recipientMasked =
+                    t.channel === 'PUSH'
+                      ? 'device'
+                      : t.channel === 'EMAIL'
+                        ? `${to[0]}***@***`
+                        : `***${to.slice(-4)}`;
+                  message = render(
+                    t.content as Variables,
+                    t.channel,
+                    name,
+                    {
+                      ...(event.variables as Variables),
+                      nome: member.user.name,
+                      empresa: member.company.name,
+                    },
+                    to,
+                  );
+                  if (t.channel === 'PUSH') pushPayload(message);
+                } catch {
+                  status = 'UNSENDABLE';
+                  message = undefined;
+                  lastError = 'RECIPIENT_OR_TEMPLATE_INVALID';
+                }
+                // Vault failure rolls back expansion and can recover on the next worker invocation.
+                if (message)
+                  payloadEncrypted = this.vault.encrypt(
+                    JSON.stringify(message),
+                    payloadScope(deliveryId),
+                  );
+                await tx.globalCommunicationDelivery.createMany({
+                  skipDuplicates: true,
+                  data: [
+                    {
+                      id: deliveryId,
+                      outboxId: id,
+                      userId: member.userId,
+                      targetKey: target.id,
+                      channel: t.channel,
+                      provider: t.provider,
+                      environment: cfg.environment,
+                      configurationRevision: cfg.revision,
+                      templateId: t.id,
+                      templateRevision: t.revision,
+                      recipientMasked,
+                      payloadEncrypted,
+                      status,
+                      lastError,
+                    },
+                  ],
+                });
               }
-              // Vault failure rolls back expansion and can recover on the next worker invocation.
-              if (message)
-                payloadEncrypted = this.vault.encrypt(
-                  JSON.stringify(message),
-                  payloadScope(deliveryId),
-                );
-              await tx.globalCommunicationDelivery.createMany({
-                skipDuplicates: true,
-                data: [
-                  {
-                    id: deliveryId,
-                    outboxId: id,
-                    userId: member.userId,
-                    channel: t.channel,
-                    provider: t.provider,
-                    environment: cfg.environment,
-                    configurationRevision: cfg.revision,
-                    templateId: t.id,
-                    templateRevision: t.revision,
-                    recipientMasked,
-                    payloadEncrypted,
-                    status,
-                    lastError,
-                  },
-                ],
-              });
             }
           await tx.globalCommunicationOutbox.update({
             where: { id },
@@ -292,8 +323,27 @@ export class CommunicationEngine {
           const current =
             row.channel === 'EMAIL'
               ? email(member.user.email)
-              : phone(member.user.phone);
-          if (current !== message.to) {
+              : row.channel === 'WHATSAPP'
+                ? phone(member.user.phone)
+                : row.targetKey;
+          const device =
+            row.channel === 'PUSH'
+              ? await this.db.globalPushSubscription.findFirst({
+                  where: {
+                    id: row.targetKey,
+                    userId: row.userId,
+                    scope: 'GLOBAL',
+                    active: true,
+                    provider: 'WEB_PUSH',
+                    platform: 'WEB',
+                    OR: [
+                      { expiresAt: null },
+                      { expiresAt: { gt: new Date() } },
+                    ],
+                  },
+                })
+              : true;
+          if (!device || current !== message.to) {
             status = 'SKIPPED';
             code = 'RECIPIENT_CHANGED';
           } else {
@@ -397,11 +447,31 @@ export class CommunicationEngine {
     return { inserted };
   }
 
-  listDeliveries(where: Prisma.GlobalCommunicationDeliveryWhereInput = {}) {
+  listDeliveries(
+    where: Prisma.GlobalCommunicationDeliveryWhereInput = {},
+    query: unknown = {},
+  ) {
+    const page = adminList(query, ['status']);
+    const status = listStatus(page.status, [
+      'PENDING',
+      'SENDING',
+      'ACCEPTED',
+      'DELIVERED',
+      'READ',
+      'RETRY',
+      'FAILED',
+      'UNSENDABLE',
+      'UNCERTAIN',
+      'SKIPPED',
+    ]);
     return this.db.globalCommunicationDelivery.findMany({
-      where,
-      take: 100,
-      orderBy: { createdAt: 'desc' },
+      where: {
+        scope: 'GLOBAL',
+        AND: [where, ...(status ? [{ status }] : [])],
+      },
+      take: page.take,
+      skip: page.skip,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       omit: { payloadEncrypted: true },
     });
   }

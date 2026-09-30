@@ -1,3 +1,4 @@
+import { GlobalPush } from './push.js';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module.js';
@@ -15,6 +16,7 @@ if (process.env.COMMUNICATION_SCHEDULER_ENABLED !== 'true') {
     });
     try {
       const commercial = await app.get(LifecycleService).reconcile();
+      await app.get(GlobalPush).cleanup();
       const temporal = await app.get(CommunicationEngine).temporal();
       console.log(JSON.stringify({ commercial, temporal }));
     } finally {

@@ -27,13 +27,11 @@ function setup() {
   };
   const db = {
     gatewayConfiguration: {
-      findUnique: vi
-        .fn()
-        .mockResolvedValue({
-          enabled: true,
-          environment: 'SANDBOX',
-          updatedAt: new Date(1),
-        }),
+      findUnique: vi.fn().mockResolvedValue({
+        enabled: true,
+        environment: 'SANDBOX',
+        updatedAt: new Date(1),
+      }),
     },
     plan: {
       findFirst: vi.fn().mockResolvedValue({
@@ -140,6 +138,10 @@ describe('internal checkout', () => {
     'status',
     'environment',
     'expectedAmount',
+    'notification_urls',
+    'payment_notification_urls',
+    'redirect_url',
+    'return_url',
   ])('rejects injected %s', async (field) => {
     const { service, provider } = setup();
     await expect(
@@ -201,5 +203,42 @@ describe('internal checkout', () => {
       'CHECKOUT_ALREADY_PENDING',
     );
     expect(provider.createCharge).not.toHaveBeenCalled();
+  });
+  it('checkout creation and browser-controlled status never approve a payment', async () => {
+    const f = setup();
+    await f.service.checkout(companyId, input);
+    expect(f.payment().status).toBe('PENDING');
+    expect(f.sub.status).toBe('PENDING');
+    expect(f.db.company.update).not.toHaveBeenCalled();
+    await expect(
+      f.service.checkout(companyId, {
+        ...input,
+        status: 'APPROVED',
+        return_url: 'https://evil.invalid',
+      }),
+    ).rejects.toThrow();
+    expect(f.payment().status).toBe('PENDING');
+    expect(f.sub.status).toBe('PENDING');
+  });
+  it('return-page status reads only the selected company payment with explicit safe fields', async () => {
+    const f = setup();
+    f.db.payment.findFirst.mockResolvedValue({
+      id: 'payment',
+      status: 'PENDING',
+    } as never);
+    expect(await f.service.status(companyId, 'payment')).toEqual({
+      id: 'payment',
+      status: 'PENDING',
+    });
+    const arg = f.db.payment.findFirst.mock.calls[0][0];
+    expect(arg.where).toEqual({ id: 'payment', companyId });
+    expect(arg.select).not.toHaveProperty('checkoutUrl');
+    expect(arg.select).not.toHaveProperty('externalPaymentId');
+    expect(f.db.payment.update).not.toHaveBeenCalled();
+    expect(f.db.company.update).not.toHaveBeenCalled();
+    f.db.payment.findFirst.mockResolvedValue(null);
+    await expect(
+      f.service.status(companyId, 'other-company-payment'),
+    ).rejects.toThrow('Cobrança não encontrada.');
   });
 });

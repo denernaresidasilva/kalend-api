@@ -20,6 +20,37 @@ export class PaymentsService {
     @Inject(GatewayRegistry) private readonly registry: GatewayRegistry,
     @Inject(GatewaysService) private readonly gateways: GatewaysService,
   ) {}
+  /** Read-only return-page contract. Browser parameters never confirm a payment. */
+  async status(companyId: string, paymentId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, companyId },
+      select: {
+        id: true,
+        status: true,
+        creationState: true,
+        amountCents: true,
+        currency: true,
+        gateway: true,
+        billingInterval: true,
+        paidAt: true,
+        refundedAt: true,
+        refundedAmountCents: true,
+        createdAt: true,
+        updatedAt: true,
+        subscription: {
+          select: {
+            id: true,
+            status: true,
+            planId: true,
+            currentPeriodStart: true,
+            currentPeriodEnd: true,
+          },
+        },
+      },
+    });
+    if (!payment) throw new NotFoundException('Cobrança não encontrada.');
+    return payment;
+  }
   /** Legacy Super Admin contract, still bound to the requested subscription and plan. */
   async create(input: unknown) {
     const d = object(input, [

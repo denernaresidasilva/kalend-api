@@ -77,8 +77,9 @@ model User {
   isActive     Boolean @default(true)
   isSuperAdmin Boolean @default(false)
 
-  memberships  Membership[]
-  authSessions AuthSession[]
+  memberships             Membership[]
+  authSessions            AuthSession[]
+  globalPushSubscriptions GlobalPushSubscription[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -440,6 +441,7 @@ model GlobalCommunicationDelivery {
   outboxId              String                      @db.Uuid
   outbox                GlobalCommunicationOutbox   @relation(fields: [outboxId], references: [id])
   userId                String                      @db.Uuid
+  targetKey             String                      @default("USER")
   channel               CommunicationChannel
   provider              CommunicationProvider
   environment           GatewayEnvironment
@@ -458,9 +460,55 @@ model GlobalCommunicationDelivery {
   updatedAt             DateTime                    @updatedAt
   logs                  GlobalCommunicationLog[]
 
-  @@unique([outboxId, userId, channel])
+  @@unique([outboxId, userId, channel, targetKey], map: "GlobalCommunicationDelivery_target_key")
   @@index([status, nextAttemptAt])
   @@index([provider, environment, providerMessageId])
+}
+
+// Independent GLOBAL storage. No tenant credential or subscription can enter this table.
+model GlobalGmailOAuthState {
+  stateHash             String    @id @db.Char(64)
+  bindingHash           String    @db.Char(64)
+  codeVerifierEncrypted String
+  actorId               String    @db.Uuid
+  sessionId             String    @db.Uuid
+  configurationRevision Int
+  redirectUri           String
+  expiresAt             DateTime
+  usedAt                DateTime?
+  createdAt             DateTime  @default(now())
+
+  @@index([expiresAt])
+}
+
+enum GlobalPushPlatform {
+  WEB
+  ANDROID
+  IOS
+}
+
+model GlobalPushSubscription {
+  id                   String             @id @default(uuid()) @db.Uuid
+  scope                CommunicationScope @default(GLOBAL)
+  userId               String             @db.Uuid
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Extensible transport identifier; only WEB_PUSH is accepted by the current API.
+  provider             String             @default("WEB_PUSH")
+  platform             GlobalPushPlatform @default(WEB)
+  endpointHash         String             @unique @db.Char(64)
+  // Web endpoint/keys or a future native token; always encrypted with per-device AAD.
+  credentialsEncrypted String?
+  vapidPublicKey       String
+  label                String?
+  active               Boolean            @default(true)
+  expiresAt            DateTime?
+  revokedAt            DateTime?
+  lastSeenAt           DateTime           @default(now())
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([userId, active])
+  @@index([active, expiresAt])
 }
 
 model GlobalCommunicationLog {

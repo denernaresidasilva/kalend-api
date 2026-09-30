@@ -26,7 +26,7 @@ Envie `secrets.password` pelo canal administrativo seguro. PATCH `secrets` ausen
 
 ## Endpoints
 
-Prefixo `/communication`, coerente com recursos globais existentes (`/payment-gateways`, `/plans`), protegido integralmente por AdminGuard: JWT/cookie, sessão, usuário ativo e isSuperAdmin atual. Mutação exige Origin permitida. Membership OWNER/ADMIN não concede acesso global.
+Prefixo `/communication`, coerente com recursos globais existentes (`/payment-gateways`, `/plans`), nas rotas administrativas protegido por AdminGuard: JWT/cookie, sessão, usuário ativo e isSuperAdmin atual. Mutação exige Origin permitida. Membership OWNER/ADMIN não concede acesso global.
 
 | Método/path | Contrato |
 | --- | --- |
@@ -47,11 +47,11 @@ Prefixo `/communication`, coerente com recursos globais existentes (`/payment-ga
 | GET /logs | Até 100 registros recentes sem conteúdo/secret |
 | POST /deliveries/:id/reprocess | Antecipar somente RETRY com tentativas restantes; não reinicia limite, não repete UNCERTAIN |
 
-Os paths da tabela são relativos a `/communication`. Consulta individual/exportação/paginação histórica completa fica para evolução administrativa; as listagens retornam limite explícito documentado e não são inventário completo.
+Os paths da tabela são relativos a `/communication`. Fase 3 adiciona limit/offset para outbox/deliveries/failures/logs e status em deliveries/failures, preservando resposta array. Consulta individual/exportação ficam para evolução administrativa; listagens não são inventário completo.
 
 Testes/pareamento compartilham 5 ações por administrador/5min e 20 globais/5min, em AuthRateLimit PostgreSQL. Reprocessamento 10/admin/5min; gestão Meta 10/admin/5min. Nenhuma rota de teste aceita telefone/e-mail/empresa arbitrary. O teste Meta exige template aprovado e sem parâmetros dependentes de evento. `accepted:true` não significa entregue. Repetir teste é novo envio intencional, sujeito ao limite; não há retry automático de teste.
 
-Callback externo: GET/POST `/webhooks/communication/meta`, fora de AdminGuard e autenticado conforme provider. Precisa de HTTPS, rawBody existente e appSecret/verifyToken. Não existe callback Evolution permissivo nem callback OAuth falso.
+Callback externo: GET/POST `/webhooks/communication/meta`, fora de AdminGuard e autenticado conforme provider. Precisa de HTTPS, rawBody existente e appSecret/verifyToken. Não existe callback Evolution permissivo. A Fase 3 adiciona callback Gmail protegido por state/PKCE/binding e subscriptions próprias com AuthGuard; consulte PHASE3-COMMUNICATION.md.
 
 ## Worker e scheduler
 
@@ -67,10 +67,14 @@ PAYMENT_OVERDUE vem do status financeiro verificado; Payment não possui dueAt c
 
 ## Retry, recuperação e retenção
 
-Erros explicitamente transitórios SMTP 4xx ou HTTP 429: backoff 60/120/240/480s, máximo 5 tentativas totais. AUTH/PERMANENT/TEMPLATE/RECIPIENT terminam; timeout, 5xx HTTP e resposta sem id são UNCERTAIN (sem retry). O protocolo não garante exactly-once externo. SENDING abandonado por mais de 5min é marcado UNCERTAIN; pode ter enviado. Nunca resgatar por timeout e repetir automaticamente.
+Erros explicitamente transitórios SMTP 4xx ou HTTP 429: backoff 60/120/240/480s, máximo 5 tentativas totais. AUTH/PERMANENT/TEMPLATE/RECIPIENT terminam; timeout após possível envio e resposta sem id são UNCERTAIN (sem retry). Gmail send 5xx continua UNCERTAIN; refresh Google e respostas explícitas Web Push 5xx são transitórias conforme contratos da Fase 3. O protocolo não garante exactly-once externo. SENDING abandonado por mais de 5min é marcado UNCERTAIN; pode ter enviado. Nunca resgatar por timeout e repetir automaticamente.
 
 Falha depois de aceitação externa antes de persistir deixa SENDING/UNCERTAIN; investigar no provedor. Não há endpoint de “marcar enviado” nem possibilidade de injetar providerMessageId. Reparar dados/permitir reenvio após investigação exige procedimento separado e autorizado.
 
 Recipient/conteúdo renderizado são snapshot cifrado apenas durante PENDING/RETRY/SENDING; apagados no estado terminal. UNKNOWN/UNCERTAIN não preserva corpo para reenvio. Outbox conserva variáveis mínimas de negócio, companyId/userId de referência, sem contato/senha. IDs de usuário/empresa não têm cascata destrutiva: necessário manter deduplicação/histórico; registros órfãos não autorizam envio. Definir prazo de retenção e limpeza auditada de logs/outbox sem remover chaves idempotentes. Não foi criado job destrutivo de limpeza nem política legal presumida.
 
 Alertas operacionais necessários: idade do evento não expandido, pendentes vencidos, UNSENDABLE por telefone ausente, AUTH, UNCERTAIN, falhas de worker e recibos não correlacionados. Nenhum exporter externo foi configurado. Utilizar logs estruturados sem request body, Authorization, Cookie, Set-Cookie, QR ou query de verificação.
+
+## Extensões Fase 3
+
+Consulte [Gmail OAuth e Web Push](PHASE3-COMMUNICATION.md) para callback URL/allowlist Web Push, endpoints, quotas, VAPID, subscriptions, preparação mobile e homologação. Nenhuma configuração real ou flag foi ativada. Scheduler separado agora também revoga subscriptions expiradas e apaga suas credenciais.

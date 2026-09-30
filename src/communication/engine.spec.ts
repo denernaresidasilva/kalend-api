@@ -226,6 +226,7 @@ describe('outbox delivery and retries', () => {
       globalCommunicationProvider: {
         findUnique: vi.fn().mockResolvedValue({
           enabled: true,
+          scope: 'GLOBAL',
           environment: 'SANDBOX',
           revision: 1,
         }),
@@ -252,5 +253,159 @@ describe('outbox delivery and retries', () => {
     expect(additions.globalCommunicationTemplate.findMany).toHaveBeenCalledWith(
       { where: { event: 'PAYMENT_APPROVED', enabled: true } },
     );
+  });
+});
+
+describe('Phase 3 shares the existing outbox motor', () => {
+  it('fans out independently per global Web Push device, leaves EMAIL/WHATSAPP deduplication compatible', async () => {
+    const f = fixture();
+    const createMany = vi.fn();
+    Object.assign(f.db, {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: 'event' }]),
+      globalCommunicationOutbox: {
+        findUniqueOrThrow: vi
+          .fn()
+          .mockResolvedValue({
+            companyId: 'company',
+            event: 'PAYMENT_APPROVED',
+            variables: { valor: '10 BRL' },
+          }),
+        update: vi.fn(),
+      },
+      globalCommunicationTemplate: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'email',
+            revision: 1,
+            provider: 'GMAIL',
+            channel: 'EMAIL',
+            content: { subject: 'Pagamento', text: '{{valor}}' },
+          },
+          {
+            id: 'push',
+            revision: 1,
+            provider: 'PUSH_PENDING',
+            channel: 'PUSH',
+            content: { title: 'Kalend', text: '{{valor}}' },
+          },
+        ]),
+      },
+      membership: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            {
+              userId: 'owner',
+              user: { name: 'Owner', email: 'owner@example.test' },
+              company: { name: 'Empresa' },
+            },
+          ]),
+      },
+      globalPushSubscription: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'device1' }, { id: 'device2' }]),
+      },
+      globalCommunicationProvider: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({
+            enabled: true,
+            scope: 'GLOBAL',
+            environment: 'SANDBOX',
+            revision: 1,
+          }),
+      },
+    });
+    Object.assign(f.db.globalCommunicationDelivery, { createMany });
+    await f.engine.expand();
+    expect(
+      createMany.mock.calls.map(([arg]) => [
+        arg.data[0].provider,
+        arg.data[0].targetKey,
+        arg.data[0].status,
+      ]),
+    ).toEqual([
+      ['GMAIL', 'USER', 'PENDING'],
+      ['PUSH_PENDING', 'device1', 'PENDING'],
+      ['PUSH_PENDING', 'device2', 'PENDING'],
+    ]);
+    const devices = (f.db as any).globalPushSubscription;
+    expect(devices.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: 'owner',
+          scope: 'GLOBAL',
+          active: true,
+          provider: 'WEB_PUSH',
+          platform: 'WEB',
+        }),
+      }),
+    );
+  });
+  it.each(['success', 'rate', 'transient', 'uncertain', 'revoked', 'hijacked'])(
+    'processes Push %s using delivery/failure/log and bounded retries',
+    async (condition) => {
+      const f = fixture();
+      Object.assign(f.delivery, {
+        channel: 'PUSH',
+        provider: 'PUSH_PENDING',
+        targetKey: 'device1',
+        payloadEncrypted: new SecretVault().encrypt(
+          JSON.stringify({ to: 'device1', title: 'Kalend', text: 'Pagamento' }),
+          'communication:GLOBAL:delivery:delivery',
+        ),
+      });
+      const findFirst = vi
+        .fn()
+        .mockResolvedValue(
+          condition === 'revoked' || condition === 'hijacked'
+            ? null
+            : { id: 'device1' },
+        );
+      Object.assign(f.db, { globalPushSubscription: { findFirst } });
+      if (condition === 'rate')
+        f.send.mockRejectedValue(new TransportFailure('RATE_LIMIT'));
+      if (condition === 'transient')
+        f.send.mockRejectedValue(new TransportFailure('TRANSIENT'));
+      if (condition === 'uncertain')
+        f.send.mockRejectedValue(new TransportFailure('UNCERTAIN'));
+      await f.engine.processOne();
+      expect(f.delivery.status).toBe(
+        condition === 'rate' || condition === 'transient'
+          ? 'RETRY'
+          : condition === 'uncertain'
+            ? 'UNCERTAIN'
+            : condition === 'revoked' || condition === 'hijacked'
+              ? 'SKIPPED'
+              : 'ACCEPTED',
+      );
+      expect(findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: 'device1',
+            userId: 'owner',
+            scope: 'GLOBAL',
+          }),
+        }),
+      );
+      expect(f.db.globalCommunicationLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          deliveryId: 'delivery',
+          action: f.delivery.status,
+          attempt: 1,
+        }),
+      });
+      expect(f.send).toHaveBeenCalledTimes(
+        condition === 'revoked' || condition === 'hijacked' ? 0 : 1,
+      );
+    },
+  );
+  it('sends Gmail through the same worker and records acceptance', async () => {
+    const f = fixture();
+    Object.assign(f.delivery, { provider: 'GMAIL' });
+    await f.engine.processOne();
+    expect(f.delivery.status).toBe('ACCEPTED');
+    expect(f.send).toHaveBeenCalledTimes(1);
   });
 });
