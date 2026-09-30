@@ -1,4 +1,6 @@
 import {
+  createHash,
+  randomBytes,
   createPublicKey,
   generateKeyPairSync,
   sign,
@@ -9,7 +11,7 @@ import { Logger } from '@nestjs/common';
 import type { GatewayContext } from '../gateway.types.js';
 const c: GatewayContext = {
   environment: 'SANDBOX',
-  credentials: 'fixture',
+  credentials: randomBytes(32).toString('hex'),
   recurringCredentials: 'fixture-recurring',
 };
 const raw = Buffer.from('{\n "id": "CHEC_1", "label": "ação"\n}');
@@ -115,11 +117,11 @@ it.each([
     expect(network).not.toHaveBeenCalled();
   },
 );
-it('returns bounded diagnostics without header values/body/tokens and keeps legacy-only requests rejected', async () => {
+it('returns bounded diagnostics without header values/body/tokens and rejects malformed authenticity headers', async () => {
   await expect(
     adapter.verifyWebhook(raw, { 'x-authenticity-token': 'not-accepted' }, c),
   ).rejects.toMatchObject({
-    response: { statusCode: 401, reason: 'SIGNATURE_MISSING' },
+    response: { statusCode: 401, reason: 'AUTHENTICITY_ENCODING_INVALID' },
   });
   await expect(
     adapter.verifyWebhook(
@@ -133,13 +135,15 @@ it('returns bounded diagnostics without header values/body/tokens and keeps lega
     adapter.verifyWebhook(raw, { 'x-payload-signature': signature(second) }, c),
   ).rejects.toMatchObject({ response: { reason: 'SIGNATURE_MISMATCH' } });
   expect(warning.mock.calls.map((call: unknown[]) => call[0])).toEqual(
-    ['SIGNATURE_MISSING', 'SIGNATURE_LIMIT', 'SIGNATURE_MISMATCH'].map(
-      (reason) => ({
-        event: 'PAGBANK_WEBHOOK_REJECTED',
-        environment: 'SANDBOX',
-        reason,
-      }),
-    ),
+    [
+      'AUTHENTICITY_ENCODING_INVALID',
+      'SIGNATURE_LIMIT',
+      'SIGNATURE_MISMATCH',
+    ].map((reason) => ({
+      event: 'PAGBANK_WEBHOOK_REJECTED',
+      environment: 'SANDBOX',
+      reason,
+    })),
   );
 });
 it('DER/SPKI key and the official PEM representation verify the exact same DER ECDSA bytes', () => {
@@ -172,7 +176,7 @@ it('selects the Sandbox WEBHOOK host and isolates the Production key using only 
     'https://api.pagseguro.com/public-keys/webhook',
   ]);
   for (const [, request] of network.mock.calls)
-    expect(request.headers.Authorization).toBe('Bearer fixture');
+    expect(request.headers.Authorization).toBe(`Bearer ${c.credentials}`);
 });
 it('obtains WEBHOOK SPKI EC key with Bearer and verifies untouched UTF-8 bytes', async () => {
   reply({ public_key: publicKey() });
@@ -182,7 +186,9 @@ it('obtains WEBHOOK SPKI EC key with Bearer and verifies untouched UTF-8 bytes',
   expect(network.mock.calls[0][0].toString()).toBe(
     'https://sandbox.api.pagseguro.com/public-keys/webhook',
   );
-  expect(network.mock.calls[0][1].headers.Authorization).toBe('Bearer fixture');
+  expect(network.mock.calls[0][1].headers.Authorization).toBe(
+    `Bearer ${c.credentials}`,
+  );
   expect(network.mock.calls[0][1].redirect).toBe('error');
   await expect(
     adapter.verifyWebhook(
@@ -389,4 +395,143 @@ it('rejects mismatched requested financial ID and internal reference', async () 
       c,
     ),
   ).rejects.toThrow('GATEWAY_REFERENCE_MISMATCH');
+});
+
+const authenticity = (body = raw, token = c.credentials) =>
+  createHash('sha256').update(token).update('-').update(body).digest('hex');
+it('accepts official account-token SHA-256 without querying a public key', async () => {
+  await expect(
+    adapter.verifyWebhook(raw, { 'x-authenticity-token': authenticity() }, c),
+  ).resolves.toEqual([]);
+  expect(network).not.toHaveBeenCalled();
+});
+it.each(['wrong-body', 'one-byte', 'wrong-token', 'wrong-hash'])(
+  'rejects authenticity mismatch: %s',
+  async (condition) => {
+    const body = Buffer.from(raw);
+    if (condition === 'one-byte') body[1] = 32;
+    if (condition === 'wrong-body') body.reverse();
+    const value =
+      condition === 'wrong-token'
+        ? authenticity(raw, randomBytes(32).toString('hex'))
+        : condition === 'wrong-hash'
+          ? '0'.repeat(64)
+          : authenticity();
+    await expect(
+      adapter.verifyWebhook(body, { 'x-authenticity-token': value }, c),
+    ).rejects.toMatchObject({ response: { reason: 'AUTHENTICITY_MISMATCH' } });
+    expect(network).not.toHaveBeenCalled();
+    const logs = JSON.stringify(warning.mock.calls);
+    for (const sensitive of [
+      value,
+      authenticity(body),
+      c.credentials,
+      raw.toString(),
+    ])
+      expect(logs).not.toContain(sensitive);
+  },
+);
+it.each([
+  '',
+  ' ',
+  'A'.repeat(64),
+  'a'.repeat(63),
+  'a'.repeat(65),
+  'a'.repeat(64) + ',b',
+  ['a'.repeat(64), 'a'.repeat(64)],
+])('rejects malformed or repeated authenticity values: %j', async (value) => {
+  await expect(
+    adapter.verifyWebhook(raw, { 'x-authenticity-token': value }, c),
+  ).rejects.toMatchObject({
+    response: { reason: 'AUTHENTICITY_ENCODING_INVALID' },
+  });
+  expect(network).not.toHaveBeenCalled();
+});
+it.each(['valid', 'invalid', 'empty', 'encoding', 'key-unavailable'])(
+  'both headers select ECDSA exclusively: %s',
+  async (condition) => {
+    if (condition !== 'key-unavailable') reply({ public_key: publicKey() });
+    else network.mockRejectedValue(new Error('private failure'));
+    const headers = {
+      'x-payload-signature':
+        condition === 'empty'
+          ? ''
+          : condition === 'encoding'
+            ? '!'
+            : signature(condition === 'invalid' ? second : first),
+      'x-authenticity-token': authenticity(),
+    };
+    const result = adapter.verifyWebhook(raw, headers, c);
+    if (condition === 'valid') await expect(result).resolves.toEqual([]);
+    else await expect(result).rejects.toThrow();
+    const logs = JSON.stringify(warning.mock.calls);
+    for (const sensitive of [
+      headers['x-authenticity-token'],
+      c.credentials,
+      raw.toString(),
+      headers['x-payload-signature'],
+    ]) {
+      if (sensitive.length > 1) expect(logs).not.toContain(sensitive);
+    }
+  },
+);
+it('an ECDSA signature rejects a one-byte raw body change', async () => {
+  reply({ public_key: publicKey() });
+  const changed = Buffer.from(raw);
+  changed[1] = 32;
+  await expect(
+    adapter.verifyWebhook(changed, { 'x-payload-signature': signature() }, c),
+  ).rejects.toThrow('WEBHOOK_INVALID_SIGNATURE');
+});
+
+it('rejects absent authentication even with product origin or incoming Authorization', async () => {
+  await expect(
+    adapter.verifyWebhook(
+      raw,
+      { 'x-product-origin': 'CHECKOUT', Authorization: 'Bearer ignored' },
+      c,
+    ),
+  ).rejects.toMatchObject({ response: { reason: 'SIGNATURE_MISSING' } });
+  expect(network).not.toHaveBeenCalled();
+});
+it.each(['gzip', 'br', ['identity', 'gzip']])(
+  'rejects transformed entity bytes: %j',
+  async (encoding) => {
+    await expect(
+      adapter.verifyWebhook(
+        raw,
+        {
+          'content-encoding': encoding,
+          'x-authenticity-token': authenticity(),
+        },
+        c,
+      ),
+    ).rejects.toThrow('WEBHOOK_INVALID_BODY');
+    expect(network).not.toHaveBeenCalled();
+  },
+);
+
+it('valid ECDSA takes precedence over an invalid authenticity hash', async () => {
+  reply({ public_key: publicKey() });
+  await expect(
+    adapter.verifyWebhook(
+      raw,
+      {
+        'x-payload-signature': signature(),
+        'x-authenticity-token': 'malformed',
+      },
+      c,
+    ),
+  ).resolves.toEqual([]);
+});
+it('does not substitute recurring credentials or webhookSecret for the account token', async () => {
+  const another = randomBytes(32).toString('hex');
+  await expect(
+    adapter.verifyWebhook(
+      raw,
+      { 'x-authenticity-token': authenticity(raw, another) },
+      { ...c, recurringCredentials: another, webhookSecret: another },
+    ),
+  ).rejects.toMatchObject({ response: { reason: 'AUTHENTICITY_MISMATCH' } });
+  expect(network).not.toHaveBeenCalled();
 });

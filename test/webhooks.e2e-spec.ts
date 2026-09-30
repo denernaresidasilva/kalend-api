@@ -1,7 +1,9 @@
 import { Test } from '@nestjs/testing';
 import { Logger, type INestApplication } from '@nestjs/common';
-import { createHmac, generateKeyPairSync, sign } from 'node:crypto';
+import { createHash, createHmac, generateKeyPairSync, sign } from 'node:crypto';
 import request from 'supertest';
+import { gzipSync } from 'node:zlib';
+import { request as httpRequest } from 'node:http';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { SecretVault } from '../src/billing/secret-vault.js';
@@ -193,9 +195,11 @@ describe('external webhook HTTP authentication and raw body', () => {
           .set('Authorization', 'Bearer secret-auth')
           .set('Cookie', 'secret-cookie')
           .set('User-Agent', 'secret-agent')
-          .set('X-Product-Origin', 'secret-origin')
-          .set('X-Authenticity-Token', 'secret-legacy');
-        if (attempt === 1) req.set('X-Payload-Signature', ' , ');
+          .set('X-Product-Origin', 'secret-origin');
+        if (attempt === 1) {
+          req.set('X-Payload-Signature', ' , ');
+          req.set('X-Authenticity-Token', 'secret-legacy');
+        }
         await req
           .send({ id: 'CHAR_secret-payload', status: 'PAID' })
           .expect(401);
@@ -217,7 +221,8 @@ describe('external webhook HTTP authentication and raw body', () => {
         rawSignaturePresent: true,
         productOriginPresent: true,
       });
-      expect(diagnostics[0].headerNames).toContain('x-authenticity-token');
+      expect(diagnostics[0].headerNames).toContain('authorization');
+      expect(diagnostics[1].headerNames).toContain('x-authenticity-token');
       expect(diagnostics[1].rawHeaderNames).toContain('X-Payload-Signature');
       expect(diagnostics[0]).toMatchObject({
         signaturePresent: false,
@@ -251,8 +256,7 @@ describe('external webhook HTTP authentication and raw body', () => {
       });
       const req = request(app.getHttpServer())
         .post('/webhooks/pagbank')
-        .set('Content-Type', 'application/json')
-        .set('x-authenticity-token', 'legacy-not-accepted');
+        .set('Content-Type', 'application/json');
       if (signature !== undefined) req.set('x-payload-signature', signature);
       const result = await req.send('{ "id": "CHAR_fixture" }').expect(401);
       expect(result.body).toEqual({
@@ -266,4 +270,94 @@ describe('external webhook HTTP authentication and raw body', () => {
         expect(network).not.toHaveBeenCalled();
     },
   );
+  it('PagBank account-token authentication preserves exact HTTP bytes and blocks forged bodies', async () => {
+    const raw = '{\n "id":"CHAR_authenticity", "label":"ação"\n}';
+    const hash = createHash('sha256')
+      .update('sk_test_fixture-')
+      .update(Buffer.from(raw))
+      .digest('hex');
+    const receive = vi.spyOn(app.get(WebhookProcessor), 'receive');
+    network.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          id: 'CHAR_authenticity',
+          reference_id: 'payment',
+          status: 'PAID',
+          amount: { value: 199, currency: 'BRL' },
+        }),
+    });
+    try {
+      await request(app.getHttpServer())
+        .post('/webhooks/pagbank')
+        .set('Content-Type', 'application/json')
+        .set('X-Authenticity-Token', hash)
+        .send(raw)
+        .expect(200);
+      expect(receive.mock.calls.at(-1)?.[1]).toEqual(Buffer.from(raw));
+      expect(process).toHaveBeenCalledWith(
+        'PAGBANK',
+        expect.objectContaining({ status: 'APPROVED', amountCents: 199 }),
+      );
+      process.mockClear();
+      network.mockClear();
+      for (const body of [
+        raw.replace('ação', 'açãO'),
+        JSON.stringify(JSON.parse(raw)),
+      ]) {
+        await request(app.getHttpServer())
+          .post('/webhooks/pagbank')
+          .set('Content-Type', 'application/json')
+          .set('X-Authenticity-Token', hash)
+          .send(body)
+          .expect(401);
+      }
+      await request(app.getHttpServer())
+        .post('/webhooks/pagbank')
+        .set('Content-Type', 'application/json')
+        .set('X-Authenticity-Token', hash)
+        .set('X-Payload-Signature', 'bad!')
+        .send(raw)
+        .expect(401);
+      expect(process).not.toHaveBeenCalled();
+      expect(network).not.toHaveBeenCalled();
+    } finally {
+      receive.mockRestore();
+    }
+  });
+  it('rejects a compressed body even when its decompressed contents carry a valid hash', async () => {
+    const raw = Buffer.from('{ "id": "CHAR_compressed" }');
+    const hash = createHash('sha256')
+      .update('sk_test_fixture-')
+      .update(raw)
+      .digest('hex');
+    // Use native HTTP: SuperAgent serializes Buffer as JSON for this media type.
+    await app.listen(0, '127.0.0.1');
+    const awaitUrl = await app.getUrl();
+    const compressed = gzipSync(raw);
+    const status = await new Promise<number | undefined>((resolve, reject) => {
+      const req = httpRequest(
+        new URL('/webhooks/pagbank', awaitUrl),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Encoding': 'gzip',
+            'Content-Length': compressed.length,
+            'x-authenticity-token': hash,
+          },
+        },
+        (res) => {
+          res.resume();
+          res.on('end', () => resolve(res.statusCode));
+        },
+      );
+      req.on('error', reject);
+      req.end(compressed);
+    });
+    expect(status).toBe(401);
+    expect(network).not.toHaveBeenCalled();
+    expect(process).not.toHaveBeenCalled();
+  });
 });

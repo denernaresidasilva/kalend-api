@@ -3,7 +3,7 @@ import { SecretVault } from './secret-vault.js';
 import { GatewayRegistry } from './gateway.provider.js';
 import { GatewaysService } from './gateways.service.js';
 import { nextPeriod } from '../common/period.js';
-import { generateKeyPairSync, sign } from 'node:crypto';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 const companyId = '11111111-1111-4111-8111-111111111111';
 const subscriptionId = '22222222-2222-4222-8222-222222222222';
 const planId = '33333333-3333-4333-8333-333333333333';
@@ -91,6 +91,9 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
       it.each([
         'valid',
         'duplicate',
+        'authenticity-valid',
+        'authenticity-duplicate',
+        'authenticity-invalid',
         'invalid-signature',
         'missing-signature',
         'tampered',
@@ -173,13 +176,37 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
                 ? Buffer.from(JSON.stringify(JSON.parse(raw.toString())))
                 : raw;
             const receive = () =>
-              f.service.receive('PAGBANK', body, {
-                'x-payload-signature':
-                  condition === 'missing-signature' ? undefined : signature,
-              });
-            if (condition === 'valid' || condition === 'duplicate') {
+              f.service.receive(
+                'PAGBANK',
+                body,
+                condition.startsWith('authenticity-')
+                  ? {
+                      'x-authenticity-token': createHash('sha256')
+                        .update(
+                          condition === 'authenticity-invalid'
+                            ? 'wrong-'
+                            : 'fixture-',
+                        )
+                        .update(raw)
+                        .digest('hex'),
+                    }
+                  : {
+                      'x-payload-signature':
+                        condition === 'missing-signature'
+                          ? undefined
+                          : signature,
+                    },
+              );
+            if (
+              [
+                'valid',
+                'duplicate',
+                'authenticity-valid',
+                'authenticity-duplicate',
+              ].includes(condition)
+            ) {
               await receive();
-              if (condition === 'duplicate') await receive();
+              if (condition.endsWith('duplicate')) await receive();
               expect(f.payment.status).toBe('APPROVED');
               expect(f.db.payment.update).toHaveBeenCalledOnce();
               expect(f.db.subscription.update).toHaveBeenCalledOnce();
@@ -198,6 +225,7 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
               if (
                 condition === 'tampered' ||
                 condition === 'invalid-signature' ||
+                condition === 'authenticity-invalid' ||
                 condition === 'missing-signature'
               )
                 expect(f.db.webhookEvent.upsert).not.toHaveBeenCalled();

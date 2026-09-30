@@ -1,6 +1,7 @@
 import {
   createHash,
   createPublicKey,
+  timingSafeEqual,
   verify,
   type KeyObject,
 } from 'node:crypto';
@@ -395,6 +396,13 @@ export class PagBankAdapter implements GatewayProvider {
   ): Promise<ProviderEvent[]> {
     if (!Buffer.isBuffer(raw))
       throw new UnauthorizedException('WEBHOOK_INVALID_BODY');
+    // Express captures rawBody after optional decompression. Reject encoded
+    // requests so only untouched entity bytes can reach either verifier.
+    if (
+      headers['content-encoding'] !== undefined &&
+      headers['content-encoding'] !== 'identity'
+    )
+      throw new UnauthorizedException('WEBHOOK_INVALID_BODY');
     const supplied = headers['x-payload-signature'];
     const values = (Array.isArray(supplied) ? supplied : [supplied ?? ''])
       .flatMap((v) => v.split(','))
@@ -414,26 +422,54 @@ export class PagBankAdapter implements GatewayProvider {
         reason,
       });
     };
-    if (!values.length) reject('SIGNATURE_MISSING');
-    if (values.length > 16) reject('SIGNATURE_LIMIT');
-    const signatures = values
-      .map((v) => this.base64(v, true))
-      .filter((v): v is Buffer => v !== null);
-    if (!signatures.length) reject('SIGNATURE_ENCODING_INVALID');
-    const matches = (key: KeyObject) =>
-      signatures
-        .map((signature) => {
-          try {
-            return verify('sha256', raw, key, signature);
-          } catch {
-            return false;
-          }
-        })
-        .some(Boolean);
-    let key = await this.webhookKey(c);
-    if (!matches(key)) {
-      key = await this.webhookKey(c, true);
-      if (!matches(key)) reject('SIGNATURE_MISMATCH');
+    // Header presence selects the contract, including empty/malformed ECDSA.
+    // Never downgrade to the shared-token contract after ECDSA failure.
+    if (Object.hasOwn(headers, 'x-payload-signature')) {
+      if (!values.length) reject('SIGNATURE_MISSING');
+      if (values.length > 16) reject('SIGNATURE_LIMIT');
+      const signatures = values
+        .map((v) => this.base64(v, true))
+        .filter((v): v is Buffer => v !== null);
+      if (!signatures.length) reject('SIGNATURE_ENCODING_INVALID');
+      const matches = (key: KeyObject) =>
+        signatures
+          .map((signature) => {
+            try {
+              return verify('sha256', raw, key, signature);
+            } catch {
+              return false;
+            }
+          })
+          .some(Boolean);
+      let key = await this.webhookKey(c);
+      if (!matches(key)) {
+        key = await this.webhookKey(c, true);
+        if (!matches(key)) reject('SIGNATURE_MISMATCH');
+      }
+    } else {
+      const authenticity = headers['x-authenticity-token'];
+      if (!Object.hasOwn(headers, 'x-authenticity-token'))
+        reject('SIGNATURE_MISSING');
+      // Official account-token contract: lowercase hexadecimal SHA-256,
+      // exactly one value, UTF-8 account token + ASCII hyphen + original bytes.
+      if (
+        typeof authenticity !== 'string' ||
+        !/^[0-9a-f]{64}$/.test(authenticity)
+      )
+        reject('AUTHENTICITY_ENCODING_INVALID');
+      if (!c.credentials)
+        throw new ServiceUnavailableException(
+          'PAGBANK_CREDENTIALS_UNAVAILABLE',
+        );
+      const expected = createHash('sha256')
+        .update(c.credentials, 'utf8')
+        .update('-')
+        .update(raw)
+        .digest();
+      if (
+        !timingSafeEqual(expected, Buffer.from(authenticity as string, 'hex'))
+      )
+        reject('AUTHENTICITY_MISMATCH');
     }
     {
       const e = json(raw),
