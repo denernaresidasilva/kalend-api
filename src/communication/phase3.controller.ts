@@ -8,6 +8,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -116,20 +117,44 @@ export class PushController {
     return this.push.publicConfiguration();
   }
   @Get('subscriptions') list(@Req() req: AuthRequest) {
-    return this.push.list(req.auth.user.id);
+    return this.push.list(
+      req.auth.user.id,
+      req.auth.session.selectedCompanyId ?? undefined,
+    );
   }
   @Post('subscriptions') async register(
     @Req() req: AuthRequest,
     @Body() body: unknown,
   ) {
     await this.limit.consume('push-register', req.auth.user.id, 20, 300);
-    return this.push.register(req.auth.user.id, body);
+    return this.push.register(
+      req.auth.user.id,
+      body,
+      req.auth.session.selectedCompanyId ?? undefined,
+    );
+  }
+  @Put('subscriptions/:id') async active(
+    @Req() req: AuthRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: unknown,
+  ) {
+    await this.limit.consume('push-register', req.auth.user.id, 20, 300);
+    return this.push.setActive(
+      req.auth.user.id,
+      id,
+      body,
+      req.auth.session.selectedCompanyId ?? undefined,
+    );
   }
   @Delete('subscriptions/:id') async revoke(
     @Req() req: AuthRequest,
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     await this.limit.consume('push-register', req.auth.user.id, 20, 300);
-    return this.push.revoke(req.auth.user.id, id);
+    return this.push.revoke(
+      req.auth.user.id,
+      id,
+      req.auth.session.selectedCompanyId ?? undefined,
+    );
   }
 }

@@ -323,10 +323,11 @@ export class CommunicationConfiguration {
         ? await this.db.globalPushSubscription.findMany({
             where: {
               userId: actorId,
+              environment: ctx.row.environment,
               scope: 'GLOBAL',
               active: true,
               provider: 'WEB_PUSH',
-              platform: 'WEB',
+              revokedAt: null,
               OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
             },
             select: { id: true },
@@ -365,7 +366,15 @@ export class CommunicationConfiguration {
         for (const device of devices)
           await this.transports
             .get(p)
-            .send(ctx.config, ctx.secret, { ...message, to: device.id });
+            .send(ctx.config, ctx.secret, {
+              ...message,
+              to: device.id,
+              pushRecipient: {
+                userId: actorId,
+                environment: ctx.row.environment,
+                audience: 'ADMIN_TEST',
+              },
+            });
       } else await this.transports.get(p).send(ctx.config, ctx.secret, message);
       await this.db.$transaction(async (tx) => {
         await tx.globalCommunicationProvider.updateMany({

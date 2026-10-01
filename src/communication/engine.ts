@@ -1,5 +1,5 @@
 import { adminList, listStatus } from '../common/admin-list.js';
-import { pushPayload } from './push.js';
+import { pushPayload, pushTargets } from './push.js';
 import {
   BadRequestException,
   ConflictException,
@@ -157,15 +157,14 @@ export class CommunicationEngine {
                 t.channel === 'PUSH'
                   ? await tx.globalPushSubscription.findMany({
                       where: {
-                        userId: member.userId,
-                        scope: 'GLOBAL',
-                        active: true,
-                        provider: 'WEB_PUSH',
-                        platform: 'WEB',
-                        OR: [
-                          { expiresAt: null },
-                          { expiresAt: { gt: new Date() } },
-                        ],
+                        ...pushTargets({
+                          userId: member.userId,
+                          environment: cfg.environment,
+                          audience: event.companyId ? 'COMPANY' : 'ACCOUNT',
+                          ...(event.companyId
+                            ? { companyId: event.companyId }
+                            : {}),
+                        }),
                       },
                       select: { id: true },
                       take: 20,
@@ -330,16 +329,15 @@ export class CommunicationEngine {
             row.channel === 'PUSH'
               ? await this.db.globalPushSubscription.findFirst({
                   where: {
+                    ...pushTargets({
+                      userId: row.userId,
+                      environment: row.environment,
+                      audience: event.companyId ? 'COMPANY' : 'ACCOUNT',
+                      ...(event.companyId
+                        ? { companyId: event.companyId }
+                        : {}),
+                    }),
                     id: row.targetKey,
-                    userId: row.userId,
-                    scope: 'GLOBAL',
-                    active: true,
-                    provider: 'WEB_PUSH',
-                    platform: 'WEB',
-                    OR: [
-                      { expiresAt: null },
-                      { expiresAt: { gt: new Date() } },
-                    ],
                   },
                 })
               : true;
@@ -349,7 +347,23 @@ export class CommunicationEngine {
           } else {
             providerMessageId = await this.transports
               .get(row.provider)
-              .send(c.config, c.secret, message);
+              .send(
+                c.config,
+                c.secret,
+                row.channel === 'PUSH'
+                  ? {
+                      ...message,
+                      pushRecipient: {
+                        userId: row.userId,
+                        environment: row.environment,
+                        audience: event.companyId ? 'COMPANY' : 'ACCOUNT',
+                        ...(event.companyId
+                          ? { companyId: event.companyId }
+                          : {}),
+                      },
+                    }
+                  : message,
+              );
             status = 'ACCEPTED';
           }
         }

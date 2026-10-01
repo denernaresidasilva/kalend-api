@@ -97,6 +97,13 @@ export type Message = {
   text: string;
   html?: string;
   title?: string;
+  // Internal authorization context, never included in the browser payload.
+  pushRecipient?: {
+    userId: string;
+    environment: 'SANDBOX' | 'PRODUCTION';
+    companyId?: string;
+    audience: 'COMPANY' | 'ACCOUNT' | 'ADMIN_TEST';
+  };
   meta?: { id: string; name: string; language: string; parameters: string[] };
 };
 export function templateContent(

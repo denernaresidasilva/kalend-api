@@ -162,6 +162,6 @@ export class CommunicationController {
     SecretVault,
     AuthRateLimit,
   ],
-  exports: [CommunicationEngine],
+  exports: [CommunicationEngine, GlobalPush],
 })
 export class CommunicationModule {}

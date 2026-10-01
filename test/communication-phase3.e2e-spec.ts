@@ -10,7 +10,12 @@ import { GoogleApi, GMAIL_SCOPE } from '../src/communication/google-api.js';
 import { GMAIL_COOKIE } from '../src/communication/gmail.js';
 import { SecretVault } from '../src/billing/secret-vault.js';
 import { ACCESS_COOKIE } from '../src/auth/auth.config.js';
-import { authDatabase, ADMIN_ID, MEMBER_ID } from './support/auth-database.js';
+import {
+  authDatabase,
+  ADMIN_ID,
+  MEMBER_ID,
+  COMPANY_ID,
+} from './support/auth-database.js';
 const origin = 'https://dev.example.test',
   password = 'test-only-password-123';
 const vapid = webpush.generateVAPIDKeys(),
@@ -106,6 +111,7 @@ describe('Phase 3 HTTP uses real AuthGuard/AdminGuard, CSRF, JWT and vault with 
             : where.provider === 'PUSH_PENDING'
               ? {
                   enabled: true,
+                  environment: 'SANDBOX',
                   scope: 'GLOBAL',
                   status: 'CONNECTED',
                   config: {
@@ -125,6 +131,7 @@ describe('Phase 3 HTTP uses real AuthGuard/AdminGuard, CSRF, JWT and vault with 
         }),
       },
       globalCommunicationLog: { create: vi.fn() },
+      globalPushAuthorization: { upsert: vi.fn(async () => ({})) },
       globalPushSubscription: {
         findUnique: vi.fn(
           async ({ where }) => devices.get(where.endpointHash) ?? null,
@@ -357,6 +364,12 @@ describe('Phase 3 HTTP uses real AuthGuard/AdminGuard, CSRF, JWT and vault with 
   });
   it('registers only own devices, protects write Origin and never returns endpoint/auth/private VAPID', async () => {
     const owner = await login('member@example.test');
+    await request(app.getHttpServer())
+      .post('/auth/tenant')
+      .set('Cookie', owner)
+      .set('Origin', origin)
+      .send({ companyId: COMPANY_ID })
+      .expect(200);
     await subscribe(owner, undefined, { userId: ADMIN_ID }).expect(400);
     await request(app.getHttpServer())
       .post('/communication/push/subscriptions')
@@ -406,6 +419,12 @@ describe('Phase 3 HTTP uses real AuthGuard/AdminGuard, CSRF, JWT and vault with 
       .get('/communication/push/public-config')
       .expect(401);
     const owner = await login('member@example.test');
+    await request(app.getHttpServer())
+      .post('/auth/tenant')
+      .set('Cookie', owner)
+      .set('Origin', origin)
+      .send({ companyId: COMPANY_ID })
+      .expect(200);
     await subscribe(owner, undefined, {
       provider: 'EXPO',
       platform: 'ANDROID',

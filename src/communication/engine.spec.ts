@@ -44,7 +44,7 @@ function fixture() {
     globalCommunicationOutbox: {
       findUniqueOrThrow: vi.fn().mockResolvedValue({
         id: 'event',
-        companyId: 'company',
+        companyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         event: 'PAYMENT_APPROVED',
       }),
     },
@@ -185,7 +185,7 @@ describe('outbox delivery and retries', () => {
       $queryRaw: vi.fn().mockResolvedValue([{ id: 'event' }]),
       globalCommunicationOutbox: {
         findUniqueOrThrow: vi.fn().mockResolvedValue({
-          companyId: 'company',
+          companyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
           event: 'PAYMENT_APPROVED',
           variables: { valor: '10 BRL' },
         }),
@@ -244,7 +244,7 @@ describe('outbox delivery and retries', () => {
     expect(additions.membership.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          companyId: 'company',
+          companyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
           role: 'OWNER',
           isActive: true,
         }),
@@ -263,13 +263,11 @@ describe('Phase 3 shares the existing outbox motor', () => {
     Object.assign(f.db, {
       $queryRaw: vi.fn().mockResolvedValue([{ id: 'event' }]),
       globalCommunicationOutbox: {
-        findUniqueOrThrow: vi
-          .fn()
-          .mockResolvedValue({
-            companyId: 'company',
-            event: 'PAYMENT_APPROVED',
-            variables: { valor: '10 BRL' },
-          }),
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          companyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          event: 'PAYMENT_APPROVED',
+          variables: { valor: '10 BRL' },
+        }),
         update: vi.fn(),
       },
       globalCommunicationTemplate: {
@@ -291,15 +289,13 @@ describe('Phase 3 shares the existing outbox motor', () => {
         ]),
       },
       membership: {
-        findMany: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              userId: 'owner',
-              user: { name: 'Owner', email: 'owner@example.test' },
-              company: { name: 'Empresa' },
-            },
-          ]),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            userId: 'owner',
+            user: { name: 'Owner', email: 'owner@example.test' },
+            company: { name: 'Empresa' },
+          },
+        ]),
       },
       globalPushSubscription: {
         findMany: vi
@@ -307,14 +303,12 @@ describe('Phase 3 shares the existing outbox motor', () => {
           .mockResolvedValue([{ id: 'device1' }, { id: 'device2' }]),
       },
       globalCommunicationProvider: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({
-            enabled: true,
-            scope: 'GLOBAL',
-            environment: 'SANDBOX',
-            revision: 1,
-          }),
+        findUnique: vi.fn().mockResolvedValue({
+          enabled: true,
+          scope: 'GLOBAL',
+          environment: 'SANDBOX',
+          revision: 1,
+        }),
       },
     });
     Object.assign(f.db.globalCommunicationDelivery, { createMany });
@@ -338,7 +332,14 @@ describe('Phase 3 shares the existing outbox motor', () => {
           scope: 'GLOBAL',
           active: true,
           provider: 'WEB_PUSH',
-          platform: 'WEB',
+          environment: 'SANDBOX',
+          authorizations: expect.objectContaining({
+            some: expect.objectContaining({
+              companyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+              userId: 'owner',
+              active: true,
+            }),
+          }),
         }),
       }),
     );

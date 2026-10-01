@@ -110,8 +110,9 @@ model Membership {
   role      MembershipRole
   isActive  Boolean        @default(true)
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company            Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  pushAuthorizations GlobalPushAuthorization[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -488,27 +489,48 @@ enum GlobalPushPlatform {
 }
 
 model GlobalPushSubscription {
-  id                   String             @id @default(uuid()) @db.Uuid
-  scope                CommunicationScope @default(GLOBAL)
-  userId               String             @db.Uuid
-  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // Extensible transport identifier; only WEB_PUSH is accepted by the current API.
-  provider             String             @default("WEB_PUSH")
-  platform             GlobalPushPlatform @default(WEB)
-  endpointHash         String             @unique @db.Char(64)
+  id                   String                    @id @default(uuid()) @db.Uuid
+  scope                CommunicationScope        @default(GLOBAL)
+  userId               String                    @db.Uuid
+  user                 User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // WEB_PUSH is implemented; NATIVE_PUSH is reserved and rejected until a native adapter exists.
+  provider             String                    @default("WEB_PUSH")
+  platform             GlobalPushPlatform        @default(WEB)
+  environment          GatewayEnvironment        @default(SANDBOX)
+  endpointHash         String                    @unique @db.Char(64)
   // Web endpoint/keys or a future native token; always encrypted with per-device AAD.
   credentialsEncrypted String?
   vapidPublicKey       String
   label                String?
-  active               Boolean            @default(true)
+  active               Boolean                   @default(true)
   expiresAt            DateTime?
   revokedAt            DateTime?
-  lastSeenAt           DateTime           @default(now())
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  lastSeenAt           DateTime                  @default(now())
+  lastUsedAt           DateTime?
+  authorizations       GlobalPushAuthorization[]
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
 
+  @@unique([id, userId])
   @@index([userId, active])
   @@index([active, expiresAt])
+}
+
+// Tenant consent for a GLOBAL-owned device; never a tenant provider configuration.
+// Composite foreign keys guarantee that device owner and membership user match.
+model GlobalPushAuthorization {
+  subscriptionId String                 @db.Uuid
+  userId         String                 @db.Uuid
+  companyId      String                 @db.Uuid
+  subscription   GlobalPushSubscription @relation(fields: [subscriptionId, userId], references: [id, userId], onDelete: Cascade)
+  membership     Membership             @relation(fields: [userId, companyId], references: [userId, companyId], onDelete: Cascade)
+  active         Boolean                @default(true)
+  revokedAt      DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@id([subscriptionId, companyId])
+  @@index([userId, companyId, active])
 }
 
 model GlobalCommunicationLog {
