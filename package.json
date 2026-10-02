@@ -22,8 +22,8 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "postinstall": "prisma skills sync || exit 0",
     "admin:create": "npm run build && node scripts/admin-create.mjs",
-    "communication:worker": "node dist/src/communication/worker.js",
-    "communication:scheduler": "node dist/src/communication/scheduler.js"
+    "communication:worker": "node dist/communication/worker.js",
+    "communication:scheduler": "node dist/communication/scheduler.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

@@ -79,6 +79,8 @@ model User {
 
   memberships             Membership[]
   authSessions            AuthSession[]
+  notifications           Notification[]
+  notificationPreference  NotificationPreference?
   globalPushSubscriptions GlobalPushSubscription[]
 
   createdAt DateTime @default(now())
@@ -86,12 +88,13 @@ model User {
 }
 
 model Company {
-  id       String        @id @default(uuid()) @db.Uuid
-  name     String
-  slug     String        @unique
-  status   CompanyStatus @default(TRIAL)
-  timezone String        @default("America/Sao_Paulo")
-  isActive Boolean       @default(true)
+  notifications Notification[]
+  id            String         @id @default(uuid()) @db.Uuid
+  name          String
+  slug          String         @unique
+  status        CompanyStatus  @default(TRIAL)
+  timezone      String         @default("America/Sao_Paulo")
+  isActive      Boolean        @default(true)
 
   memberships   Membership[]
   subscriptions Subscription[]
@@ -421,18 +424,20 @@ model GlobalCommunicationTemplate {
 }
 
 model GlobalCommunicationOutbox {
-  id          String                        @id @default(uuid()) @db.Uuid
-  scope       CommunicationScope            @default(GLOBAL)
-  event       String
-  businessKey String                        @unique
-  companyId   String?                       @db.Uuid
-  userId      String?                       @db.Uuid
-  variables   Json
-  lastError   String?
-  expandedAt  DateTime?
-  createdAt   DateTime                      @default(now())
-  deliveries  GlobalCommunicationDelivery[]
+  id                      String                        @id @default(uuid()) @db.Uuid
+  scope                   CommunicationScope            @default(GLOBAL)
+  event                   String
+  businessKey             String                        @unique
+  companyId               String?                       @db.Uuid
+  userId                  String?                       @db.Uuid
+  variables               Json
+  lastError               String?
+  notificationProcessedAt DateTime?
+  expandedAt              DateTime?
+  createdAt               DateTime                      @default(now())
+  deliveries              GlobalCommunicationDelivery[]
 
+  @@index([notificationProcessedAt, createdAt])
   @@index([expandedAt, createdAt])
 }
 
@@ -563,4 +568,33 @@ model GlobalCommunicationMetaTemplate {
   syncedAt          DateTime           @default(now())
 
   @@unique([environment, businessAccountId, externalId])
+}
+
+// Inbox history is independent of communication delivery channels and provider settings.
+model Notification {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId   String?   @db.Uuid
+  company     Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sourceKey   String
+  type        String
+  title       String
+  message     String
+  actionUrl   String?
+  actionLabel String?
+  createdAt   DateTime  @default(dbgenerated("(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')"))
+  expiresAt   DateTime  @default(dbgenerated())
+  readAt      DateTime?
+
+  @@unique([userId, sourceKey])
+  @@index([userId, companyId, readAt, createdAt, id])
+  @@index([expiresAt])
+}
+
+model NotificationPreference {
+  userId          String   @id @db.Uuid
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inSystemEnabled Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
 }

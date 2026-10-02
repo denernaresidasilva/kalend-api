@@ -75,6 +75,7 @@ describe('authentication HTTP with real bcrypt/JWT and mock persistence', () => 
       .set('Cookie', authCookie)
       .expect(200);
     expect(result.body.accessAllowed).toBe(false);
+    expect(result.body.financial.requiresAction).toBe(true);
     await request(app.getHttpServer())
       .get('/auth/tenant')
       .set('Cookie', authCookie)
@@ -85,6 +86,157 @@ describe('authentication HTTP with real bcrypt/JWT and mock persistence', () => 
       .set('Origin', origin)
       .send({ companyId: OTHER_COMPANY_ID, amountCents: 1 })
       .expect(400);
+  });
+  it('regularization requires authentication and returns no invented trial for a user without company', async () => {
+    for (const membership of fixture.memberships) membership.isActive = false;
+    await request(app.getHttpServer())
+      .get('/billing/regularization')
+      .expect(401);
+    const response = await login('member@example.test').expect(200);
+    const result = await request(app.getHttpServer())
+      .get('/billing/regularization')
+      .set('Cookie', cookie(response, ACCESS_COOKIE))
+      .expect(200);
+    expect(result.body).toMatchObject({
+      companyId: null,
+      context: { commercialApplicable: false },
+      financial: { requiresAction: false },
+      trial: { active: false },
+    });
+    expect(fixture.sessions[0].selectedCompanyId).toBeNull();
+  });
+  it('Super Admin has no company trial even with selected session context', async () => {
+    const response = await login().expect(200);
+    fixture.sessions[0].selectedCompanyId = COMPANY_ID;
+    const result = await request(app.getHttpServer())
+      .get('/billing/regularization')
+      .set('Cookie', cookie(response, ACCESS_COOKIE))
+      .expect(200);
+    expect(result.body).toMatchObject({
+      companyId: null,
+      context: { systemRole: 'SUPER_ADMIN', commercialApplicable: false },
+      trial: { active: false },
+      financial: { requiresAction: false },
+    });
+  });
+  it.each(['OWNER', 'ADMIN', 'PROFESSIONAL', 'RECEPTIONIST', 'CLIENT'])(
+    'reads state as %s without granting checkout permission',
+    async (role) => {
+      const oldRole = fixture.memberships[0].role;
+      fixture.memberships[0].role = role;
+      try {
+        const response = await login('member@example.test').expect(200);
+        const access = cookie(response, ACCESS_COOKIE);
+        await request(app.getHttpServer())
+          .post('/auth/tenant')
+          .set('Origin', origin)
+          .set('Cookie', access)
+          .send({ companyId: COMPANY_ID })
+          .expect(200);
+        const result = await request(app.getHttpServer())
+          .get('/billing/regularization')
+          .set('Cookie', access)
+          .expect(200);
+        expect(result.body.context.role).toBe(role);
+        expect(result.body.companyId).toBe(COMPANY_ID);
+        if (!['OWNER', 'ADMIN'].includes(role)) {
+          expect(result.body.pendingCheckout).toBeNull();
+          await request(app.getHttpServer())
+            .post('/billing/checkout')
+            .set('Origin', origin)
+            .set('Cookie', access)
+            .send({})
+            .expect(403);
+        }
+        fixture.memberships[0].isActive = false;
+        await request(app.getHttpServer())
+          .get('/billing/regularization')
+          .set('Cookie', access)
+          .expect(403);
+      } finally {
+        fixture.memberships[0].role = oldRole;
+      }
+    },
+  );
+  it('one authorized company never becomes implicitly selected', async () => {
+    fixture.memberships[1].isActive = false;
+    const response = await login('member@example.test').expect(200);
+    const result = await request(app.getHttpServer())
+      .get('/billing/regularization')
+      .set('Cookie', cookie(response, ACCESS_COOKIE))
+      .expect(200);
+    expect(result.body.companyId).toBeNull();
+    const access = cookie(response, ACCESS_COOKIE);
+    await request(app.getHttpServer())
+      .post('/auth/tenant')
+      .set('Origin', origin)
+      .set('Cookie', access)
+      .send({ companyId: COMPANY_ID })
+      .expect(200);
+    const selected = await request(app.getHttpServer())
+      .get('/billing/regularization')
+      .set('Cookie', access)
+      .expect(200);
+    expect(selected.body.companyId).toBe(COMPANY_ID);
+    expect(selected.body.financial.requiresAction).toBe(true);
+  });
+  it('switches state between selected A and B and ignores client supplied company/time', async () => {
+    const response = await login('member@example.test').expect(200);
+    const access = cookie(response, ACCESS_COOKIE);
+    const serverTime = new Date();
+    fixture.db.subscription.findFirst.mockImplementation((async ({
+      where,
+    }: any) => ({
+      id: where.companyId,
+      companyId: where.companyId,
+      status: 'TRIALING',
+      planId: where.companyId,
+      plan: { name: 'Trial' },
+      trialEndsAt: new Date(
+        serverTime.getTime() +
+          (where.companyId === COMPANY_ID ? 3 : 1) * 86400000,
+      ),
+    })) as never);
+    try {
+      for (const [companyId, days] of [
+        [COMPANY_ID, 3],
+        [OTHER_COMPANY_ID, 1],
+      ] as const) {
+        await request(app.getHttpServer())
+          .post('/auth/tenant')
+          .set('Origin', origin)
+          .set('Cookie', access)
+          .send({ companyId })
+          .expect(200);
+        const result = await request(app.getHttpServer())
+          .get(
+            `/billing/regularization?companyId=unauthorized&serverNow=2000-01-01`,
+          )
+          .set('Cookie', access)
+          .set('X-Company-Id', 'unauthorized')
+          .expect(200);
+        expect(result.body.companyId).toBe(companyId);
+        expect(result.body.subscription.id).toBe(companyId);
+        expect(result.body.trial.remainingDays).toBe(days);
+        expect(result.body.financial.requiresAction).toBe(false);
+        expect(
+          new Date(result.body.serverNow).getTime(),
+        ).toBeGreaterThanOrEqual(serverTime.getTime());
+        expect(fixture.db.subscription.findFirst).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({ companyId }),
+          }),
+        );
+      }
+      fixture.sessions[0].selectedCompanyId =
+        '55555555-5555-4555-8555-555555555555';
+      await request(app.getHttpServer())
+        .get('/billing/regularization')
+        .set('Cookie', access)
+        .expect(403);
+    } finally {
+      fixture.db.subscription.findFirst.mockImplementation(async () => null);
+    }
   });
   it('returns identical errors for wrong password and unknown user', async () => {
     const wrong = await request(app.getHttpServer())

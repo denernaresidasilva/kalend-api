@@ -625,6 +625,7 @@ describe('Phase 4 tenant authorization and device lifecycle', () => {
     );
     expect(payload).toEqual({
       version: 1,
+      url: '/conta/notificacoes',
       title: 'Kalend',
       body: 'Uma atualização',
     });
@@ -787,7 +788,7 @@ describe('GLOBAL Web Push devices and transport', () => {
       JSON.parse(
         pushPayload({ to: 'x', title: 'Olá', text: '<script>x</script>' }),
       ),
-    ).toEqual({ version: 1, title: 'Olá', body: '<script>x</script>' });
+    ).toEqual({ version: 1, title: 'Olá', body: '<script>x</script>', url: '/conta/notificacoes' });
     await expect(
       f.push.register('owner', { ...subscription, expirationTime: 0 }),
     ).rejects.toThrow();

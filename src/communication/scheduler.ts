@@ -1,3 +1,4 @@
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { GlobalPush } from './push.js';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
@@ -15,10 +16,14 @@ if (process.env.COMMUNICATION_SCHEDULER_ENABLED !== 'true') {
       abortOnError: false,
     });
     try {
+      const inboxCleanup = await app.get(NotificationsService).cleanup();
       const commercial = await app.get(LifecycleService).reconcile();
       await app.get(GlobalPush).cleanup();
       const temporal = await app.get(CommunicationEngine).temporal();
-      console.log(JSON.stringify({ commercial, temporal }));
+      const inbox = await app.get(NotificationsService).ingest();
+      console.log(
+        JSON.stringify({ commercial, temporal, inbox, inboxCleanup }),
+      );
     } finally {
       await app.close();
     }

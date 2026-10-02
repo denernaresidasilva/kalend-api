@@ -1,3 +1,4 @@
+import { NotificationsService } from '../notifications/notifications.service.js';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module.js';
@@ -15,7 +16,8 @@ if (process.env.COMMUNICATION_WORKER_ENABLED !== 'true') {
     try {
       const engine = app.get(CommunicationEngine);
       await engine.temporal();
-      console.log(JSON.stringify(await engine.run()));
+      const inbox = await app.get(NotificationsService).ingest();
+      console.log(JSON.stringify({ ...(await engine.run()), inbox }));
     } finally {
       await app.close();
     }

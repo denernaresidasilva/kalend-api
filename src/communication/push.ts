@@ -155,7 +155,7 @@ export function pushPayload(m: Message) {
   )
     throw new TransportFailure('PERMANENT');
   // Plain strings only. Frontend must use Notification title/body, never innerHTML.
-  const payload = JSON.stringify({ version: 1, title: m.title, body: m.text });
+  const payload = JSON.stringify({ version: 1, title: m.title, body: m.text, url: '/conta/notificacoes' });
   if (Buffer.byteLength(payload) > 3000)
     throw new TransportFailure('PERMANENT');
   return payload;

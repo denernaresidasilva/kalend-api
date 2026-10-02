@@ -1,3 +1,9 @@
+import type { MembershipRole } from '@prisma/client';
+import type {
+  CommercialTrial,
+  CommercialFinancial,
+  CommercialContext,
+} from './regularization.types.js';
 import {
   BadRequestException,
   Inject,
@@ -18,7 +24,37 @@ export class RegularizationService {
     @Inject(GatewaysService) private readonly gateways: GatewaysService,
     @Inject(GatewayRegistry) private readonly registry: GatewayRegistry,
   ) {}
-  async get(companyId: string) {
+  withoutCompany(systemRole: 'SUPER_ADMIN' | 'USER') {
+    return {
+      serverNow: new Date().toISOString(),
+      context: {
+        systemRole,
+        role: null,
+        commercialApplicable: false,
+      } satisfies CommercialContext,
+      companyId: null,
+      accessAllowed: false,
+      status: 'NOT_APPLICABLE',
+      reason: null,
+      trialExpired: false,
+      trial: {
+        active: false,
+        endsAt: null,
+        expired: false,
+        remainingDays: 0,
+      } satisfies CommercialTrial,
+      financial: {
+        requiresAction: false,
+        status: null,
+        paymentStatus: null,
+      } satisfies CommercialFinancial,
+      subscription: null,
+      plans: [],
+      gateways: [],
+      pendingCheckout: null,
+    };
+  }
+  async get(companyId: string, role: MembershipRole = 'OWNER') {
     const now = new Date();
     const current = await this.prisma.subscription.findFirst({
       where: entitledWhere(companyId, now),
@@ -36,22 +72,55 @@ export class RegularizationService {
       !!last?.trialEndsAt &&
       last.trialEndsAt <= now &&
       ['TRIALING', 'EXPIRED'].includes(last.status);
-    const available = (await this.gateways.list()).filter(
+    const trialActive =
+      last?.status === 'TRIALING' &&
+      !!last.trialEndsAt &&
+      last.trialEndsAt > now;
+    const managesBilling = ['OWNER', 'ADMIN'].includes(role);
+    const latestPayment = last
+      ? await this.prisma.payment.findFirst({
+          where: { companyId, subscriptionId: last.id },
+          select: { status: true },
+          orderBy: { createdAt: 'desc' },
+        })
+      : null;
+    const available = (managesBilling ? await this.gateways.list() : []).filter(
       (g) => g.enabled && g.status === 'CONNECTED',
     );
-    const pending = await this.prisma.payment.findFirst({
-      where: { companyId, status: 'PENDING' },
-      select: {
-        id: true,
-        planId: true,
-        gateway: true,
-        billingInterval: true,
-        checkoutUrl: true,
-        creationState: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const pending = managesBilling
+      ? await this.prisma.payment.findFirst({
+          where: { companyId, status: 'PENDING' },
+          select: {
+            id: true,
+            planId: true,
+            gateway: true,
+            billingInterval: true,
+            checkoutUrl: true,
+            creationState: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        })
+      : null;
     return {
+      serverNow: now.toISOString(),
+      context: {
+        systemRole: 'USER',
+        role,
+        commercialApplicable: true,
+      } satisfies CommercialContext,
+      trial: {
+        active: trialActive,
+        endsAt: last?.trialEndsAt ?? null,
+        expired: trialExpired,
+        remainingDays: trialActive
+          ? Math.ceil((last!.trialEndsAt!.getTime() - now.getTime()) / 86400000)
+          : 0,
+      } satisfies CommercialTrial,
+      financial: {
+        requiresAction: !current && !trialExpired,
+        status: last?.status ?? null,
+        paymentStatus: latestPayment?.status ?? null,
+      } satisfies CommercialFinancial,
       companyId,
       accessAllowed: !!current,
       status: trialExpired
@@ -77,7 +146,7 @@ export class RegularizationService {
             cancelAtPeriodEnd: last.cancelAtPeriodEnd,
           }
         : null,
-      plans: await this.plans.findPublic(),
+      plans: managesBilling ? await this.plans.findPublic() : [],
       gateways: available.map((g) => ({
         provider: g.gateway,
         environment: g.environment,

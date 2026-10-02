@@ -94,6 +94,8 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
         'authenticity-valid',
         'authenticity-duplicate',
         'authenticity-invalid',
+        'authenticity-missing-credential',
+        'authenticity-tampered',
         'invalid-signature',
         'missing-signature',
         'tampered',
@@ -108,7 +110,8 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
           const wrong = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
           f.gatewayContext.context.mockResolvedValue({
             environment: 'SANDBOX',
-            credentials: 'fixture',
+            credentials:
+              condition === 'authenticity-missing-credential' ? '' : 'fixture',
           } as never);
           f.db.payment.findUnique.mockImplementation(async ({ where }) => {
             expect(where.gateway_environment_externalPaymentId).toEqual({
@@ -172,7 +175,7 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
           vi.stubGlobal('fetch', network);
           try {
             const body =
-              condition === 'tampered'
+              condition === 'tampered' || condition === 'authenticity-tampered'
                 ? Buffer.from(JSON.stringify(JSON.parse(raw.toString())))
                 : raw;
             const receive = () =>
@@ -226,6 +229,8 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
                 condition === 'tampered' ||
                 condition === 'invalid-signature' ||
                 condition === 'authenticity-invalid' ||
+                condition === 'authenticity-missing-credential' ||
+                condition === 'authenticity-tampered' ||
                 condition === 'missing-signature'
               )
                 expect(f.db.webhookEvent.upsert).not.toHaveBeenCalled();

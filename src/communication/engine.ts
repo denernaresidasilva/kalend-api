@@ -91,7 +91,7 @@ export class CommunicationEngine {
       async (tx) => {
         const rows = await tx.$queryRaw<
           { id: string }[]
-        >`SELECT id FROM "GlobalCommunicationOutbox" WHERE "expandedAt" IS NULL ORDER BY "createdAt", id LIMIT 20 FOR UPDATE SKIP LOCKED`;
+        >`SELECT id FROM "GlobalCommunicationOutbox" WHERE "expandedAt" IS NULL AND "notificationProcessedAt" IS NOT NULL ORDER BY "createdAt", id LIMIT 20 FOR UPDATE SKIP LOCKED`;
         for (const { id } of rows) {
           const event = await tx.globalCommunicationOutbox.findUniqueOrThrow({
             where: { id },

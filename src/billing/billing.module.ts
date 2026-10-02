@@ -1,4 +1,6 @@
 import { AuthRateLimit } from '../auth/auth-rate-limit.service.js';
+import { AuthGuard } from '../auth/auth.guard.js';
+import { AuthService } from '../auth/auth.service.js';
 import { pagbankWebhookDiagnostics } from './pagbank-webhook-diagnostics.js';
 import { ProductAccessGuard } from './product-access.guard.js';
 import {
@@ -138,9 +140,6 @@ export class CommercialController {
     private readonly regularization: RegularizationService,
     @Inject(PaymentsService) private readonly payments: PaymentsService,
   ) {}
-  @Get('regularization') get(@Req() req: AuthRequest) {
-    return this.regularization.get(req.tenant!.companyId);
-  }
   @Get('payments/:id') status(
     @Req() req: AuthRequest,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -158,8 +157,30 @@ export class CommercialController {
     return this.regularization.cancel(req.tenant!.companyId, id, body);
   }
 }
+@Controller('billing')
+@UseGuards(AuthGuard)
+export class CommercialStateController {
+  constructor(
+    @Inject(RegularizationService)
+    private readonly regularization: RegularizationService,
+    @Inject(AuthService) private readonly auth: AuthService,
+  ) {}
+  @Get('regularization') async get(@Req() req: AuthRequest) {
+    if (req.auth.user.isSuperAdmin)
+      return this.regularization.withoutCompany('SUPER_ADMIN');
+    const companyId = req.auth.session.selectedCompanyId;
+    if (!companyId) return this.regularization.withoutCompany('USER');
+    const membership = await this.auth.membership(
+      req.auth.user.id,
+      companyId,
+      true,
+    );
+    return this.regularization.get(companyId, membership.role);
+  }
+}
 @Module({
   controllers: [
+    CommercialStateController,
     CommercialController,
     LifecycleController,
     GatewaysController,
