@@ -116,10 +116,14 @@ export class PushController {
   @Get('public-config') config() {
     return this.push.publicConfiguration();
   }
-  @Get('subscriptions') list(@Req() req: AuthRequest) {
+  @Get('subscriptions') list(
+    @Req() req: AuthRequest,
+    @Query('endpointHash') endpointHash?: string,
+  ) {
     return this.push.list(
       req.auth.user.id,
       req.auth.session.selectedCompanyId ?? undefined,
+      endpointHash,
     );
   }
   @Post('subscriptions') async register(

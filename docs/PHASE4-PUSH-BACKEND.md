@@ -73,7 +73,7 @@ Esses placeholders são ilustrativos, não dados válidos para enviar ao endpoin
 
 ## Validação, limites e ciclo de vida
 
-- Endpoint HTTPS até 2048 caracteres; sem espaços/caracteres de controle, userinfo, portas alternativas, fragmento ou caminho raiz. Host exato em COMMUNICATION_WEB_PUSH_HOSTS; IP literal/privado e DNS privado são recusados. Query opaca é preservada em host autorizado; não é logada. Não há redirects.
+- Endpoint HTTPS até 2048 caracteres; sem espaços/caracteres de controle, userinfo, portas alternativas ou fragmento. Hostname DNS válido de qualquer fornecedor, sem COMMUNICATION_WEB_PUSH_HOSTS; IP literal, domínio local e DNS privado/reservado são recusados. DNS público é validado no cadastro e em cada envio, com IP fixado no socket. Caminho (inclusive raiz) e query opacos são preservados; não são logados. Não há redirects.
 - p256dh: base64url canônico sem padding, 65 bytes, ponto P-256 válido não comprimido. auth: 16 bytes, base64url canônico sem padding.
 - label até 80 caracteres; provider/platform limitados. Não persiste UA integral, IP ou fingerprint.
 - expirationTime: null ou timestamp futuro seguro/representável. Até 20 dispositivos ativos não expirados por usuário; 20 mutações de dispositivos por usuário/5min.

@@ -36,6 +36,63 @@ function respond(status: number, body: string) {
   });
 }
 describe('Gmail/Web Push hardened HTTP boundary', () => {
+  it.each([
+    '10.0.0.1',
+    '172.16.0.1',
+    '192.168.1.1',
+    '127.0.0.1',
+    '169.254.169.254',
+    '100.64.0.1',
+    '0.0.0.0',
+    '224.0.0.1',
+    '::1',
+    'fc00::1',
+    'fe80::1',
+    '2001:db8::1',
+  ])('blocks unsafe DNS address %s before sending Push', async (address) => {
+    mocks.resolve4.mockResolvedValue([address]);
+    await expect(
+      secureRequest(new URL('https://example.com/push'), 'POST', {}),
+    ).rejects.toMatchObject({ kind: 'PERMANENT' });
+    expect(mocks.request).not.toHaveBeenCalled();
+  });
+
+  it('pins FCM DNS within a request and blocks private rebinding on the next send', async () => {
+    respond(201, '');
+    mocks.resolve4
+      .mockResolvedValueOnce(['8.8.8.8'])
+      .mockResolvedValue(['127.0.0.1']);
+    const url = new URL('https://fcm.googleapis.com/fcm/send/test-token');
+    await secureRequest(url, 'POST', {});
+    const options = mocks.request.mock.calls[0][1];
+    const cb = vi.fn();
+    options.lookup(url.hostname, {}, cb);
+    options.lookup(url.hostname, {}, cb);
+    expect(cb).toHaveBeenCalledWith(null, '8.8.8.8', 4);
+    expect(mocks.resolve4).toHaveBeenCalledTimes(1);
+    expect(options.servername).toBe('fcm.googleapis.com');
+    await expect(secureRequest(url, 'POST', {})).rejects.toMatchObject({
+      kind: 'PERMANENT',
+    });
+    expect(mocks.request).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed when TLS certificate validation fails', async () => {
+    mocks.request.mockImplementation((_url, options) => {
+      expect(options.rejectUnauthorized).toBe(true);
+      const req = Object.assign(new EventEmitter(), {
+        destroy: vi.fn(),
+        end: vi.fn(() => {
+          req.emit('error', new Error('CERT_HAS_EXPIRED'));
+          req.emit('close');
+        }),
+      });
+      return req;
+    });
+    await expect(
+      secureRequest(new URL('https://example.com/push'), 'POST', {}),
+    ).rejects.toMatchObject({ kind: 'TRANSIENT' });
+  });
   it('pins public DNS with hostname TLS validation and forwards exact form/binary payload', async () => {
     respond(200, '{}');
     const body = Buffer.from([1, 2, 3]);

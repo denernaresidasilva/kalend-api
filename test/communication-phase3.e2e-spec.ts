@@ -1,3 +1,8 @@
+
+vi.mock('../src/communication/network.js', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../src/communication/network.js')>(),
+  resolvePublic: vi.fn().mockResolvedValue('8.8.8.8'),
+}));
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -8,6 +13,7 @@ import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { GoogleApi, GMAIL_SCOPE } from '../src/communication/google-api.js';
 import { GMAIL_COOKIE } from '../src/communication/gmail.js';
+import { pushScope } from '../src/communication/push.js';
 import { SecretVault } from '../src/billing/secret-vault.js';
 import { ACCESS_COOKIE } from '../src/auth/auth.config.js';
 import {
@@ -49,7 +55,7 @@ describe('Phase 3 HTTP uses real AuthGuard/AdminGuard, CSRF, JWT and vault with 
       'COMMUNICATION_GMAIL_CALLBACK_URL',
       'https://api.example.test/communication/gmail/callback',
     );
-    vi.stubEnv('COMMUNICATION_WEB_PUSH_HOSTS', 'push.example.test');
+    vi.stubEnv('COMMUNICATION_WEB_PUSH_HOSTS', undefined);
     fixture = authDatabase(await bcrypt.hash(password, 12));
     Object.assign(fixture.db.user, {
       findFirst: vi.fn(async ({ where }) =>
@@ -138,7 +144,7 @@ describe('Phase 3 HTTP uses real AuthGuard/AdminGuard, CSRF, JWT and vault with 
         ),
         count: vi.fn(async () => devices.size),
         upsert: vi.fn(async ({ where, create, update, select }) => {
-          const device = devices.get(where.endpointHash) ?? create;
+          const device = devices.get(where.endpointHash) ?? { provider: 'WEB_PUSH', ...create };
           if (devices.has(where.endpointHash)) Object.assign(device, update);
           devices.set(where.endpointHash, device);
           return Object.fromEntries(
@@ -362,6 +368,21 @@ describe('Phase 3 HTTP uses real AuthGuard/AdminGuard, CSRF, JWT and vault with 
       .set('Origin', origin)
       .expect(429);
   });
+  it('accepts the Chrome FCM subscription without an allowlist', async () => {
+    const owner = await login('member@example.test');
+    await request(app.getHttpServer()).post('/auth/tenant')
+      .set('Cookie', owner).set('Origin', origin)
+      .send({ companyId: COMPANY_ID }).expect(200);
+    const endpoint = 'https://fcm.googleapis.com/fcm/send/test-token';
+    const result = await subscribe(owner, endpoint, {
+      provider: 'WEB_PUSH', platform: 'WEB', label: 'Chrome - Linux',
+    }).expect(201);
+    expect(result.body).toMatchObject({ active: true, provider: 'WEB_PUSH', platform: 'WEB' });
+    expect(result.body).not.toHaveProperty('endpoint');
+    expect(result.body).not.toHaveProperty('keys');
+    const stored = devices.get(result.body.endpointHash);
+    expect(JSON.parse(new SecretVault().decrypt(stored.credentialsEncrypted, pushScope(stored.id))).endpoint).toBe(endpoint);
+  });
   it('registers only own devices, protects write Origin and never returns endpoint/auth/private VAPID', async () => {
     const owner = await login('member@example.test');
     await request(app.getHttpServer())
@@ -390,8 +411,16 @@ describe('Phase 3 HTTP uses real AuthGuard/AdminGuard, CSRF, JWT and vault with 
       .set('Cookie', owner)
       .expect(200);
     expect(list.body).toHaveLength(2);
+    expect(list.body[0].endpointHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(list.body[0].vapidPublicKey).toBe(vapid.publicKey);
+    for (const device of devices.values()) {
+      const stored = JSON.parse(new SecretVault().decrypt(device.credentialsEncrypted, pushScope(device.id)));
+      expect(JSON.stringify(list.body)).not.toContain(stored.endpoint);
+      expect(JSON.stringify(list.body)).not.toContain(stored.keys.auth);
+      expect(JSON.stringify(list.body)).not.toContain(stored.keys.p256dh);
+    }
     expect(JSON.stringify(list.body)).not.toMatch(
-      /credentials|endpoint|p256dh|auth"/,
+      /credentials|"endpoint"|p256dh|auth"/,
     );
     const cfg = await request(app.getHttpServer())
       .get('/communication/push/public-config')

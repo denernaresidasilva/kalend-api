@@ -47,7 +47,7 @@ Disconnect remove tokens/desabilita/invalida revisão localmente **antes** de te
 
 `PATCH /communication/providers/PUSH_PENDING` usa `config:{subject:"mailto:<contato>",publicKey:<VAPID público>}`, `secrets:{privateKey:<VAPID privado>}`. A chave privada é write-only e cifrada no cofre com AAD provider/ambiente. Valida curva P-256, comprimentos e correspondência do par. Não gera chave operacional automaticamente. `test` valida configuração/chaves localmente; `send-test` efetua envio aos dispositivos ativos do próprio Super Admin (até 20). Habilitação exige configuração validada; conexão Web Push não é uma sessão remota persistente.
 
-`web-push@3.6.7` gera VAPID e cifra payload RFC 8291/aes128gcm. O backend usa `generateRequestDetails`, não a rede permissiva da biblioteca: HTTPS próprio, DNS público com IP fixado, hostname TLS validado, nenhuma cadeia de redirects/proxy configurável, timeout 15s, resposta máxima 64KiB. Hosts precisam estar em `COMMUNICATION_WEB_PUSH_HOSTS` (nomes exatos, definidos pelo operador após verificar os endpoints dos navegadores suportados). Ausência de allowlist nega todos. IP privado/literal, credenciais URL, portas alternativas, fragmento, query e endpoint raiz são rejeitados. Hosts oficiais Google são constantes e não vêm de input administrativo.
+`web-push@3.6.7` gera VAPID e cifra payload RFC 8291/aes128gcm. O backend usa `generateRequestDetails`, não a rede permissiva da biblioteca: HTTPS próprio, DNS público com IP fixado, hostname TLS validado, nenhuma cadeia de redirects/proxy configurável, timeout 15s, resposta máxima 64KiB. Web Push aceita hostname DNS válido de qualquer fornecedor, sem depender de `COMMUNICATION_WEB_PUSH_HOSTS`. IP literal, domínios locais, DNS privado/reservado, credenciais URL, portas alternativas e fragmentos são rejeitados. Caminho e query opacos são preservados, inclusive caminho raiz. DNS público é verificado antes da persistência e novamente em cada envio, com IP fixado no socket. Falha transitória de DNS no cadastro retorna 503 `PUSH_ENDPOINT_DNS_UNAVAILABLE`; destino inseguro retorna 400 `PUSH_ENDPOINT_INVALID`.
 
 | Método | Endpoint | Contrato |
 | --- | --- | --- |
@@ -82,7 +82,7 @@ Novas env vars somente documentadas (sem .env real):
 | Variável | Necessidade |
 | --- | --- |
 | COMMUNICATION_GMAIL_CALLBACK_URL | HTTPS absoluto com path exato `/communication/gmail/callback`, sem query/hash/credenciais; cadastrado idêntico no Google |
-| COMMUNICATION_WEB_PUSH_HOSTS | DNS exatos separados por vírgula para serviços Push homologados; ausência bloqueia |
+| COMMUNICATION_WEB_PUSH_HOSTS | Legada; não utilizada na validação Web Push |
 
 Reutiliza GATEWAY_ENCRYPTION_KEY, AUTH_* e DATABASE_URL. ClientId/clientSecret e VAPID ficam na configuração administrativa; não há nova env de token. Flags COMMUNICATION_WORKER_ENABLED/COMMUNICATION_SCHEDULER_ENABLED continuam exigindo literal true, nenhuma foi ativada. HTTP não inicia processos de lote.
 

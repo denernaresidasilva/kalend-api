@@ -10,6 +10,20 @@ export function publicIp(address: string) {
     return false;
   }
 }
+/** DNS syntax only; public addresses must also be checked at connection time. */
+export function webPushHost(host: string) {
+  if (
+    host.length > 253 ||
+    !/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(host) ||
+    isIP(host) ||
+    /(?:^|\.)(?:localhost|local|localdomain|internal|lan|home|onion)$/.test(
+      host,
+    ) ||
+    host === 'home.arpa' ||
+    host.endsWith('.home.arpa')
+  )
+    throw new TransportFailure('PERMANENT');
+}
 export function allowedHost(host: string, policy: string) {
   const hosts = (process.env[policy] ?? '')
     .split(',')

@@ -1,3 +1,8 @@
+
+vi.mock('../src/communication/network.js', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../src/communication/network.js')>(),
+  resolvePublic: vi.fn().mockResolvedValue('8.8.8.8'),
+}));
 import { Test } from '@nestjs/testing';
 import { Logger, type INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -68,7 +73,7 @@ describe('Phase 4 Push HTTP and existing worker with real authorization/cryptogr
     vi.stubEnv('AUTH_JWT_SECRET', randomBytes(32).toString('hex'));
     vi.stubEnv('GATEWAY_ENCRYPTION_KEY', randomBytes(32).toString('hex'));
     vi.stubEnv('AUTH_ALLOWED_ORIGINS', origin);
-    vi.stubEnv('COMMUNICATION_WEB_PUSH_HOSTS', 'push.example.test');
+    vi.stubEnv('COMMUNICATION_WEB_PUSH_HOSTS', undefined);
     auth = authDatabase(await bcrypt.hash(password, 12));
     const members = (where: Record<string, any>) =>
       auth.memberships
@@ -297,6 +302,25 @@ describe('Phase 4 Push HTTP and existing worker with real authorization/cryptogr
     ])
       expect(JSON.stringify(result.body)).not.toContain(secret);
   });
+  it('recovers a paused device by endpoint hash without changing consent or ownership', async () => {
+    const cookie = await login();
+    await select(cookie);
+    const row = await register(cookie).expect(201);
+    await request(app.getHttpServer()).put(`/communication/push/subscriptions/${row.body.id}`)
+      .set('Cookie', cookie).set('Origin', origin).send({ active: false }).expect(200);
+    const hash = row.body.endpointHash;
+    const res = await request(app.getHttpServer()).get(`/communication/push/subscriptions?endpointHash=${hash}`)
+      .set('Cookie', cookie).expect(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0]).toMatchObject({ id: row.body.id, endpointHash: hash, vapidPublicKey: vapid.publicKey, environment: 'SANDBOX' });
+    expect(res.body[0].authorizations[0].active).toBe(false);
+    expect(res.body[0]).not.toHaveProperty('registeredInCurrentSession');
+    expect(store.grants[0].active).toBe(false);
+    await request(app.getHttpServer()).get('/communication/push/subscriptions?endpointHash=invalid').set('Cookie', cookie).expect(400);
+    await select(cookie, OTHER_COMPANY_ID);
+    const other = await request(app.getHttpServer()).get(`/communication/push/subscriptions?endpointHash=${hash}`).set('Cookie', cookie).expect(200);
+    expect(other.body).toEqual([]);
+  });
   it('keeps listing and activation isolated when the same user switches companies', async () => {
     const cookie = await login();
     await select(cookie);
@@ -477,6 +501,23 @@ describe('Phase 4 Push HTTP and existing worker with real authorization/cryptogr
       template.content.text,
     ])
       expect(logs).not.toContain(secret);
+  });
+  it('registers Chrome FCM and dispatches through the existing worker without an allowlist', async () => {
+    const cookie = await login();
+    await select(cookie);
+    const endpoint = 'https://fcm.googleapis.com/fcm/send/test-token';
+    const row = await register(cookie, {
+      ...subscription, endpoint, provider: 'WEB_PUSH', platform: 'WEB', label: 'Chrome - Linux',
+    }).expect(201);
+    const result = await list(cookie).expect(200);
+    expect(result.body[0]).toMatchObject({ id: row.body.id, active: true });
+    const engine = app.get(CommunicationEngine);
+    await engine.expand();
+    await engine.processOne();
+    expect(deliveries[0].status).toBe('ACCEPTED');
+    expect(network.mock.calls[0][0].href).toBe(endpoint);
+    expect(JSON.stringify(result.body)).not.toContain(endpoint);
+    expect(JSON.stringify(result.body)).not.toContain(subscription.keys.auth);
   });
   it('rechecks consent at worker dispatch after outbox expansion', async () => {
     const cookie = await login();

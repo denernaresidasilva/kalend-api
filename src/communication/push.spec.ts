@@ -1,5 +1,11 @@
+import { resolvePublic } from './network.js';
+
+vi.mock('./network.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./network.js')>()),
+  resolvePublic: vi.fn().mockResolvedValue('8.8.8.8'),
+}));
 import { createRequire } from 'node:module';
-import { createECDH, randomBytes } from 'node:crypto';
+import { createECDH, createHash, randomBytes } from 'node:crypto';
 import webpush from 'web-push';
 import {
   GlobalPush,
@@ -35,6 +41,7 @@ function fixture() {
   };
   const matches = (r: Record<string, any>, w: Record<string, any>) =>
     (!w.id || r.id === w.id) &&
+    (!w.endpointHash || r.endpointHash === w.endpointHash) &&
     (!w.userId || r.userId === w.userId) &&
     (!w.environment || r.environment === w.environment) &&
     (!w.provider || r.provider === w.provider) &&
@@ -156,7 +163,8 @@ function fixture() {
 }
 beforeEach(() => {
   vi.stubEnv('GATEWAY_ENCRYPTION_KEY', randomBytes(32).toString('hex'));
-  vi.stubEnv('COMMUNICATION_WEB_PUSH_HOSTS', 'push.example.test');
+  vi.stubEnv('COMMUNICATION_WEB_PUSH_HOSTS', undefined);
+  vi.mocked(resolvePublic).mockReset().mockResolvedValue('8.8.8.8');
   network.mockReset().mockResolvedValue({ status: 201, body: Buffer.alloc(0) });
 });
 
@@ -172,6 +180,80 @@ describe('Phase 4 tenant authorization and device lifecycle', () => {
     title: 'Kalend',
     text: 'Uma atualização está disponível.',
     pushRecipient: recipient,
+  });
+
+  it.each([
+    'https://fcm.googleapis.com/fcm/send/test-token',
+    'https://example.com/push/subscription/token',
+    'https://example.com/push?opaque=a%2Fb&token=123',
+    'https://example.com/',
+  ])(
+    'registers and sends %s without a provider allowlist',
+    async (endpoint) => {
+      const f = fixture();
+      const row = await f.push.register(
+        'owner',
+        {
+          ...subscription,
+          endpoint,
+          provider: 'WEB_PUSH',
+          platform: 'WEB',
+        },
+        recipient.companyId,
+      );
+      expect(row.active).toBe(true);
+      expect(resolvePublic).toHaveBeenCalledWith(new URL(endpoint).hostname);
+      await f.push.send(f.config, f.secrets, message(row.id));
+      expect(network.mock.calls[0][0].href).toBe(endpoint);
+      for (const secret of [
+        endpoint,
+        subscription.keys.p256dh,
+        subscription.keys.auth,
+      ])
+        expect(JSON.stringify(row)).not.toContain(secret);
+    },
+  );
+
+  it('rejects unsafe DNS before persistence and distinguishes DNS outages', async () => {
+    const f = fixture();
+    vi.mocked(resolvePublic).mockRejectedValueOnce(
+      new TransportFailure('PERMANENT'),
+    );
+    await expect(f.push.register('owner', subscription)).rejects.toThrow(
+      'PUSH_ENDPOINT_INVALID',
+    );
+    expect(f.db.$transaction).not.toHaveBeenCalled();
+    vi.mocked(resolvePublic).mockRejectedValueOnce(
+      new TransportFailure('TRANSIENT'),
+    );
+    await expect(f.push.register('owner', subscription)).rejects.toThrow(
+      'PUSH_ENDPOINT_DNS_UNAVAILABLE',
+    );
+    expect(f.rows).toHaveLength(0);
+  });
+
+  it.each([
+    'http://fcm.googleapis.com/fcm/send/token',
+    'https://127.0.0.1/push',
+    'https://[::1]/push',
+    'https://localhost/push',
+    'https://push.localhost/push',
+    'https://push.local/push',
+    'https://push.internal/push',
+    'https://push.home.arpa/push',
+    'https://push.lan/push',
+    'https://invalid_host.example.com/push',
+    'https://user:pass@example.com/push',
+    'https://example.com:8080/push',
+    'https://example.com/push#fragment',
+    'https://example.com/push token',
+    ' https://example.com/push',
+    'https://example.com/push\u0000',
+    'not-a-url',
+    '',
+    'https://example.com/' + 'x'.repeat(2048),
+  ])('rejects unsafe endpoint %j', (endpoint) => {
+    expect(() => pushEndpoint(endpoint)).toThrow();
   });
 
   it('requires a selected company for ordinary users and checks active membership', async () => {
@@ -193,6 +275,31 @@ describe('Phase 4 tenant authorization and device lifecycle', () => {
     await expect(
       f.push.list('owner', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
     ).rejects.toThrow('PUSH_COMPANY_UNAUTHORIZED');
+  });
+  it('returns only public identity and VAPID metadata and supports exact read-only lookup', async () => {
+    const f = fixture();
+    const row = await f.push.register('owner', subscription);
+    const endpointHash = createHash('sha256')
+      .update(subscription.endpoint)
+      .digest('hex');
+    const found = await f.push.list('owner', undefined, endpointHash);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({
+      id: row.id,
+      endpointHash,
+      vapidPublicKey: f.config.publicKey,
+      environment: 'SANDBOX',
+    });
+    expect(found[0]).not.toHaveProperty('registeredInCurrentSession');
+    expect(JSON.stringify(found)).not.toContain(subscription.endpoint);
+    expect(JSON.stringify(found)).not.toContain(subscription.keys.auth);
+    expect(await f.push.list('other', undefined, endpointHash)).toHaveLength(0);
+    expect(await f.push.list('owner', undefined, '0'.repeat(64))).toHaveLength(
+      0,
+    );
+    await expect(f.push.list('owner', undefined, 'invalid')).rejects.toThrow(
+      'PUSH_ENDPOINT_HASH_INVALID',
+    );
   });
   it('does not auto-enroll legacy/global devices for company notifications', async () => {
     const f = fixture();
@@ -509,7 +616,7 @@ describe('Phase 4 tenant authorization and device lifecycle', () => {
     await f.push.send(f.config, f.secrets, message(row.id));
     expect(f.rows[0].lastUsedAt).toBeInstanceOf(Date);
   });
-  it('preserves an opaque query on an allowlisted HTTPS push endpoint', async () => {
+  it('preserves an opaque query on a valid HTTPS push endpoint', async () => {
     const f = fixture();
     const endpoint = subscription.endpoint + '?opaque=fixture-only';
     const row = await f.push.register(
@@ -724,7 +831,8 @@ describe('GLOBAL Web Push devices and transport', () => {
     expect(second.id).not.toBe(first.id);
     expect(await f.push.list('owner')).toHaveLength(2);
     const view = JSON.stringify(await f.push.list('owner'));
-    expect(view).not.toMatch(/endpoint|credentials|p256dh|auth"/);
+    expect(view).not.toMatch(/credentials|p256dh|auth"/);
+    expect(view).not.toContain(subscription.endpoint);
     expect(f.rows[0].credentialsEncrypted).not.toContain(subscription.endpoint);
     expect(
       JSON.parse(
@@ -770,7 +878,7 @@ describe('GLOBAL Web Push devices and transport', () => {
       'http://push.example.test/send/1',
       'https://localhost/send/1',
       'https://127.0.0.1/send/1',
-      'https://push.example.test.evil.test/send/1',
+      'https://invalid_host.example.com/send/1',
       'https://u:p@push.example.test/send/1',
       'https://push.example.test:8443/send/1',
       'https://push.example.test/send/1#x',
@@ -788,7 +896,12 @@ describe('GLOBAL Web Push devices and transport', () => {
       JSON.parse(
         pushPayload({ to: 'x', title: 'Olá', text: '<script>x</script>' }),
       ),
-    ).toEqual({ version: 1, title: 'Olá', body: '<script>x</script>', url: '/conta/notificacoes' });
+    ).toEqual({
+      version: 1,
+      title: 'Olá',
+      body: '<script>x</script>',
+      url: '/conta/notificacoes',
+    });
     await expect(
       f.push.register('owner', { ...subscription, expirationTime: 0 }),
     ).rejects.toThrow();

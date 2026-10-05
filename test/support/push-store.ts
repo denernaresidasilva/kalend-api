@@ -7,6 +7,7 @@ export function pushStore() {
   function match(row: Record<string, any>, where: Record<string, any>) {
     for (const field of [
       'id',
+      'endpointHash',
       'userId',
       'scope',
       'provider',

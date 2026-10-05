@@ -11,7 +11,7 @@ import webpush from 'web-push';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SecretVault } from '../billing/secret-vault.js';
 import { boolean, object, string, uuid } from '../common/validation.js';
-import { allowedHost } from './network.js';
+import { resolvePublic, webPushHost } from './network.js';
 import { secureRequest } from './secure-http.js';
 import { email, TransportFailure } from './contracts.js';
 import type { Message, Transport, Variables } from './contracts.js';
@@ -98,12 +98,11 @@ export function pushEndpoint(value: unknown) {
     url.username ||
     url.password ||
     url.port ||
-    url.hash ||
-    url.pathname === '/'
+    url.hash
   )
     throw new BadRequestException('PUSH_ENDPOINT_INVALID');
   try {
-    allowedHost(url.hostname, 'COMMUNICATION_WEB_PUSH_HOSTS');
+    webPushHost(url.hostname);
   } catch {
     throw new BadRequestException('PUSH_ENDPOINT_INVALID');
   }
@@ -161,6 +160,8 @@ export function pushPayload(m: Message) {
   return payload;
 }
 const publicSelect = {
+  endpointHash: true,
+  vapidPublicKey: true,
   id: true,
   provider: true,
   platform: true,
@@ -272,6 +273,15 @@ export class GlobalPush implements Transport {
       expiresAt = new Date(d.expirationTime);
     }
     const label = d.label === undefined ? null : string(d.label, 'label', 80);
+    // Reject private DNS before persistence; the transport resolves again and pins
+    // a public IP on every send, so this check is not trusted for future requests.
+    try {
+      await resolvePublic(new URL(endpoint).hostname);
+    } catch (error) {
+      if (error instanceof TransportFailure && error.kind === 'PERMANENT')
+        throw new BadRequestException('PUSH_ENDPOINT_INVALID');
+      throw new ServiceUnavailableException('PUSH_ENDPOINT_DNS_UNAVAILABLE');
+    }
     const endpointHash = createHash('sha256').update(endpoint).digest('hex');
     try {
       return await this.db.$transaction(
@@ -341,10 +351,13 @@ export class GlobalPush implements Transport {
       throw new ServiceUnavailableException('PUSH_REGISTRATION_UNAVAILABLE');
     }
   }
-  async list(userId: string, companyId?: string) {
+  async list(userId: string, companyId?: string, endpointHash?: string) {
     await this.authorize(userId, companyId);
+    if (endpointHash !== undefined && (typeof endpointHash !== 'string' || !/^[a-f0-9]{64}$/.test(endpointHash)))
+      throw new BadRequestException('PUSH_ENDPOINT_HASH_INVALID');
     return this.db.globalPushSubscription.findMany({
       where: {
+        ...(endpointHash ? { endpointHash } : {}),
         userId,
         scope: 'GLOBAL',
         ...(companyId
@@ -527,7 +540,7 @@ export class GlobalPush implements Transport {
     try {
       url = pushEndpoint(subscription.endpoint);
     } catch {
-      // A changed host policy is not proof of an expired device.
+      // An unsafe endpoint is not proof of an expired device.
       throw new TransportFailure('PERMANENT');
     }
     let details: ReturnType<typeof webpush.generateRequestDetails>;
@@ -545,7 +558,7 @@ export class GlobalPush implements Transport {
     } catch {
       throw new TransportFailure('PERMANENT');
     }
-    // Use library cryptography and our pinned, allowlisted HTTP transport, rather than library unrestricted fetch.
+    // Use library cryptography and our public-IP-pinned HTTPS transport.
     let result;
     try {
       result = await secureRequest(
