@@ -345,25 +345,25 @@ export class CommunicationEngine {
             status = 'SKIPPED';
             code = 'RECIPIENT_CHANGED';
           } else {
-            providerMessageId = await this.transports
-              .get(row.provider)
-              .send(
-                c.config,
-                c.secret,
-                row.channel === 'PUSH'
-                  ? {
-                      ...message,
-                      pushRecipient: {
-                        userId: row.userId,
-                        environment: row.environment,
-                        audience: event.companyId ? 'COMPANY' : 'ACCOUNT',
-                        ...(event.companyId
-                          ? { companyId: event.companyId }
-                          : {}),
-                      },
-                    }
+            providerMessageId = await this.transports.get(row.provider).send(
+              c.config,
+              c.secret,
+              row.channel === 'PUSH'
+                ? {
+                    ...message,
+                    pushRecipient: {
+                      userId: row.userId,
+                      environment: row.environment,
+                      audience: event.companyId ? 'COMPANY' : 'ACCOUNT',
+                      ...(event.companyId
+                        ? { companyId: event.companyId }
+                        : {}),
+                    },
+                  }
+                : row.provider === 'EVOLUTION'
+                  ? { ...message, globalRecipientUserId: row.userId }
                   : message,
-              );
+            );
             status = 'ACCEPTED';
           }
         }

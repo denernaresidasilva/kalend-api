@@ -1,3 +1,4 @@
+import type { EvolutionService } from './evolution.js';
 import webpush from 'web-push';
 import { randomBytes } from 'node:crypto';
 import { CommunicationConfiguration } from './configuration.js';
@@ -5,6 +6,9 @@ import { SecretVault } from '../billing/secret-vault.js';
 function setup(availableProviders = ['SMTP']) {
   let row: Record<string, unknown> | null = null;
   const db = {
+    evolutionConnection: {
+      findUnique: vi.fn(async () => ({ prepared: true, status: 'CONNECTED' })),
+    },
     globalCommunicationProvider: {
       findUnique: vi.fn(async () => row),
       findMany: vi.fn(async () => (row ? [row] : [])),
@@ -46,6 +50,13 @@ function setup(availableProviders = ['SMTP']) {
       db as never,
       new SecretVault(),
       transports as never,
+      {
+        globalConnection: async () => ({
+          prepared: true,
+          status: 'CONNECTED',
+          instanceName: 'kalend_global',
+        }),
+      } as unknown as EvolutionService,
     ),
     db,
     verify,
@@ -320,4 +331,42 @@ it('SMTP legacy partial updates preserve optional fields and normalize equivalen
   expect(f.row()!.lastVerifiedAt).toBe(at);
   expect(f.row()!.lastTestStatus).toBe('SUCCESS');
   expect(f.row()!.enabled).toBe(true);
+});
+
+describe('Evolution global backend-managed credentials', () => {
+  it('hides instance and legacy secrets and uses only environment credentials', async () => {
+    vi.stubEnv('EVOLUTION_API_KEY', 'environment-only-test-key');
+    const f = setup(['EVOLUTION']);
+    const row = {
+      provider: 'EVOLUTION',
+      scope: 'GLOBAL',
+      environment: 'PRODUCTION',
+      enabled: true,
+      status: 'CONNECTED',
+      revision: 1,
+      config: {
+        baseUrl: 'https://evolution-api.kalend.tech',
+        instance: 'existing-global-instance',
+        version: '2.3.7',
+      },
+      credentialsEncrypted: 'old-credential-not-decrypted',
+    };
+    f.db.globalCommunicationProvider.findUnique.mockResolvedValue(row);
+    f.db.globalCommunicationProvider.findMany.mockResolvedValue([row]);
+    const result = await f.service.list();
+    expect(result[0].configured).toBe(true);
+    expect(result[0].config).toEqual({});
+    expect(JSON.stringify(result)).not.toMatch(
+      /existing-global-instance|old-credential|environment-only-test-key/,
+    );
+    expect((await f.service.context('EVOLUTION')).secret).toEqual({});
+    for (const input of [
+      { config: { instance: 'other-company' } },
+      { secrets: { apiKey: 'client-key' } },
+      { environment: 'SANDBOX' },
+    ])
+      await expect(
+        f.service.patch('EVOLUTION', input, 'admin'),
+      ).rejects.toThrow('EVOLUTION_MANAGED_BY_BACKEND');
+  });
 });

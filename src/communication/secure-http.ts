@@ -7,9 +7,10 @@ export type HttpResult = { status: number; body: Buffer };
 /** Bounded, no redirects, public DNS pinned to TLS socket. No remote errors escape. */
 export async function secureRequest(
   url: URL,
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   headers: Record<string, string>,
   body?: Buffer,
+  maxBytes = 65536,
 ): Promise<HttpResult> {
   if (
     url.protocol !== 'https:' ||
@@ -45,7 +46,7 @@ export async function secureRequest(
         let size = 0;
         res.on('data', (chunk: Buffer) => {
           size += chunk.length;
-          if (size > 65536) {
+          if (size > maxBytes) {
             req.destroy();
             fail();
           } else chunks.push(chunk);

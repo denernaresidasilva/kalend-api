@@ -1,3 +1,10 @@
+import { EvolutionClient } from './evolution-client.js';
+import { EvolutionService } from './evolution.js';
+import {
+  GlobalEvolutionController,
+  CompanyEvolutionController,
+  EvolutionWebhookController,
+} from './evolution.controller.js';
 import { EmailService } from './email.js';
 import {
   SystemEmailController,
@@ -151,6 +158,9 @@ export class CommunicationController {
 }
 @Module({
   controllers: [
+    GlobalEvolutionController,
+    CompanyEvolutionController,
+    EvolutionWebhookController,
     SystemEmailController,
     CompanyEmailController,
     CommunicationController,
@@ -159,6 +169,8 @@ export class CommunicationController {
     PushController,
   ],
   providers: [
+    EvolutionClient,
+    EvolutionService,
     EmailService,
     SmtpTransport,
     GoogleApi,
@@ -172,6 +184,6 @@ export class CommunicationController {
     SecretVault,
     AuthRateLimit,
   ],
-  exports: [CommunicationEngine, GlobalPush, EmailService],
+  exports: [EvolutionService, CommunicationEngine, GlobalPush, EmailService],
 })
 export class CommunicationModule {}

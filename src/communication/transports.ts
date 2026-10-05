@@ -1,10 +1,11 @@
+import { EvolutionService, GLOBAL_EVOLUTION } from './evolution.js';
 import { connect, type Socket } from 'node:net';
 import { MetaTransport } from './meta.js';
 import nodemailer from 'nodemailer';
 import { GmailTransport } from './gmail.js';
 import { GlobalPush } from './push.js';
 import { Inject, Injectable } from '@nestjs/common';
-import { allowedHost, jsonRequest, resolvePublic } from './network.js';
+import { allowedHost, resolvePublic } from './network.js';
 import { email, TransportFailure } from './contracts.js';
 import type { Message, Provider, Transport, Variables } from './contracts.js';
 export class SmtpTransport implements Transport {
@@ -115,46 +116,49 @@ export class SmtpTransport implements Transport {
   }
 }
 export class EvolutionTransport implements Transport {
-  url(c: Variables, path: string) {
-    const base = new URL(c.baseUrl);
-    allowedHost(base.hostname, 'COMMUNICATION_EVOLUTION_HOSTS');
-    return new URL(`${path}/${encodeURIComponent(c.instance)}`, base);
+  constructor(private readonly evolution?: EvolutionService) {}
+  private async run<T>(
+    operation: () => Promise<T>,
+    sending = false,
+  ): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      if (error instanceof TransportFailure) throw error;
+      throw new TransportFailure(sending ? 'UNCERTAIN' : 'PERMANENT');
+    }
   }
-  async pair(c: Variables, s: Variables) {
-    const result = await jsonRequest(this.url(c, '/instance/connect'), {
-      apikey: s.apiKey,
+  async pair(_c: Variables, _s: Variables) {
+    return this.run(async () => {
+      if (!this.evolution) throw new TransportFailure('PERMANENT');
+      const result = await this.evolution.prepare(GLOBAL_EVOLUTION);
+      if (result.status === 'CONNECTED') return { connected: true };
+      if (!result.qrCode) throw new TransportFailure('PERMANENT');
+      return { connected: false, qrCode: result.qrCode };
     });
-    if ((result.instance as { state?: unknown } | undefined)?.state === 'open')
-      return { connected: true };
-    const qr = (result.qrcode ?? result) as Record<string, unknown>;
-    if (
-      typeof qr.base64 !== 'string' ||
-      !/^data:image\/png;base64,[a-zA-Z0-9+/=]+$/.test(qr.base64) ||
-      qr.base64.length > 200000 ||
-      !Buffer.from(qr.base64.split(',')[1], 'base64')
-        .subarray(0, 8)
-        .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-    )
-      throw new TransportFailure('PERMANENT');
-    return { connected: false, qrCode: qr.base64 };
   }
-  async verify(c: Variables, s: Variables) {
-    const r = await jsonRequest(this.url(c, '/instance/connectionState'), {
-      apikey: s.apiKey,
+  async verify(_c: Variables, _s: Variables) {
+    await this.run(async () => {
+      if (
+        !this.evolution ||
+        (await this.evolution.get(GLOBAL_EVOLUTION)).status !== 'CONNECTED'
+      )
+        throw new TransportFailure('PERMANENT');
     });
-    if ((r.instance as { state?: unknown } | undefined)?.state !== 'open')
-      throw new TransportFailure('PERMANENT');
   }
-  async send(c: Variables, s: Variables, m: Message) {
-    const r = await jsonRequest(
-      this.url(c, '/message/sendText'),
-      { apikey: s.apiKey },
-      { number: m.to.slice(1), text: m.text, linkPreview: false },
+  async send(_c: Variables, _s: Variables, m: Message) {
+    if (!this.evolution || !m.globalRecipientUserId)
+      throw new TransportFailure('PERMANENT');
+    return this.run(
+      async () =>
+        (
+          await this.evolution!.sendGlobalTextMessage(
+            m.globalRecipientUserId!,
+            m.text,
+          )
+        ).messageId,
+      true,
     );
-    const id = (r.key as { id?: unknown } | undefined)?.id;
-    if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,200}$/.test(id))
-      throw new TransportFailure('UNCERTAIN');
-    return id;
   }
 }
 /** Capabilities without verified end-to-end contract are deliberately unavailable. */
@@ -171,13 +175,14 @@ export class CommunicationTransports {
   constructor(
     @Inject(GmailTransport) private readonly gmail?: GmailTransport,
     @Inject(GlobalPush) private readonly push?: GlobalPush,
+    @Inject(EvolutionService) private readonly evolution?: EvolutionService,
   ) {}
   get(provider: Provider): Transport {
     if (provider === 'GMAIL' && this.gmail) return this.gmail;
     if (provider === 'PUSH_PENDING' && this.push) return this.push;
     if (provider === 'META') return new MetaTransport();
     if (provider === 'SMTP') return new SmtpTransport();
-    if (provider === 'EVOLUTION') return new EvolutionTransport();
+    if (provider === 'EVOLUTION') return new EvolutionTransport(this.evolution);
     return new PendingTransport();
   }
   available(provider: Provider) {

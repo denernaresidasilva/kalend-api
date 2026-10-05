@@ -88,6 +88,7 @@ model User {
 }
 
 model Company {
+  evolutionConnection EvolutionConnection?
   emailConfiguration CompanyEmailConfiguration?
   notifications      Notification[]
   id                 String                     @id @default(uuid()) @db.Uuid
@@ -617,4 +618,51 @@ model CompanyEmailConfiguration {
   lastError            String?
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
+}
+
+
+enum EvolutionConnectionStatus {
+  CREATED
+  DELETING
+  PENDING
+  CREATING
+  QR_AVAILABLE
+  CONNECTING
+  CONNECTED
+  DISCONNECTED
+  ERROR
+}
+
+enum EvolutionEnvironment {
+  DEV
+  PRODUCTION
+}
+
+model EvolutionConnection {
+  environment            EvolutionEnvironment?
+  connectionRequested    Boolean @default(false)
+  codeFingerprint        String?
+  codeExpiresAt          DateTime?
+  lastRecoveryAt         DateTime?
+  id                     String @id @default(uuid()) @db.Uuid
+  companyId              String? @unique @db.Uuid
+  company                Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  globalKey              String? @unique
+  instanceName           String @unique
+  status                 EvolutionConnectionStatus @default(PENDING)
+  prepared               Boolean @default(false)
+  pairingMethod          String @default("QR")
+  phone                  String?
+  profileName            String?
+  connectedAt            DateTime?
+  disconnectedAt         DateTime?
+  lastSeenAt             DateTime?
+  lastQrAt               DateTime?
+  lastError              String?
+  webhookSecretEncrypted String?
+  lastWebhookAt          DateTime?
+  leaseId                String? @db.Uuid
+  leaseExpiresAt         DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 }

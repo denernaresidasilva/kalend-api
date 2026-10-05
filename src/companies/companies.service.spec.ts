@@ -1,5 +1,6 @@
 import { CompaniesService } from './companies.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import type { EvolutionService } from '../communication/evolution.js';
 import { safeUserSelect } from '../common/validation.js';
 const planId = '11111111-1111-4111-8111-111111111111';
 const input = {
@@ -81,6 +82,21 @@ describe('manual company', () => {
     });
     expect(db.$transaction).toHaveBeenCalledOnce();
     expect(JSON.stringify(result)).not.toContain('passwordHash');
+  });
+  it('commits a pending deterministic connection and returns even while Evolution is unavailable', async () => {
+    const { db } = setup();
+    const prepareAfterCompanyCreated = vi.fn().mockResolvedValue(undefined);
+    const service = new CompaniesService(
+      db as unknown as PrismaService,
+      { prepareAfterCompanyCreated } as unknown as EvolutionService,
+    );
+    const result = await service.createManual(input);
+    const data = db.company.create.mock.calls[0][0].data;
+    expect(data.evolutionConnection.create.instanceName).toBe(
+      `kalend_${data.id.replaceAll('-', '')}`,
+    );
+    expect(prepareAfterCompanyCreated).toHaveBeenCalledWith(result.company.id);
+    expect(result.company.status).toBe('TRIAL');
   });
   it('immediate activation sets paid period but no trial', async () => {
     const { service } = setup();

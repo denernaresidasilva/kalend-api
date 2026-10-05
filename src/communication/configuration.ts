@@ -1,3 +1,4 @@
+import { EvolutionService, GLOBAL_EVOLUTION } from './evolution.js';
 import { normalizeSmtp, sameSmtp, smtpTestData } from './smtp-configuration.js';
 import { validateVapid } from './push.js';
 import { isDeepStrictEqual } from 'node:util';
@@ -20,7 +21,7 @@ import {
 } from './contracts.js';
 import type { Provider, Variables } from './contracts.js';
 import { allowedHost } from './network.js';
-import { EvolutionTransport, CommunicationTransports } from './transports.js';
+import { CommunicationTransports } from './transports.js';
 const fields: Record<Provider, string[]> = {
   SMTP: [
     'host',
@@ -39,7 +40,7 @@ const fields: Record<Provider, string[]> = {
 };
 const secrets: Record<Provider, string[]> = {
   SMTP: ['password'],
-  EVOLUTION: ['apiKey'],
+  EVOLUTION: [],
   GMAIL: ['clientSecret', 'refreshToken'],
   META: ['accessToken', 'appSecret', 'verifyToken'],
   PUSH_PENDING: ['privateKey'],
@@ -92,8 +93,13 @@ export function validateConfig(p: Provider, value: unknown): Variables {
       u.pathname !== '/'
     )
       throw new BadRequestException('EVOLUTION_URL_INVALID');
-    allowedHost(u.hostname, 'COMMUNICATION_EVOLUTION_HOSTS');
-    if (!/^[a-zA-Z0-9_-]{1,100}$/.test(c.instance) || c.version !== '2.3.7')
+    if (u.hostname !== 'evolution-api.kalend.tech')
+      throw new BadRequestException('EVOLUTION_URL_INVALID');
+    if (
+      !/^[a-zA-Z0-9_-]{1,100}$/.test(c.instance) ||
+      /^kalend_[a-f0-9]{32}$/i.test(c.instance) ||
+      c.version !== '2.3.7'
+    )
       throw new BadRequestException('EVOLUTION_VERSION_OR_INSTANCE_INVALID');
   }
   return c;
@@ -126,21 +132,30 @@ export class CommunicationConfiguration {
     @Inject(SecretVault) private readonly vault: SecretVault,
     @Inject(CommunicationTransports)
     private readonly transports: CommunicationTransports,
+    @Inject(EvolutionService) private readonly evolution?: EvolutionService,
   ) {}
   async list() {
     const rows = await this.db.globalCommunicationProvider.findMany({
       where: { scope: 'GLOBAL' },
     });
+    const global = rows.some((row) => row.provider === 'EVOLUTION')
+      ? await this.db.evolutionConnection.findUnique({
+          where: { globalKey: 'GLOBAL' },
+        })
+      : null;
     return rows.map((r) => ({
       provider: r.provider,
       scope: r.scope,
-      environment: r.environment,
+      environment: r.provider === 'EVOLUTION' ? 'PRODUCTION' : r.environment,
       enabled:
         r.provider === 'SMTP'
           ? r.enabled && r.lastTestStatus === 'SUCCESS'
           : r.enabled,
-      config: r.config,
-      configured: !!r.credentialsEncrypted,
+      config: r.provider === 'EVOLUTION' ? {} : r.config,
+      configured:
+        r.provider === 'EVOLUTION'
+          ? !!process.env.EVOLUTION_API_KEY && !!global?.prepared
+          : !!r.credentialsEncrypted,
       status:
         r.provider === 'SMTP' && r.credentialsEncrypted
           ? r.lastTestStatus === 'SUCCESS'
@@ -148,7 +163,13 @@ export class CommunicationConfiguration {
             : r.lastTestStatus === 'ERROR'
               ? 'FAILED'
               : 'PENDING_VALIDATION'
-          : r.status,
+          : r.provider === 'EVOLUTION'
+            ? global?.status === 'CONNECTED'
+              ? 'CONNECTED'
+              : global?.status === 'ERROR'
+                ? 'FAILED'
+                : 'PENDING_VALIDATION'
+            : r.status,
       revision: r.revision,
       lastVerifiedAt:
         r.provider === 'SMTP' && !r.lastTestStatus ? null : r.lastVerifiedAt,
@@ -160,7 +181,34 @@ export class CommunicationConfiguration {
   async patch(name: string, input: unknown, actorId: string) {
     const p = providerName(name),
       d = object(input, ['config', 'secrets', 'environment', 'enabled']);
+    if (
+      p === 'EVOLUTION' &&
+      (d.config !== undefined ||
+        d.secrets !== undefined ||
+        d.environment !== undefined)
+    )
+      throw new BadRequestException('EVOLUTION_MANAGED_BY_BACKEND');
     boolean(d.enabled, 'enabled');
+    if (p === 'EVOLUTION') {
+      if (!this.evolution)
+        throw new ServiceUnavailableException('EVOLUTION_UNAVAILABLE');
+      const connection = await this.evolution.globalConnection();
+      if (d.enabled === true && connection.status !== 'CONNECTED')
+        throw new BadRequestException('CONNECTION_TEST_REQUIRED');
+      await this.db.globalCommunicationProvider.update({
+        where: { provider: 'EVOLUTION' },
+        data: {
+          enabled: d.enabled as boolean | undefined,
+          environment: 'PRODUCTION',
+          revision: { increment: 1 },
+        },
+      });
+      await this.db.globalCommunicationLog.create({
+        data: { actorId, action: 'PROVIDER_UPDATE_EVOLUTION' },
+      });
+      return (await this.list()).find((row) => row.provider === 'EVOLUTION');
+    }
+
     if (
       d.environment !== undefined &&
       (typeof d.environment !== 'string' ||
@@ -216,11 +264,7 @@ export class CommunicationConfiguration {
             : (d.config ?? oldConfig ?? {}),
         );
         const identityKeys =
-          p === 'META'
-            ? ['businessAccountId', 'phoneNumberId']
-            : p === 'EVOLUTION'
-              ? ['baseUrl', 'instance']
-              : [];
+          p === 'META' ? ['businessAccountId', 'phoneNumberId'] : [];
         if (
           old &&
           identityKeys.some(
@@ -305,7 +349,10 @@ export class CommunicationConfiguration {
       where: { provider: p },
     });
     if (
-      !row?.credentialsEncrypted ||
+      !row ||
+      (p === 'EVOLUTION'
+        ? !process.env.EVOLUTION_API_KEY
+        : !row.credentialsEncrypted) ||
       row.scope !== 'GLOBAL' ||
       (requireEnabled &&
         (!row.enabled || (p === 'SMTP' && row.lastTestStatus !== 'SUCCESS'))) ||
@@ -314,13 +361,33 @@ export class CommunicationConfiguration {
       throw new ServiceUnavailableException(
         'COMMUNICATION_PROVIDER_UNAVAILABLE',
       );
-    const config = validateConfig(p, row.config);
-    const secret = JSON.parse(
-      this.vault.decrypt(
-        row.credentialsEncrypted,
-        credentialScope(p, row.environment),
-      ),
-    ) as Variables;
+    const connection =
+      p === 'EVOLUTION' ? await this.evolution?.globalConnection() : null;
+    if (
+      p === 'EVOLUTION' &&
+      (!connection?.prepared ||
+        (requireEnabled && connection.status !== 'CONNECTED'))
+    )
+      throw new ServiceUnavailableException(
+        'COMMUNICATION_PROVIDER_UNAVAILABLE',
+      );
+    const config =
+      p === 'EVOLUTION'
+        ? {
+            instance: connection!.instanceName,
+            baseUrl: 'https://evolution-api.kalend.tech',
+            version: '2.3.7',
+          }
+        : validateConfig(p, row.config);
+    const secret =
+      p === 'EVOLUTION'
+        ? {}
+        : (JSON.parse(
+            this.vault.decrypt(
+              row.credentialsEncrypted!,
+              credentialScope(p, row.environment),
+            ),
+          ) as Variables);
     if (
       !secrets[p]
         .filter((k) => p !== 'META' || k === 'accessToken')
@@ -330,12 +397,17 @@ export class CommunicationConfiguration {
     return { row, config, secret };
   }
   async pairEvolution(actorId: string) {
-    const ctx = await this.context('EVOLUTION', false);
+    if (!this.evolution)
+      throw new ServiceUnavailableException('EVOLUTION_UNAVAILABLE');
     await this.db.globalCommunicationLog.create({
       data: { actorId, action: 'EVOLUTION_PAIRING_REQUESTED' },
     });
     try {
-      return await new EvolutionTransport().pair(ctx.config, ctx.secret);
+      const result = await this.evolution.prepare(GLOBAL_EVOLUTION);
+      if (result.status === 'CONNECTED') return { connected: true };
+      if (!result.qrCode)
+        throw new ServiceUnavailableException('EVOLUTION_PAIRING_UNAVAILABLE');
+      return { connected: false, qrCode: result.qrCode };
     } catch {
       throw new ServiceUnavailableException('EVOLUTION_PAIRING_UNAVAILABLE');
     }
@@ -404,7 +476,16 @@ export class CommunicationConfiguration {
               audience: 'ADMIN_TEST',
             },
           });
-      } else await this.transports.get(p).send(ctx.config, ctx.secret, message);
+      } else
+        await this.transports
+          .get(p)
+          .send(
+            ctx.config,
+            ctx.secret,
+            p === 'EVOLUTION'
+              ? { ...message, globalRecipientUserId: actorId }
+              : message,
+          );
       await this.db.$transaction(async (tx) => {
         const updated = await tx.globalCommunicationProvider.updateMany({
           where: { provider: p, revision: ctx.row.revision },

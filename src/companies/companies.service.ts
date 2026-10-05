@@ -1,3 +1,8 @@
+import { randomUUID } from 'node:crypto';
+import {
+  EvolutionService,
+  evolutionInstanceName,
+} from '../communication/evolution.js';
 import { adminList, listStatus } from '../common/admin-list.js';
 import { Inject } from '@nestjs/common';
 import { nextPeriod } from '../common/period.js';
@@ -36,7 +41,10 @@ type CreateManualCompanyInput = {
 
 @Injectable()
 export class CompaniesService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(EvolutionService) private readonly evolution?: EvolutionService,
+  ) {}
 
   async createManual(input: CreateManualCompanyInput) {
     object(input, [
@@ -204,8 +212,13 @@ export class CompaniesService {
 
         if (!user.isActive || user.isSuperAdmin)
           throw new ConflictException('Proprietário indisponível.');
+        const companyId = randomUUID();
         const company = await tx.company.create({
           data: {
+            id: companyId,
+            evolutionConnection: {
+              create: { instanceName: evolutionInstanceName(companyId) },
+            },
             name: companyName,
             slug,
             timezone,
@@ -278,6 +291,8 @@ export class CompaniesService {
         };
       });
 
+      // The durable PENDING record was committed with the company. Network work is independent.
+      void this.evolution?.prepareAfterCompanyCreated(result.company.id);
       return result;
     } catch (error) {
       if (

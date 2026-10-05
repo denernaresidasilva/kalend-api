@@ -92,6 +92,7 @@ export function renderText(source: string, event: Event, values: Variables) {
   return result;
 }
 export type Message = {
+  globalRecipientUserId?: string;
   to: string;
   subject?: string;
   text: string;

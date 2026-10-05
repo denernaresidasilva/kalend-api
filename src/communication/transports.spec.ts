@@ -1,3 +1,4 @@
+import type { EvolutionService } from './evolution.js';
 import { vi } from 'vitest';
 import nodemailer from 'nodemailer';
 import { jsonRequest, resolvePublic } from './network.js';
@@ -10,6 +11,7 @@ vi.mock('./network.js', async (importOriginal) => ({
   jsonRequest: vi.fn(),
 }));
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.resetAllMocks();
   vi.unstubAllEnvs();
   vi.useRealTimers();
@@ -150,58 +152,63 @@ describe('provider contracts using no external network', () => {
     expect(close).toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
   });
-  it('Evolution verifies open state and uses apikey, number/text and key.id independently of Meta', async () => {
-    vi.stubEnv('COMMUNICATION_EVOLUTION_HOSTS', 'evo.example.test');
-    const c = { baseUrl: 'https://evo.example.test', instance: 'kalend' },
-      s = { apiKey: 'secret' };
-    vi.mocked(jsonRequest)
-      .mockResolvedValueOnce({ instance: { state: 'open' } })
-      .mockResolvedValueOnce({ key: { id: 'message-123' } });
-    const a = new EvolutionTransport();
-    await a.verify(c, s);
-    expect(await a.send(c, s, { to: '+5511999999999', text: 'hello' })).toBe(
-      'message-123',
-    );
-    expect(vi.mocked(jsonRequest).mock.calls[1]).toEqual([
-      new URL('https://evo.example.test/message/sendText/kalend'),
-      { apikey: 'secret' },
-      { number: '5511999999999', text: 'hello', linkPreview: false },
-    ]);
-  });
-  it('Evolution rejects disconnected state and missing send id', async () => {
-    vi.stubEnv('COMMUNICATION_EVOLUTION_HOSTS', 'evo.example.test');
-    const c = { baseUrl: 'https://evo.example.test', instance: 'kalend' };
-    vi.mocked(jsonRequest).mockResolvedValue({ instance: { state: 'close' } });
+  it('Evolution global transport resolves the singleton and authorized user; ignores arbitrary instance and phone', async () => {
+    const get = vi.fn().mockResolvedValue({ status: 'CONNECTED' });
+    const sendGlobalTextMessage = vi
+      .fn()
+      .mockResolvedValue({ messageId: 'message-123' });
+    const adapter = new EvolutionTransport({
+      get,
+      sendGlobalTextMessage,
+    } as unknown as EvolutionService);
+    await adapter.verify({ instance: 'other-tenant' }, { apiKey: 'ignored' });
+    expect(
+      await adapter.send(
+        { instance: 'other-tenant' },
+        {},
+        { to: '+5511888888888', text: 'hello', globalRecipientUserId: 'owner' },
+      ),
+    ).toBe('message-123');
+    expect(get).toHaveBeenCalledWith({ scope: 'GLOBAL' });
+    expect(sendGlobalTextMessage).toHaveBeenCalledWith('owner', 'hello');
     await expect(
-      new EvolutionTransport().verify(c, { apiKey: 'key' }),
+      adapter.send({}, {}, { to: '+5511888888888', text: 'x' }),
     ).rejects.toMatchObject({ kind: 'PERMANENT' });
+  });
+  it('Evolution rejects disconnected state and preserves uncertain sending failures', async () => {
+    const adapter = new EvolutionTransport({
+      get: async () => ({ status: 'DISCONNECTED' }),
+      sendGlobalTextMessage: async () => {
+        throw new Error('private');
+      },
+    } as unknown as EvolutionService);
+    await expect(adapter.verify({}, {})).rejects.toMatchObject({
+      kind: 'PERMANENT',
+    });
     await expect(
-      new EvolutionTransport().send(
-        c,
-        { apiKey: 'key' },
-        { to: '+5511999999999', text: 'x' },
+      adapter.send(
+        {},
+        {},
+        { to: '+5511999999999', text: 'x', globalRecipientUserId: 'owner' },
       ),
     ).rejects.toMatchObject({ kind: 'UNCERTAIN' });
   });
-  it('Evolution pairing returns only validated temporary PNG, never apiKey or arbitrary payload', async () => {
-    vi.stubEnv('COMMUNICATION_EVOLUTION_HOSTS', 'evo.example.test');
-    const c = { baseUrl: 'https://evo.example.test', instance: 'kalend' },
-      s = { apiKey: 'private' };
-    const png =
-      'data:image/png;base64,' +
-      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString('base64');
-    vi.mocked(jsonRequest)
+  it('Evolution global legacy pair delegates to prepared singleton', async () => {
+    const prepare = vi
+      .fn()
       .mockResolvedValueOnce({
-        base64: png,
-        apikey: 'leak',
-        pairingCode: 'sensitive',
+        status: 'QR_AVAILABLE',
+        qrCode: 'data:image/png;base64,iVBORw0KGgo=',
       })
-      .mockResolvedValueOnce({ base64: 'data:image/svg+xml;base64,evil' });
-    expect(await new EvolutionTransport().pair(c, s)).toEqual({
+      .mockResolvedValueOnce({ status: 'ERROR', qrCode: null });
+    const adapter = new EvolutionTransport({
+      prepare,
+    } as unknown as EvolutionService);
+    expect(await adapter.pair({}, {})).toEqual({
       connected: false,
-      qrCode: png,
+      qrCode: 'data:image/png;base64,iVBORw0KGgo=',
     });
-    await expect(new EvolutionTransport().pair(c, s)).rejects.toThrow();
+    await expect(adapter.pair({}, {})).rejects.toThrow();
   });
   const meta = {
       graphVersion: 'v25.0',

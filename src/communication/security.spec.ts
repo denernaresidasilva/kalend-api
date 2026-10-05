@@ -123,7 +123,7 @@ describe('global communication security contracts', () => {
   it('rejects Evolution URL credentials, private hosts, queries, paths and version drift', () => {
     vi.stubEnv('COMMUNICATION_EVOLUTION_HOSTS', 'evo.example.test');
     const c = {
-      baseUrl: 'https://evo.example.test',
+      baseUrl: 'https://evolution-api.kalend.tech',
       instance: 'kalend',
       version: '2.3.7',
     };
