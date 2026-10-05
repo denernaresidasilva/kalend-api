@@ -1,0 +1,109 @@
+name: Deploy Kalend API DEV
+
+on:
+  push:
+    branches:
+      - develop
+
+concurrency:
+  group: kalend-api-dev
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy para DEV
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.DEV_SSH_HOST }}
+          username: ${{ secrets.DEV_SSH_USER }}
+          key: ${{ secrets.DEV_SSH_KEY }}
+          port: 22
+
+          script: |
+            set -e
+
+            echo "========================================="
+            echo "   KALEND API DEV - DEPLOY"
+            echo "========================================="
+
+            export NVM_DIR="$HOME/.nvm"
+
+            if [ -s "$NVM_DIR/nvm.sh" ]; then
+              . "$NVM_DIR/nvm.sh"
+            fi
+
+            nvm use 24.21.0
+
+            echo ""
+            echo "=== Ambiente ==="
+            echo "Node: $(node --version)"
+            echo "NPM:  $(npm --version)"
+            echo "PM2:  $(pm2 --version)"
+
+            echo ""
+            echo "=== Diretório do projeto ==="
+
+            cd /home/kalend-api-dev/htdocs/api-dev.kalend.tech/app
+
+            pwd
+
+            echo ""
+            echo "=== Git ==="
+
+            git fetch origin develop
+            git checkout develop
+            git reset --hard origin/develop
+
+            echo ""
+            echo "Commit atual:"
+            git log -1 --oneline
+
+            echo ""
+            echo "=== Dependências ==="
+
+            npm ci
+
+            echo ""
+            echo "=== Prisma Generate ==="
+
+            npx prisma generate
+
+            echo ""
+            echo "=== Prisma Migrations ==="
+
+            npx prisma migrate deploy
+
+            echo ""
+            echo "=== Build ==="
+
+            npm run build
+
+            echo ""
+            echo "=== Reiniciando PM2 ==="
+
+            /home/kalend-api-dev/.nvm/versions/node/v24.21.0/bin/pm2 restart kalend-api-dev
+
+            echo ""
+            echo "=== Status PM2 ==="
+
+            /home/kalend-api-dev/.nvm/versions/node/v24.21.0/bin/pm2 status
+
+            echo ""
+            echo "=== Health Check ==="
+
+            sleep 3
+
+            curl -fsS https://api-dev.kalend.tech/health
+
+            echo ""
+            echo ""
+            echo "========================================="
+            echo "       DEPLOY API DEV CONCLUÍDO"
+            echo "========================================="
