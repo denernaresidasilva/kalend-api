@@ -94,6 +94,62 @@ describe('provider contracts using no external network', () => {
       new SmtpTransport().verify(c, { password: 'secret' }),
     ).rejects.toMatchObject({ kind, message: `COMMUNICATION_${kind}` });
   });
+  it('SMTP SSL uses implicit TLS, certificate validation and authentication for a real send', async () => {
+    vi.mocked(resolvePublic).mockResolvedValue('8.8.8.8');
+    const sendMail = vi
+      .fn()
+      .mockResolvedValue({ accepted: ['to@example.test'], messageId: 'id' });
+    vi.mocked(nodemailer.createTransport).mockReturnValue({
+      sendMail,
+      close: vi.fn(),
+    } as never);
+    await new SmtpTransport().send(
+      { ...c, host: 'smtp.gmail.com', port: '465', secure: 'true' },
+      { password: 'test-only' },
+      { to: 'to@example.test', subject: 'Test', text: 'Test' },
+    );
+    expect(nodemailer.createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        secure: true,
+        port: 465,
+        auth: { user: 'user', pass: 'test-only' },
+        logger: false,
+        debug: false,
+        tls: expect.objectContaining({
+          servername: 'smtp.gmail.com',
+          rejectUnauthorized: true,
+          minVersion: 'TLSv1.2',
+        }),
+      }),
+    );
+    expect(sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'to@example.test',
+        subject: 'Test',
+        text: 'Test',
+      }),
+    );
+  });
+  it('SMTP real send closes a hung mail transaction within the hard deadline', async () => {
+    vi.useFakeTimers();
+    vi.mocked(resolvePublic).mockResolvedValue('8.8.8.8');
+    const close = vi.fn();
+    vi.mocked(nodemailer.createTransport).mockReturnValue({
+      sendMail: () => new Promise(() => {}),
+      close,
+    } as never);
+    const assertion = expect(
+      new SmtpTransport().send(
+        { ...c, host: 'smtp.gmail.com' },
+        { password: 'test-only' },
+        { to: 'to@example.test', text: 'Test' },
+      ),
+    ).rejects.toMatchObject({ kind: 'UNCERTAIN' });
+    await vi.advanceTimersByTimeAsync(20001);
+    await assertion;
+    expect(close).toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it('Evolution verifies open state and uses apikey, number/text and key.id independently of Meta', async () => {
     vi.stubEnv('COMMUNICATION_EVOLUTION_HOSTS', 'evo.example.test');
     const c = { baseUrl: 'https://evo.example.test', instance: 'kalend' },

@@ -29,6 +29,8 @@ export function allowedHost(host: string, policy: string) {
     .split(',')
     .map((h) => h.trim().toLowerCase())
     .filter(Boolean);
+  if (policy === 'COMMUNICATION_SMTP_HOSTS')
+    hosts.push('smtp.gmail.com', 'smtp-mail.outlook.com', 'smtp.mail.me.com');
   if (
     !/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(host) ||
     isIP(host) ||

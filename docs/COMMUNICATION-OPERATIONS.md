@@ -10,8 +10,8 @@ Variáveis novas:
 | --- | --- |
 | COMMUNICATION_SCHEDULER_ENABLED | CLI temporal/domínio só roda com literal `true`; ausente bloqueia |
 | COMMUNICATION_WORKER_ENABLED | CLI só roda com literal `true`; ausente bloqueia a execução |
-| COMMUNICATION_SMTP_HOSTS | Hosts DNS exatos separados por vírgula; ausente nega todos |
-| COMMUNICATION_EVOLUTION_HOSTS | Hosts DNS exatos separados por vírgula; ausente nega todos |
+| COMMUNICATION_SMTP_HOSTS | Hosts SMTP personalizados autorizados, separados por vírgula. Ausente bloqueia hosts personalizados; smtp.gmail.com, smtp-mail.outlook.com e smtp.mail.me.com são pré-autorizados |
+| COMMUNICATION_EVOLUTION_HOSTS | Hosts SMTP personalizados autorizados, separados por vírgula. Ausente bloqueia hosts personalizados; smtp.gmail.com, smtp-mail.outlook.com e smtp.mail.me.com são pré-autorizados |
 | COMMUNICATION_META_GRAPH_VERSION | Versão Graph fixada pelo operador após revisão/homologação; sem default |
 
 Existentes: DATABASE_URL, GATEWAY_ENCRYPTION_KEY, AUTH_*; nenhuma foi criada/alterada com valor real. Segredos dos providers ficam no cofre do banco. Allowlist de rede é definida pelo operador, não pelo formulário administrativo. Não usar IP privado nem host com credenciais/path/porta arbitrária. Ambiente SANDBOX não cria sandbox de SMTP/Evolution: preparar mailbox/instância e destinatários de teste.

@@ -105,7 +105,7 @@ describe('global communication security contracts', () => {
   };
   it('enforces SMTP TLS, ports, fields, and sender validation', () => {
     vi.stubEnv('COMMUNICATION_SMTP_HOSTS', 'smtp.example.test');
-    expect(validateConfig('SMTP', smtp)).toEqual(smtp);
+    expect(validateConfig('SMTP', smtp)).toMatchObject(smtp);
     expect(
       validateConfig('SMTP', { ...smtp, port: '465', secure: 'true' }).port,
     ).toBe('465');

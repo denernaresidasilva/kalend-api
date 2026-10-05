@@ -6,13 +6,13 @@ Consulta: **29/09/2026**. Nenhuma credencial real, conexão SMTP, conta Google, 
 
 Fontes oficiais: [Nodemailer SMTP](https://nodemailer.com/smtp), [segurança da mensagem](https://nodemailer.com/message), [erros SMTP](https://nodemailer.com/errors).
 
-Nodemailer 10.0.12, versão fixada no lock; Node 22 usado na validação. `host`, `port`, `secure`, `username`, `fromName`, `fromEmail`, `replyTo` são públicos; `secrets.password` é write-only. Valores da configuração são strings: `port:"587",secure:"false"` exige STARTTLS; `port:"465",secure:"true"` exige TLS implícito. Certificado validado pelo hostname original mesmo com IP público fixado. Sem porta 25, TLS opcional, URL SMTP, proxy, certificados ignorados ou anexos/URLs externos. Timeout de conexão/greeting 10s, socket 15s, operação 20s, além da resolução DNS limitada. Host precisa estar em `COMMUNICATION_SMTP_HOSTS`.
+Nodemailer 10.0.12, versão fixada no lock; Node 22 usado na validação. `host`, `port`, `secure`, `username`, `fromName`, `fromEmail`, `replyTo` são públicos; `secrets.password` é write-only. Valores da configuração são strings: `port:"587",secure:"false"` exige STARTTLS; `port:"465",secure:"true"` exige TLS implícito. Certificado validado pelo hostname original mesmo com IP público fixado. Sem porta 25, TLS opcional, URL SMTP, proxy, certificados ignorados ou anexos/URLs externos. Timeout de conexão/greeting 10s, socket 15s, operação 20s, além da resolução DNS limitada. Hosts personalizados precisam estar em `COMMUNICATION_SMTP_HOSTS`. Os hosts oficiais smtp.gmail.com, smtp-mail.outlook.com e smtp.mail.me.com são pré-autorizados, independentemente dessa variável.
 
 `verify()` testa negociação/autenticação, não aceitação de um remetente ou entrega. `lastVerifiedAt` é distinto de `lastSentAt`; SMTP aceito não significa caixa de entrada. Não existe sandbox universal SMTP: ambiente SANDBOX é classificação local, não bloqueia entrega real. Homologar com mailbox de teste e infraestrutura apropriada antes de habilitar eventos.
 
 ## Gmail
 
-Implementado na Fase 3 via Gmail API e OAuth 2.0 (gmail.send + openid/email), state single-use, PKCE S256, binding de navegador/sessão e tokens cifrados. Não aceita senha Google ou refresh token administrativo. Fonte/contratos completos e configuração operacional: [Fase 3](PHASE3-COMMUNICATION.md). SMTP smtp.gmail.com permanece bloqueado.
+Implementado na Fase 3 via Gmail API e OAuth 2.0 (gmail.send + openid/email), state single-use, PKCE S256, binding de navegador/sessão e tokens cifrados. Não aceita senha Google ou refresh token administrativo. Fonte/contratos completos e configuração operacional: [Fase 3](PHASE3-COMMUNICATION.md). O gerenciador SMTP permite smtp.gmail.com com senha de app; essa opção é distinta da integração Gmail API legada.
 
 ## Meta WhatsApp Cloud API
 

@@ -88,13 +88,14 @@ model User {
 }
 
 model Company {
-  notifications Notification[]
-  id            String         @id @default(uuid()) @db.Uuid
-  name          String
-  slug          String         @unique
-  status        CompanyStatus  @default(TRIAL)
-  timezone      String         @default("America/Sao_Paulo")
-  isActive      Boolean        @default(true)
+  emailConfiguration CompanyEmailConfiguration?
+  notifications      Notification[]
+  id                 String                     @id @default(uuid()) @db.Uuid
+  name               String
+  slug               String                     @unique
+  status             CompanyStatus              @default(TRIAL)
+  timezone           String                     @default("America/Sao_Paulo")
+  isActive           Boolean                    @default(true)
 
   memberships   Membership[]
   subscriptions Subscription[]
@@ -401,6 +402,8 @@ model GlobalCommunicationProvider {
   status               IntegrationStatus     @default(NOT_CONFIGURED)
   revision             Int                   @default(1)
   lastVerifiedAt       DateTime?
+  lastTestRecipient    String?
+  lastTestStatus       String?
   lastSentAt           DateTime?
   lastError            String?
   createdAt            DateTime              @default(now())
@@ -597,4 +600,21 @@ model NotificationPreference {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   inSystemEnabled Boolean  @default(true)
   updatedAt       DateTime @updatedAt
+}
+
+// Tenant SMTP never references global credentials or delivery history.
+model CompanyEmailConfiguration {
+  companyId            String            @id @db.Uuid
+  company              Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  config               Json
+  credentialsEncrypted String?
+  enabled              Boolean           @default(false)
+  status               IntegrationStatus @default(NOT_CONFIGURED)
+  revision             Int               @default(1)
+  lastVerifiedAt       DateTime?
+  lastTestRecipient    String?
+  lastTestStatus       String?
+  lastError            String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 }

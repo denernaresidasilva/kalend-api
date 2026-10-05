@@ -90,9 +90,16 @@ describe('global configuration lifecycle', () => {
       connected: true,
       sendTested: false,
     });
+    await expect(
+      f.service.patch('SMTP', { enabled: true }, 'admin'),
+    ).rejects.toThrow('CONNECTION_TEST_REQUIRED');
+    expect(f.row()!.lastVerifiedAt).toBeNull();
+    expect(f.row()!.lastTestStatus).toBeNull();
+    await f.service.sendTest('SMTP', {}, 'admin');
+    expect(f.row()!.lastTestStatus).toBe('SUCCESS');
     await f.service.patch('SMTP', { enabled: true }, 'admin');
     expect(f.row()!.enabled).toBe(true);
-    expect(f.send).not.toHaveBeenCalled();
+    expect(f.send).toHaveBeenCalledTimes(1);
     await f.service.patch(
       'SMTP',
       { secrets: { password: 'replacement' } },
@@ -144,7 +151,9 @@ describe('global configuration lifecycle', () => {
       connected: false,
       sendTested: false,
     });
-    expect(f.row()!.lastError).toBe('CONNECTION_FAILED');
+    expect(f.row()!.lastError).toBeNull();
+    expect(f.row()!.lastTestStatus).toBeNull();
+    expect(f.row()!.lastVerifiedAt).toBeNull();
     expect(f.row()!.enabled).toBe(false);
   });
   it('restricts test recipient to current admin and rejects arbitrary address fields', async () => {
@@ -224,4 +233,91 @@ it('changes Gmail environment with new client secret before OAuth, without accep
   await expect(f.service.context('GMAIL', false)).rejects.toThrow(
     'COMMUNICATION_SECRETS_REQUIRED',
   );
+});
+
+it('SMTP verify never changes real test metadata, and an existing enabled row without a real test cannot send', async () => {
+  const f = setup();
+  await f.service.patch(
+    'SMTP',
+    { config, secrets: { password: 'secret' } },
+    'admin',
+  );
+  f.row()!.enabled = true;
+  f.row()!.status = 'CONNECTED';
+  await expect(f.service.context('SMTP')).rejects.toThrow(
+    'COMMUNICATION_PROVIDER_UNAVAILABLE',
+  );
+  expect((await f.service.list())[0]).toMatchObject({
+    enabled: false,
+    status: 'PENDING_VALIDATION',
+    lastVerifiedAt: null,
+  });
+  await f.service.sendTest('SMTP', {}, 'admin');
+  const at = f.row()!.lastVerifiedAt;
+  f.verify.mockRejectedValue(new Error('private'));
+  await f.service.test('SMTP', 'admin');
+  expect(f.row()!.lastTestStatus).toBe('SUCCESS');
+  expect(f.row()!.lastVerifiedAt).toBe(at);
+  expect(f.row()!.status).toBe('CONNECTED');
+});
+it('SMTP real send failure updates last-test metadata and disables even through the legacy route', async () => {
+  const f = setup();
+  await f.service.patch(
+    'SMTP',
+    { config, secrets: { password: 'secret' } },
+    'admin',
+  );
+  await f.service.sendTest('SMTP', {}, 'admin');
+  await f.service.patch('SMTP', { enabled: true }, 'admin');
+  f.send.mockRejectedValue(new Error('password private response'));
+  await expect(f.service.sendTest('SMTP', {}, 'admin')).rejects.toThrow(
+    'SEND_TEST_FAILED_OR_UNCERTAIN',
+  );
+  expect(f.row()).toMatchObject({
+    lastTestStatus: 'ERROR',
+    enabled: false,
+    status: 'FAILED',
+    lastTestRecipient: 'admin@example.test',
+  });
+  expect(f.row()!.lastVerifiedAt).toBeInstanceOf(Date);
+  await expect(
+    f.service.patch('SMTP', { enabled: true }, 'admin'),
+  ).rejects.toThrow('CONNECTION_TEST_REQUIRED');
+});
+it('SMTP legacy partial updates preserve optional fields and normalize equivalent representations', async () => {
+  const f = setup();
+  await f.service.patch(
+    'SMTP',
+    {
+      config: {
+        ...config,
+        fromName: 'Minha marca',
+        replyTo: 'reply@example.test',
+        emailProvider: 'CUSTOM',
+      },
+      secrets: { password: 'secret' },
+    },
+    'admin',
+  );
+  await f.service.sendTest('SMTP', {}, 'admin');
+  const at = f.row()!.lastVerifiedAt;
+  await f.service.patch(
+    'SMTP',
+    {
+      config: { host: ' SMTP.EXAMPLE.TEST ', port: 587, secure: false },
+      enabled: true,
+    },
+    'admin',
+  );
+  expect(f.row()!.config).toMatchObject({
+    fromName: 'Minha marca',
+    replyTo: 'reply@example.test',
+    emailProvider: 'CUSTOM',
+    host: 'smtp.example.test',
+    port: '587',
+    secure: 'false',
+  });
+  expect(f.row()!.lastVerifiedAt).toBe(at);
+  expect(f.row()!.lastTestStatus).toBe('SUCCESS');
+  expect(f.row()!.enabled).toBe(true);
 });

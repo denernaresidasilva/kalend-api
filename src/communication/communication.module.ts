@@ -1,3 +1,9 @@
+import { EmailService } from './email.js';
+import {
+  SystemEmailController,
+  CompanyEmailController,
+} from './email.controller.js';
+import { SmtpTransport } from './transports.js';
 import { adminList } from '../common/admin-list.js';
 import { GoogleApi } from './google-api.js';
 import { GmailTransport } from './gmail.js';
@@ -145,12 +151,16 @@ export class CommunicationController {
 }
 @Module({
   controllers: [
+    SystemEmailController,
+    CompanyEmailController,
     CommunicationController,
     MetaWebhookController,
     GmailController,
     PushController,
   ],
   providers: [
+    EmailService,
+    SmtpTransport,
     GoogleApi,
     GmailTransport,
     GlobalPush,
@@ -162,6 +172,6 @@ export class CommunicationController {
     SecretVault,
     AuthRateLimit,
   ],
-  exports: [CommunicationEngine, GlobalPush],
+  exports: [CommunicationEngine, GlobalPush, EmailService],
 })
 export class CommunicationModule {}

@@ -1,3 +1,4 @@
+import { normalizeSmtp, sameSmtp, smtpTestData } from './smtp-configuration.js';
 import { validateVapid } from './push.js';
 import { isDeepStrictEqual } from 'node:util';
 import {
@@ -29,6 +30,7 @@ const fields: Record<Provider, string[]> = {
     'fromName',
     'fromEmail',
     'replyTo',
+    'emailProvider',
   ],
   EVOLUTION: ['baseUrl', 'instance', 'version'],
   GMAIL: ['clientId', 'fromEmail'],
@@ -43,26 +45,23 @@ const secrets: Record<Provider, string[]> = {
   PUSH_PENDING: ['privateKey'],
 };
 export function validateConfig(p: Provider, value: unknown): Variables {
+  if (p === 'SMTP') {
+    const config = normalizeSmtp(value);
+    try {
+      allowedHost(config.host, 'COMMUNICATION_SMTP_HOSTS');
+    } catch {
+      throw new BadRequestException('SMTP_HOST_NOT_ALLOWED');
+    }
+    return config;
+  }
   const d = object(value, fields[p]);
   const c: Variables = {};
   for (const [k, v] of Object.entries(d)) c[k] = string(v, k, 500);
-  for (const k of fields[p].filter((k) => k !== 'replyTo'))
+  for (const k of fields[p].filter(
+    (k) => k !== 'replyTo' && k !== 'emailProvider',
+  ))
     if (!c[k])
       throw new BadRequestException('COMMUNICATION_CONFIGURATION_REQUIRED');
-  if (p === 'SMTP') {
-    allowedHost(c.host, 'COMMUNICATION_SMTP_HOSTS');
-    if (!(
-      (c.port === '465' && c.secure === 'true') ||
-      (c.port === '587' && c.secure === 'false')
-    ))
-      throw new BadRequestException('SMTP_TLS_REQUIRED');
-    email(c.fromEmail);
-    if (c.replyTo) email(c.replyTo);
-    if (/[\r\n]/.test(c.fromName + c.username))
-      throw new BadRequestException('HEADER_INVALID');
-    if (c.host === 'smtp.gmail.com')
-      throw new BadRequestException('GMAIL_OAUTH_REQUIRED');
-  }
   if (p === 'GMAIL') {
     email(c.fromEmail);
     if (!/^[a-zA-Z0-9.-]+\.apps\.googleusercontent\.com$/.test(c.clientId))
@@ -136,12 +135,23 @@ export class CommunicationConfiguration {
       provider: r.provider,
       scope: r.scope,
       environment: r.environment,
-      enabled: r.enabled,
+      enabled:
+        r.provider === 'SMTP'
+          ? r.enabled && r.lastTestStatus === 'SUCCESS'
+          : r.enabled,
       config: r.config,
       configured: !!r.credentialsEncrypted,
-      status: r.status,
+      status:
+        r.provider === 'SMTP' && r.credentialsEncrypted
+          ? r.lastTestStatus === 'SUCCESS'
+            ? 'CONNECTED'
+            : r.lastTestStatus === 'ERROR'
+              ? 'FAILED'
+              : 'PENDING_VALIDATION'
+          : r.status,
       revision: r.revision,
-      lastVerifiedAt: r.lastVerifiedAt,
+      lastVerifiedAt:
+        r.provider === 'SMTP' && !r.lastTestStatus ? null : r.lastVerifiedAt,
       lastSentAt: r.lastSentAt,
       lastError: r.lastError,
       adapterAvailable: this.transports.available(r.provider),
@@ -192,7 +202,19 @@ export class CommunicationConfiguration {
             .every((k) => !!next[k])
         )
           throw new BadRequestException('ENVIRONMENT_REQUIRES_NEW_SECRETS');
-        const config = validateConfig(p, d.config ?? old?.config ?? {});
+        const oldConfig =
+          p === 'SMTP' && old && Object.keys(old.config as object).length
+            ? normalizeSmtp(old.config)
+            : old?.config;
+        const config = validateConfig(
+          p,
+          p === 'SMTP' && d.config !== undefined
+            ? {
+                ...(oldConfig as Variables),
+                ...object(d.config, fields.SMTP),
+              }
+            : (d.config ?? oldConfig ?? {}),
+        );
         const identityKeys =
           p === 'META'
             ? ['businessAccountId', 'phoneNumberId']
@@ -223,12 +245,15 @@ export class CommunicationConfiguration {
         const changed =
           !old ||
           changedEnvironment ||
-          !isDeepStrictEqual(config, old.config) ||
+          !(p === 'SMTP'
+            ? sameSmtp(config, oldConfig as Variables)
+            : isDeepStrictEqual(config, old.config)) ||
           !isDeepStrictEqual(next, previous);
         if (
           d.enabled === true &&
           (changed ||
             old?.status !== 'CONNECTED' ||
+            (p === 'SMTP' && old?.lastTestStatus !== 'SUCCESS') ||
             !this.transports.available(p))
         )
           throw new BadRequestException('CONNECTION_TEST_REQUIRED');
@@ -242,13 +267,18 @@ export class CommunicationConfiguration {
           environment,
           config,
           credentialsEncrypted: encrypted,
-          enabled: changed ? false : (d.enabled as boolean | undefined),
+          enabled:
+            changed || (p === 'SMTP' && old?.lastTestStatus !== 'SUCCESS')
+              ? false
+              : (d.enabled as boolean | undefined),
           status: changed
             ? encrypted
               ? ('PENDING_VALIDATION' as const)
               : ('NOT_CONFIGURED' as const)
             : undefined,
           lastVerifiedAt: changed ? null : undefined,
+          lastTestStatus: changed ? null : undefined,
+          lastTestRecipient: changed ? null : undefined,
           lastSentAt: changed ? null : undefined,
           lastError: null,
         };
@@ -277,7 +307,8 @@ export class CommunicationConfiguration {
     if (
       !row?.credentialsEncrypted ||
       row.scope !== 'GLOBAL' ||
-      (requireEnabled && !row.enabled) ||
+      (requireEnabled &&
+        (!row.enabled || (p === 'SMTP' && row.lastTestStatus !== 'SUCCESS'))) ||
       !this.transports.available(p)
     )
       throw new ServiceUnavailableException(
@@ -364,29 +395,37 @@ export class CommunicationConfiguration {
     try {
       if (p === 'PUSH_PENDING') {
         for (const device of devices)
-          await this.transports
-            .get(p)
-            .send(ctx.config, ctx.secret, {
-              ...message,
-              to: device.id,
-              pushRecipient: {
-                userId: actorId,
-                environment: ctx.row.environment,
-                audience: 'ADMIN_TEST',
-              },
-            });
+          await this.transports.get(p).send(ctx.config, ctx.secret, {
+            ...message,
+            to: device.id,
+            pushRecipient: {
+              userId: actorId,
+              environment: ctx.row.environment,
+              audience: 'ADMIN_TEST',
+            },
+          });
       } else await this.transports.get(p).send(ctx.config, ctx.secret, message);
       await this.db.$transaction(async (tx) => {
-        await tx.globalCommunicationProvider.updateMany({
+        const updated = await tx.globalCommunicationProvider.updateMany({
           where: { provider: p, revision: ctx.row.revision },
-          data: { lastSentAt: new Date() },
+          data: {
+            lastSentAt: new Date(),
+            ...(p === 'SMTP' ? smtpTestData(true, to, null) : {}),
+          },
         });
+        if (p === 'SMTP' && !updated.count)
+          throw new ConflictException('CONFIGURATION_CHANGED');
         await tx.globalCommunicationLog.create({
           data: { actorId, action: `SEND_TEST_ACCEPTED_${p}` },
         });
       });
       return { accepted: true, delivered: false };
     } catch {
+      if (p === 'SMTP')
+        await this.db.globalCommunicationProvider.updateMany({
+          where: { provider: p, revision: ctx.row.revision },
+          data: smtpTestData(false, to, 'SEND_FAILED_OR_TIMEOUT'),
+        });
       await this.db.globalCommunicationLog.create({
         data: { actorId, action: `SEND_TEST_FAILED_OR_UNCERTAIN_${p}` },
       });
@@ -402,6 +441,16 @@ export class CommunicationConfiguration {
       ok = true;
     } catch {
       /* no provider exception is persisted */
+    }
+    if (p === 'SMTP') {
+      await this.db.globalCommunicationLog.create({
+        data: {
+          actorId,
+          action: 'SMTP_CONNECTION_CHECK',
+          code: ok ? 'CONNECTION_OK' : 'CONNECTION_FAILED',
+        },
+      });
+      return { connected: ok, sendTested: false };
     }
     await this.db.$transaction(async (tx) => {
       const r = await tx.globalCommunicationProvider.updateMany({
