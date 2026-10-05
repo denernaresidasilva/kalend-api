@@ -98,6 +98,7 @@ export class EmailService {
     return {
       scope: ctx.scope,
       configured: !!row?.credentialsEncrypted,
+      hasPassword: !!row?.credentialsEncrypted,
       provider: c.emailProvider ?? 'CUSTOM',
       email: c.fromEmail ?? '',
       username: c.username ?? '',
