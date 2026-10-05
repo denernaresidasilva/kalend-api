@@ -98,11 +98,21 @@ jobs:
             echo ""
             echo "=== Health Check ==="
 
-            sleep 3
+            for i in {1..15}; do
+              if curl -fsS https://api-dev.kalend.tech/health; then
+                echo ""
+                echo "Health check OK!"
+                exit 0
+              fi
 
-            curl -fsS https://api-dev.kalend.tech/health
+              echo "API ainda iniciando... tentativa $i/15"
+              sleep 2
+            done
 
             echo ""
+            echo "API não respondeu após 30 segundos."
+            exit 1
+
             echo ""
             echo "========================================="
             echo "       DEPLOY API DEV CONCLUÍDO"
