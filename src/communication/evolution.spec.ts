@@ -303,6 +303,22 @@ describe('tenant Evolution lifecycle', () => {
     expect((await f.service.get(a)).qrCode).toBeNull();
     await expect(f.service.connect(a, 'invalid')).rejects.toThrow('DDI');
   });
+  it('does not trust an open connect payload while connectionState remains connecting', async () => {
+    const f = fixture();
+    f.client.connectInstance.mockImplementationOnce(async (name) => {
+      f.states.set(name, 'connecting');
+      return {
+        instance: { state: 'open' },
+        pairingCode: 'ABCD1234',
+        base64: qr,
+      };
+    });
+    const result = await f.service.connect(a, '+55 (12) 99605-5129');
+    expect(result.status).toBe('CONNECTING');
+    expect(result.pairingCode).toBe('ABCD1234');
+    f.states.set(evolutionInstanceName(a), 'open');
+    expect((await f.service.get(a)).status).toBe('CONNECTED');
+  });
   it('preserves phone pairing method across API processes and recovers expired leases', async () => {
     const f = fixture();
     await f.service.prepare(a);

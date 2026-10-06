@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
 import {
   ForbiddenException,
   UnauthorizedException,
@@ -91,6 +92,8 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
   let delayedCreate = false;
   let delayResponse = false;
   let browserUser = 'admin';
+  let adminCompanyId: string | null = null;
+  const membershipCalls = vi.fn();
   beforeAll(async () => {
     vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api.kalend.tech');
     vi.stubEnv('EVOLUTION_API_KEY', 'integration-test-only-key');
@@ -251,11 +254,18 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
               return {
                 user: { id: token, isSuperAdmin: token === 'admin' },
                 session: {
-                  selectedCompanyId: token === 'owner-b' ? companyB : companyA,
+                  selectedCompanyId:
+                    token === 'admin'
+                      ? adminCompanyId
+                      : token === 'owner-b'
+                        ? companyB
+                        : companyA,
                 },
               };
             },
             membership: async (user: string, companyId: string) => {
+              membershipCalls(user, companyId);
+              if (user === 'admin') throw new ForbiddenException();
               if (companyId !== (user === 'owner-b' ? companyB : companyA))
                 throw new ForbiddenException();
               return {
@@ -296,6 +306,8 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
   });
   beforeEach(() => {
     vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api.kalend.tech');
+    vi.stubEnv('BILLING_PUBLIC_API_URL', '');
+    vi.stubEnv('DATABASE_URL', '');
     f.reset();
     remote.clear();
     calls.length = 0;
@@ -304,6 +316,8 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
     delayedCreate = false;
     delayResponse = false;
     browserUser = 'admin';
+    adminCompanyId = null;
+    membershipCalls.mockClear();
   });
   const post = (path: string, body: any = {}, user = 'admin') =>
     request(app.getHttpServer())
@@ -316,6 +330,77 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
       .get(path)
       .set('Cookie', `__Host-kalend_access=${user}`);
   const globalPath = '/communication/evolution';
+  it('binds only AdminGuard to GLOBAL and only TenantGuard to COMPANY', () => {
+    expect(
+      Reflect.getMetadata(GUARDS_METADATA, GlobalEvolutionController),
+    ).toEqual([AdminGuard]);
+    expect(
+      Reflect.getMetadata(GUARDS_METADATA, CompanyEvolutionController),
+    ).toEqual([TenantGuard]);
+  });
+  it('GET GLOBAL in DEV authenticates Super Admin without a company or tenant authorization', async () => {
+    vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api-dev.kalend.tech');
+    vi.stubEnv('BILLING_PUBLIC_API_URL', 'https://api-dev.kalend.tech');
+    vi.stubEnv('DATABASE_URL', 'postgresql://test:test@localhost/kalend_dev');
+    const result = await get(globalPath);
+    expect(result.status).toBe(200);
+    expect(result.body.status).toBe('PENDING');
+    expect(membershipCalls).not.toHaveBeenCalled();
+    expect([...f.rows.values()]).toEqual([
+      expect.objectContaining({
+        globalKey: 'GLOBAL',
+        companyId: null,
+        instanceName: 'kalend_dev_global',
+        environment: 'DEV',
+      }),
+    ]);
+    const prepared = await post(globalPath + '/prepare');
+    expect(prepared.status).toBe(201);
+    expect(prepared.body.qrCode).toBe(png);
+    expect(remote.get('kalend_dev_global')!.webhook.url).toMatch(
+      /^https:\/\/api-dev.kalend.tech\/webhooks\/communication\/evolution\/global\//,
+    );
+    expect(
+      calls.some(
+        (c) =>
+          c.path === '/instance/create' &&
+          c.body.instanceName === 'kalend_dev_global',
+      ),
+    ).toBe(true);
+    expect(
+      calls.some((c) => c.path === '/instance/connect/kalend_dev_global'),
+    ).toBe(true);
+    await post(globalPath + '/prepare');
+    expect((await get(globalPath)).body.qrCode).toBe(png);
+    expect(calls.filter((c) => c.path === '/instance/create')).toHaveLength(1);
+    expect(f.rows.size).toBe(1);
+    expect(membershipCalls).not.toHaveBeenCalled();
+  });
+  it('reuses existing DEV GLOBAL and ignores another company selected by Super Admin', async () => {
+    vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api-dev.kalend.tech');
+    vi.stubEnv('BILLING_PUBLIC_API_URL', 'https://api-dev.kalend.tech');
+    vi.stubEnv('DATABASE_URL', 'postgresql://test:test@localhost/kalend_dev');
+    adminCompanyId = companyB;
+    remote.set('kalend_dev_global', { state: 'close' });
+    expect((await post(globalPath + '/prepare')).body.qrCode).toBe(png);
+    expect((await get(globalPath + '?companyId=' + companyB)).status).toBe(200);
+    expect(calls.filter((c) => c.path === '/instance/create')).toHaveLength(0);
+    expect([...f.rows.values()][0]).toMatchObject({
+      globalKey: 'GLOBAL',
+      companyId: null,
+      instanceName: 'kalend_dev_global',
+    });
+    expect(membershipCalls).not.toHaveBeenCalled();
+  });
+  it('COMPANY still requires a selected authorized company and GLOBAL requires authentication', async () => {
+    const result = await get('/company/communication/evolution');
+    expect(result.status).toBe(403);
+    expect(result.body.message).toBe('Selecione uma empresa autorizada.');
+    expect((await request(app.getHttpServer()).get(globalPath)).status).toBe(
+      401,
+    );
+    expect(remote.size).toBe(0);
+  });
   it('automatically creates GLOBAL, returns QR, and never leaks instance or credentials', async () => {
     const result = await post(globalPath + '/prepare');
     expect(result.status).toBe(201);
@@ -442,6 +527,50 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
       (await get('/company/communication/evolution', 'owner-b')).body.status,
     ).toBe('QR_AVAILABLE');
     expect((await get(globalPath)).body.status).toBe('QR_AVAILABLE');
+  });
+  it('provisions DEV GLOBAL by formatted phone and waits for connectionState open', async () => {
+    vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api-dev.kalend.tech');
+    const invalid = await post(globalPath + '/pairing-code', {
+      phone: 'invalid',
+    });
+    expect(invalid.status).toBe(400);
+    expect(invalid.body.message).toContain('DDI');
+    expect(calls).toHaveLength(0);
+    expect(f.rows.size).toBe(0);
+    const result = await post(globalPath + '/pairing-code', {
+      phone: '+55 (12) 99605-5129',
+    });
+    expect(result.status).toBe(201);
+    expect(result.body).toMatchObject({
+      status: 'CONNECTING',
+      pairingCode: 'ABCD-1234',
+      qrCode: null,
+    });
+    expect(
+      calls.some(
+        (c) =>
+          c.method === 'GET' &&
+          c.path === '/instance/connect/kalend_dev_global?number=5512996055129',
+      ),
+    ).toBe(true);
+    expect(JSON.stringify(result.body)).not.toMatch(
+      /instanceName|apikey|integration-test-only-key|webhookSecret/,
+    );
+    expect((await get(globalPath)).body.status).toBe('CONNECTING');
+    await post(globalPath + '/pairing-code', { phone: '+55 (12) 99605-5129' });
+    expect(calls.filter((c) => c.path === '/instance/create')).toHaveLength(1);
+    remote.get('kalend_dev_global')!.state = 'open';
+    expect((await get(globalPath)).body).toMatchObject({
+      status: 'CONNECTED',
+      pairingCode: null,
+      qrCode: null,
+    });
+    expect(
+      calls.some(
+        (c) => c.path === '/instance/connectionState/kalend_dev_global',
+      ),
+    ).toBe(true);
+    expect(membershipCalls).not.toHaveBeenCalled();
   });
   it('handles pairing, connected, logout, reconnect and explicit deletion over the official HTTP methods', async () => {
     await post(globalPath + '/prepare');

@@ -416,8 +416,14 @@ export class EvolutionService {
         row.instanceName,
         number,
       );
-      if (record(record(result).instance).state === 'open')
-        status = 'CONNECTED';
+      // A connect payload/code is not proof of connection; confirm the authoritative state.
+      const confirmedOpen =
+        record(record(result).instance).state === 'open' &&
+        record(
+          record(await this.client.fetchConnectionState(row.instanceName))
+            .instance,
+        ).state === 'open';
+      if (confirmedOpen) status = 'CONNECTED';
       else {
         code = await this.capture(row, leaseId, result, mode);
         if (

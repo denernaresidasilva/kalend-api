@@ -18,17 +18,15 @@ import { object, string } from '../common/validation.js';
 import { AdminGuard } from '../common/admin.guard.js';
 import { GLOBAL_EVOLUTION, EvolutionService } from './evolution.js';
 
-@Controller('company/communication/evolution')
-@UseGuards(TenantGuard)
-@TenantRoles('OWNER', 'ADMIN')
-export class CompanyEvolutionController {
+// Share route handlers without inheriting authorization metadata between contexts.
+abstract class EvolutionController {
   constructor(
     @Inject(EvolutionService) private readonly evolution: EvolutionService,
     @Inject(AuthRateLimit) private readonly limit: AuthRateLimit,
   ) {}
-  protected context(req: AuthRequest): string | typeof GLOBAL_EVOLUTION {
-    return req.tenant!.companyId;
-  }
+  protected abstract context(
+    req: AuthRequest,
+  ): string | typeof GLOBAL_EVOLUTION;
   @Get() get(@Req() req: AuthRequest) {
     return this.evolution.get(this.context(req));
   }
@@ -84,9 +82,17 @@ export class CompanyEvolutionController {
     return this.evolution.remove(this.context(req));
   }
 }
+@Controller('company/communication/evolution')
+@UseGuards(TenantGuard)
+@TenantRoles('OWNER', 'ADMIN')
+export class CompanyEvolutionController extends EvolutionController {
+  protected override context(req: AuthRequest): string {
+    return req.tenant!.companyId;
+  }
+}
 @Controller('communication/evolution')
 @UseGuards(AdminGuard)
-export class GlobalEvolutionController extends CompanyEvolutionController {
+export class GlobalEvolutionController extends EvolutionController {
   protected override context(): typeof GLOBAL_EVOLUTION {
     return GLOBAL_EVOLUTION;
   }
