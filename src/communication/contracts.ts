@@ -93,6 +93,8 @@ export function renderText(source: string, event: Event, values: Variables) {
 }
 export type Message = {
   globalRecipientUserId?: string;
+  // Optional destination for authenticated Super Admin tests only. Never persisted.
+  globalTestNumber?: string;
   to: string;
   subject?: string;
   text: string;
@@ -207,7 +209,10 @@ export type FailureKind =
   | 'TEMPLATE'
   | 'RECIPIENT';
 export class TransportFailure extends Error {
-  constructor(readonly kind: FailureKind) {
+  constructor(
+    readonly kind: FailureKind,
+    readonly code?: string,
+  ) {
     super(`COMMUNICATION_${kind}`);
   }
 }

@@ -62,6 +62,13 @@ function fixture() {
   };
   db.$transaction.mockImplementation((fn) => fn(db));
   const config = {
+    resolveProvider: vi.fn(async (channel: string) =>
+      channel === 'EMAIL'
+        ? 'SMTP'
+        : channel === 'WHATSAPP'
+          ? 'EVOLUTION'
+          : 'PUSH_PENDING',
+    ),
     context: vi.fn().mockResolvedValue({
       row: { environment: 'SANDBOX', revision: 1 },
       config: {},
@@ -320,7 +327,7 @@ describe('Phase 3 shares the existing outbox motor', () => {
         arg.data[0].status,
       ]),
     ).toEqual([
-      ['GMAIL', 'USER', 'PENDING'],
+      ['SMTP', 'USER', 'PENDING'],
       ['PUSH_PENDING', 'device1', 'PENDING'],
       ['PUSH_PENDING', 'device2', 'PENDING'],
     ]);

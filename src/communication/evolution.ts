@@ -897,10 +897,11 @@ export class EvolutionService implements OnModuleInit, OnModuleDestroy {
       throw new EvolutionFailure('INTEGRATION_STATE_UNAVAILABLE');
     }
   }
-  async sendGlobalTextMessage(userId: string, text: string) {
+  async sendGlobalTextMessage(userId: string, text: string, testNumber?: string) {
     const user = await this.recipient({
       id: userId,
       isActive: true,
+      ...(testNumber !== undefined ? { isSuperAdmin: true } : {}),
       OR: [
         { isSuperAdmin: true },
         {
@@ -914,9 +915,9 @@ export class EvolutionService implements OnModuleInit, OnModuleDestroy {
         },
       ],
     });
-    if (!user?.phone)
+    if (!user || (!user.phone && testNumber === undefined))
       throw new EvolutionFailure('GLOBAL_RECIPIENT_UNAVAILABLE');
-    return this.send(GLOBAL_EVOLUTION, evolutionPhone(user.phone), text);
+    return this.send(GLOBAL_EVOLUTION, evolutionPhone(testNumber ?? user.phone), text);
   }
   async sendTextMessage(companyId: string, number: string, text: string) {
     return this.send(uuid(companyId), evolutionPhone(number), text);

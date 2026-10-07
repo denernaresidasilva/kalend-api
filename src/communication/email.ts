@@ -168,6 +168,11 @@ export class EmailService {
               }
             : {}),
         };
+        if (ctx.scope === 'SYSTEM' && data.enabled)
+          await tx.globalCommunicationProvider.updateMany({
+            where: { scope: 'GLOBAL', provider: 'GMAIL', enabled: true },
+            data: { enabled: false, revision: { increment: 1 } },
+          });
         if (ctx.scope === 'SYSTEM')
           await tx.globalCommunicationProvider.upsert({
             where: { provider: 'SMTP' },

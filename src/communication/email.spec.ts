@@ -130,6 +130,27 @@ describe('SMTP email lifecycle and strict scopes', () => {
       tenantSecret,
     );
   });
+  it('activating system SMTP disables GLOBAL Gmail without changing company SMTP', async () => {
+    const { service, db, global, companies } = setup();
+    await service.save(system, body);
+    await service.save(a, body);
+    global.set('GMAIL', {
+      provider: 'GMAIL',
+      scope: 'GLOBAL',
+      enabled: true,
+      revision: 1,
+    });
+    await service.test(system, { recipient: 'admin@example.test' });
+    const { password: _, ...update } = body;
+    await service.save(system, { ...update, enabled: true });
+    expect(global.get('SMTP')?.enabled).toBe(true);
+    expect(global.get('GMAIL')?.enabled).toBe(false);
+    expect(companies.get('company-a')?.enabled).toBe(false);
+    expect(db.globalCommunicationProvider.updateMany).toHaveBeenCalledWith({
+      where: { scope: 'GLOBAL', provider: 'GMAIL', enabled: true },
+      data: { enabled: false, revision: { increment: 1 } },
+    });
+  });
   it('requires a successful real test before enabling, resets validation on edits and deletes only the selected company', async () => {
     const { service, smtp } = setup();
     await service.save(a, body);

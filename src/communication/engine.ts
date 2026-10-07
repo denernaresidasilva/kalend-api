@@ -47,13 +47,18 @@ export class CommunicationEngine {
     const d = object(input, ['provider', 'enabled', 'content']);
     boolean(d.enabled, 'enabled');
     if (
-      typeof d.provider !== 'string' ||
-      !Object.hasOwn(channels, d.provider) ||
-      channels[d.provider as keyof typeof channels] !== channel
+      d.provider !== undefined &&
+      (typeof d.provider !== 'string' ||
+        !Object.hasOwn(channels, d.provider) ||
+        channels[d.provider as keyof typeof channels] !== channel)
     )
       throw new BadRequestException('PROVIDER_CHANNEL_INVALID');
     const typedChannel = channel as 'EMAIL' | 'WHATSAPP' | 'PUSH';
-    const provider = d.provider as keyof typeof channels;
+    const provider = (
+      channel === 'EMAIL' || d.provider === undefined
+        ? await this.configuration.resolveProvider(typedChannel, this.db, false)
+        : d.provider
+    ) as keyof typeof channels;
     if (d.enabled && !this.transports.available(provider))
       throw new BadRequestException('PROVIDER_UNAVAILABLE');
     const content = templateContent(
@@ -149,8 +154,13 @@ export class CommunicationEngine {
                 });
                 continue;
               }
+              const provider =
+                t.provider === 'META'
+                  ? t.provider
+                  : await this.configuration.resolveProvider(t.channel, tx);
+              if (!provider) continue;
               const cfg = await tx.globalCommunicationProvider.findUnique({
-                where: { provider: t.provider },
+                where: { provider },
               });
               if (!cfg?.enabled || cfg.scope !== 'GLOBAL') continue;
               const targets =
@@ -227,7 +237,7 @@ export class CommunicationEngine {
                       userId: member.userId,
                       targetKey: target.id,
                       channel: t.channel,
-                      provider: t.provider,
+                      provider,
                       environment: cfg.environment,
                       configurationRevision: cfg.revision,
                       templateId: t.id,

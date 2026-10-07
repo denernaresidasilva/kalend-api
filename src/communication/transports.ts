@@ -147,6 +147,7 @@ export class EvolutionTransport implements Transport {
                   ].includes(error.code)
                 ? 'TRANSIENT'
                 : 'PERMANENT',
+          error.code,
         );
       }
       throw new TransportFailure(sending ? 'UNCERTAIN' : 'PERMANENT');
@@ -176,6 +177,7 @@ export class EvolutionTransport implements Transport {
           await this.evolution!.sendGlobalTextMessage(
             m.globalRecipientUserId!,
             m.text,
+            ...(m.globalTestNumber !== undefined ? [m.globalTestNumber] : []),
           )
         ).messageId,
       true,

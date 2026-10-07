@@ -1,3 +1,4 @@
+import { evolutionPhone } from './evolution-client.js';
 import { EvolutionService, GLOBAL_EVOLUTION } from './evolution.js';
 import { normalizeSmtp, sameSmtp, smtpTestData } from './smtp-configuration.js';
 import { validateVapid } from './push.js';
@@ -134,6 +135,32 @@ export class CommunicationConfiguration {
     private readonly transports: CommunicationTransports,
     @Inject(EvolutionService) private readonly evolution?: EvolutionService,
   ) {}
+  // Resolution uses only GLOBAL rows. Template provider is retained for legacy storage.
+  async resolveProvider(
+    channel: 'EMAIL' | 'WHATSAPP' | 'PUSH',
+    db: Pick<PrismaService, 'globalCommunicationProvider'> = this.db,
+    requireActive = true,
+  ): Promise<Provider | null> {
+    const candidates: Provider[] =
+      channel === 'EMAIL'
+        ? ['SMTP', 'GMAIL']
+        : channel === 'WHATSAPP'
+          ? ['EVOLUTION']
+          : ['PUSH_PENDING'];
+    for (const provider of candidates) {
+      const row = await db.globalCommunicationProvider.findUnique({
+        where: { provider },
+      });
+      if (
+        row?.scope === 'GLOBAL' &&
+        row.enabled &&
+        this.transports.available(provider) &&
+        (provider !== 'SMTP' || row.lastTestStatus === 'SUCCESS')
+      )
+        return provider;
+    }
+    return requireActive ? null : candidates[0];
+  }
   async list() {
     const rows = await this.db.globalCommunicationProvider.findMany({
       where: { scope: 'GLOBAL' },
@@ -192,9 +219,16 @@ export class CommunicationConfiguration {
     if (p === 'EVOLUTION') {
       if (!this.evolution)
         throw new ServiceUnavailableException('EVOLUTION_UNAVAILABLE');
-      const connection = await this.evolution.globalConnection();
+      const connection =
+        d.enabled === true
+          ? await this.evolution.get(GLOBAL_EVOLUTION)
+          : await this.evolution.globalConnection();
       if (d.enabled === true && connection.status !== 'CONNECTED')
-        throw new BadRequestException('CONNECTION_TEST_REQUIRED');
+        throw new BadRequestException({
+          errorCode: 'CONNECTION_NOT_OPEN',
+          message:
+            'WhatsApp não conectado. Atualize a conexão antes de habilitar o envio.',
+        });
       await this.db.globalCommunicationProvider.update({
         where: { provider: 'EVOLUTION' },
         data: {
@@ -336,6 +370,15 @@ export class CommunicationConfiguration {
           await tx.globalCommunicationProvider.create({
             data: { provider: p, ...data },
           });
+        if (d.enabled === true && (p === 'SMTP' || p === 'GMAIL'))
+          await tx.globalCommunicationProvider.updateMany({
+            where: {
+              scope: 'GLOBAL',
+              provider: p === 'SMTP' ? 'GMAIL' : 'SMTP',
+              enabled: true,
+            },
+            data: { enabled: false, revision: { increment: 1 } },
+          });
         await tx.globalCommunicationLog.create({
           data: { actorId, action: `PROVIDER_UPDATE_${p}` },
         });
@@ -407,13 +450,46 @@ export class CommunicationConfiguration {
   }
   async sendTest(name: string, input: unknown, actorId: string) {
     const p = providerName(name),
-      d = object(input, p === 'META' ? ['template'] : []);
+      d = object(
+        input,
+        p === 'META' ? ['template'] : p === 'EVOLUTION' ? ['number'] : [],
+      );
     const actor = await this.db.user.findFirst({
       where: { id: actorId, isSuperAdmin: true, isActive: true },
       select: { email: true, phone: true },
     });
     if (!actor) throw new BadRequestException('TEST_RECIPIENT_UNAUTHORIZED');
+    if (p === 'EVOLUTION') {
+      const row = await this.db.globalCommunicationProvider.findUnique({
+        where: { provider: p },
+      });
+      if (!row?.enabled || row.scope !== 'GLOBAL')
+        throw new BadRequestException({
+          errorCode: 'GLOBAL_PROVIDER_DISABLED',
+          message:
+            'O uso do WhatsApp para comunicação está desabilitado. Habilite o envio antes do teste.',
+        });
+      if (
+        !this.evolution ||
+        (await this.evolution.get(GLOBAL_EVOLUTION)).status !== 'CONNECTED'
+      )
+        throw new BadRequestException({
+          errorCode: 'CONNECTION_NOT_OPEN',
+          message: 'WhatsApp não conectado ou sessão fechada.',
+        });
+    }
     const ctx = await this.context(p, false);
+    if (p === 'EVOLUTION') {
+      try {
+        evolutionPhone(d.number ?? actor.phone);
+      } catch {
+        throw new BadRequestException({
+          errorCode: 'TEST_RECIPIENT_UNAVAILABLE',
+          message:
+            'Informe um telefone válido com DDI no seu perfil para receber a mensagem de teste.',
+        });
+      }
+    }
     const devices =
       p === 'PUSH_PENDING'
         ? await this.db.globalPushSubscription.findMany({
@@ -437,7 +513,9 @@ export class CommunicationConfiguration {
         ? devices[0].id
         : p === 'SMTP' || p === 'GMAIL'
           ? email(actor.email)
-          : phone(actor.phone);
+          : p === 'EVOLUTION'
+            ? evolutionPhone(d.number ?? actor.phone)
+            : phone(actor.phone);
     const message =
       p === 'META'
         ? render(
@@ -451,7 +529,10 @@ export class CommunicationConfiguration {
             to,
             subject: 'Teste de comunicação Kalend',
             title: 'Kalend',
-            text: 'Teste do canal global Kalend.',
+            text:
+              p === 'EVOLUTION'
+                ? '✅ Teste de WhatsApp do Kalend realizado com sucesso.'
+                : 'Teste do canal global Kalend.',
           };
     // Test recipient is the authenticated administrator, never a supplied address.
     await this.db.globalCommunicationLog.create({
@@ -476,7 +557,13 @@ export class CommunicationConfiguration {
             ctx.config,
             ctx.secret,
             p === 'EVOLUTION'
-              ? { ...message, globalRecipientUserId: actorId }
+              ? {
+                  ...message,
+                  globalRecipientUserId: actorId,
+                  ...(d.number !== undefined
+                    ? { globalTestNumber: evolutionPhone(d.number) }
+                    : {}),
+                }
               : message,
           );
       await this.db.$transaction(async (tx) => {
@@ -494,7 +581,55 @@ export class CommunicationConfiguration {
         });
       });
       return { accepted: true, delivered: false };
-    } catch {
+    } catch (error) {
+      if (p === 'EVOLUTION') {
+        const code =
+          error instanceof Error &&
+          'code' in error &&
+          typeof error.code === 'string'
+            ? error.code
+            : 'SEND_TEST_FAILED_OR_UNCERTAIN';
+        const messages: Record<string, string> = {
+          CONNECTION_NOT_OPEN:
+            'A sessão WhatsApp está fechada. Reconecte antes de enviar.',
+          INVALID_PHONE: 'O telefone do destinatário é inválido.',
+          GLOBAL_RECIPIENT_UNAVAILABLE:
+            'Configure um telefone válido no perfil do administrador.',
+          EVOLUTION_UNAVAILABLE:
+            'A Evolution está indisponível. Tente novamente mais tarde.',
+          EVOLUTION_TIMEOUT: 'A Evolution não respondeu no prazo.',
+          EVOLUTION_AUTH_FAILED: 'A autenticação da Evolution é inválida.',
+          EVOLUTION_FORBIDDEN:
+            'A Evolution recusou o acesso à instância global.',
+          EVOLUTION_RATE_LIMITED:
+            'A Evolution limitou os envios. Aguarde antes de repetir.',
+          EVOLUTION_INVALID_RESPONSE:
+            'A Evolution retornou uma resposta inválida.',
+          INTEGRATION_STATE_UNAVAILABLE:
+            'Não foi possível verificar o estado da conexão WhatsApp.',
+          MESSAGE_ACCEPTANCE_UNKNOWN:
+            'Não foi possível confirmar o envio. Verifique o destinatário antes de repetir.',
+          INTEGRATION_BUSY:
+            'A conexão está ocupada. Aguarde e tente novamente.',
+        };
+        await this.db.globalCommunicationLog.create({
+          data: {
+            actorId,
+            action: 'SEND_TEST_FAILED_OR_UNCERTAIN_EVOLUTION',
+            code: Object.hasOwn(messages, code)
+              ? code
+              : 'SEND_TEST_FAILED_OR_UNCERTAIN',
+          },
+        });
+        throw new ServiceUnavailableException({
+          errorCode: Object.hasOwn(messages, code)
+            ? code
+            : 'SEND_TEST_FAILED_OR_UNCERTAIN',
+          message:
+            messages[code] ??
+            'Erro de envio WhatsApp. Não foi possível confirmar a aceitação da mensagem.',
+        });
+      }
       if (p === 'SMTP')
         await this.db.globalCommunicationProvider.updateMany({
           where: { provider: p, revision: ctx.row.revision },
