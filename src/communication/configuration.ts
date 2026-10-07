@@ -402,15 +402,8 @@ export class CommunicationConfiguration {
     await this.db.globalCommunicationLog.create({
       data: { actorId, action: 'EVOLUTION_PAIRING_REQUESTED' },
     });
-    try {
-      const result = await this.evolution.prepare(GLOBAL_EVOLUTION);
-      if (result.status === 'CONNECTED') return { connected: true };
-      if (!result.qrCode)
-        throw new ServiceUnavailableException('EVOLUTION_PAIRING_UNAVAILABLE');
-      return { connected: false, qrCode: result.qrCode };
-    } catch {
-      throw new ServiceUnavailableException('EVOLUTION_PAIRING_UNAVAILABLE');
-    }
+    // Legacy route, same session DTO as the native Evolution endpoints. Waiting is not a 503.
+    return this.evolution.prepare(GLOBAL_EVOLUTION);
   }
   async sendTest(name: string, input: unknown, actorId: string) {
     const p = providerName(name),

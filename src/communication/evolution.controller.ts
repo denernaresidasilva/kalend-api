@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Headers,
+  HttpCode,
   Inject,
   Param,
   ParseUUIDPipe,
@@ -21,7 +22,7 @@ import { GLOBAL_EVOLUTION, EvolutionService } from './evolution.js';
 // Share route handlers without inheriting authorization metadata between contexts.
 abstract class EvolutionController {
   constructor(
-    @Inject(EvolutionService) private readonly evolution: EvolutionService,
+    @Inject(EvolutionService) protected readonly evolution: EvolutionService,
     @Inject(AuthRateLimit) private readonly limit: AuthRateLimit,
   ) {}
   protected abstract context(
@@ -33,7 +34,7 @@ abstract class EvolutionController {
   @Get('status') status(@Req() req: AuthRequest) {
     return this.get(req);
   }
-  private async throttle(req: AuthRequest) {
+  protected async throttle(req: AuthRequest) {
     await this.limit.consume(
       'evolution-management',
       typeof this.context(req) === 'string'
@@ -59,8 +60,13 @@ abstract class EvolutionController {
     await this.throttle(req);
     return this.evolution.connect(this.context(req));
   }
-  @Post('reconnect') reconnect(@Req() req: AuthRequest, @Body() body: unknown) {
-    return this.connect(req, body);
+  @Post('reconnect') async reconnect(
+    @Req() req: AuthRequest,
+    @Body() body: unknown,
+  ) {
+    object(body ?? {}, []);
+    await this.throttle(req);
+    return this.evolution.reconnect(this.context(req));
   }
   @Post('pairing-code') async pair(
     @Req() req: AuthRequest,
@@ -89,6 +95,17 @@ export class CompanyEvolutionController extends EvolutionController {
   protected override context(req: AuthRequest): string {
     return req.tenant!.companyId;
   }
+  @Post('send-test') async sendTest(
+    @Req() req: AuthRequest,
+    @Body() body: unknown,
+  ) {
+    object(body ?? {}, []);
+    await this.throttle(req);
+    return this.evolution.sendCompanyTestMessage(
+      this.context(req),
+      req.auth.user.id,
+    );
+  }
 }
 @Controller('communication/evolution')
 @UseGuards(AdminGuard)
@@ -102,14 +119,14 @@ export class EvolutionWebhookController {
   constructor(
     @Inject(EvolutionService) private readonly evolution: EvolutionService,
   ) {}
-  @Post('global/:id') globalReceive(
+  @Post('global/:id') @HttpCode(200) globalReceive(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Headers('x-kalend-evolution-token') token: string | undefined,
     @Body() body: unknown,
   ) {
     return this.evolution.webhook(id, token, body, 'GLOBAL');
   }
-  @Post(':id') receive(
+  @Post(':id') @HttpCode(200) receive(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Headers('x-kalend-evolution-token') token: string | undefined,
     @Body() body: unknown,

@@ -4,6 +4,12 @@ import { resolvePublic } from './network.js';
 import { TransportFailure } from './contracts.js';
 
 export type HttpResult = { status: number; body: Buffer };
+export class HttpRequestTimeout extends TransportFailure {
+  constructor(uncertain: boolean) {
+    super(uncertain ? 'UNCERTAIN' : 'TRANSIENT');
+    this.name = 'HttpRequestTimeout';
+  }
+}
 /** Bounded, no redirects, public DNS pinned to TLS socket. No remote errors escape. */
 export async function secureRequest(
   url: URL,
@@ -63,8 +69,8 @@ export async function secureRequest(
       }),
     );
     const timer = setTimeout(() => {
+      reject(new HttpRequestTimeout(method === 'POST' && connected));
       req.destroy();
-      fail();
     }, 15000);
     req.on('close', () => clearTimeout(timer));
     req.on('error', fail);

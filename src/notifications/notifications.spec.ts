@@ -4,6 +4,7 @@ import {
   decodeCursor,
 } from './notifications.service.js';
 import type { AuthIdentity } from '../auth/auth.types.js';
+import type { Prisma } from '@prisma/client';
 const auth = {
   user: { id: 'user', isSuperAdmin: false },
   session: { selectedCompanyId: 'company' },
@@ -11,13 +12,17 @@ const auth = {
 const now = new Date('2026-10-02T10:00:00Z');
 function fixture() {
   const db = {
-    $queryRaw: vi.fn(async () => [{ now }]),
+    $queryRaw: vi.fn(async (..._args: [TemplateStringsArray, ...unknown[]]) => [
+      { now },
+    ]),
     membership: { findFirst: vi.fn(async () => ({ role: 'CLIENT' })) },
     notification: {
-      count: vi.fn(async () => 3),
-      findMany: vi.fn(async () => []),
+      count: vi.fn(async (_args: Prisma.NotificationCountArgs) => 3),
+      findMany: vi.fn(async (_args: Prisma.NotificationFindManyArgs) => []),
       findFirst: vi.fn(async () => null),
-      updateMany: vi.fn(async () => ({ count: 2 })),
+      updateMany: vi.fn(async (_args: Prisma.NotificationUpdateManyArgs) => ({
+        count: 2,
+      })),
     },
     notificationPreference: {
       findUnique: vi.fn(async () => null),
@@ -66,7 +71,7 @@ describe('notification authenticated contracts', () => {
       session: { ...auth.session, selectedCompanyId: null },
     });
     expect(db.membership.findFirst).not.toHaveBeenCalled();
-    expect(db.notification.count.mock.calls[0][0].where.OR).toEqual([
+    expect(db.notification.count.mock.calls[0][0].where?.OR).toEqual([
       { companyId: null },
     ]);
   });
@@ -91,11 +96,11 @@ describe('notification authenticated contracts', () => {
     expect(db.notification.updateMany.mock.calls[0][0].data).toEqual({
       readAt: now,
     });
-    expect(
-      db.notification.updateMany.mock.calls[0][0].where.AND[0].userId,
-    ).toBe('user');
+    expect(db.notification.updateMany.mock.calls[0][0].where?.AND).toEqual(
+      expect.arrayContaining([expect.objectContaining({ userId: 'user' })]),
+    );
   });
-  it.each([
+  it.each<Record<string, string>>([
     { limit: '21' },
     { limit: '0' },
     { limit: '1.5' },

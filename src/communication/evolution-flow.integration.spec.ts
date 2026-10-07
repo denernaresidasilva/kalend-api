@@ -64,7 +64,14 @@ vi.mock('./network.js', async (importOriginal) => ({
 }));
 const companyA = '11111111-1111-4111-8111-111111111111';
 const companyB = '22222222-2222-4222-8222-222222222222';
-const png = 'data:image/png;base64,iVBORw0KGgo=';
+const png = readFileSync(
+  new URL('../../test/fixtures/evolution-qr.txt', import.meta.url),
+  'utf8',
+).trim();
+const renewedPng = readFileSync(
+  new URL('../../test/fixtures/evolution-qr-renewed.txt', import.meta.url),
+  'utf8',
+).trim();
 const webRoot = resolve('../kalend-web');
 const availableWeb =
   existsSync(join(webRoot, 'node_modules/react')) &&
@@ -89,6 +96,7 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
   const calls: Array<{ method: string; path: string; body: any }> = [];
   let failStatus = 0;
   let errorBody = false;
+  let webhookOnlyCode = false;
   let delayedCreate = false;
   let delayResponse = false;
   let browserUser = 'admin';
@@ -181,7 +189,7 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
           return send(200, { instance: { state: instance.state } });
         if (parts[2] === 'restart') {
           if (instance.state === 'close') return send(400, { error: true });
-          instance.qrCode = 'data:image/png;base64,iVBORw0KGgoDAw==';
+          instance.qrCode = renewedPng;
           return send(200, { instance: { state: instance.state } });
         }
         if (parts[2] === 'connect') {
@@ -193,14 +201,13 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
           if (instance.state === 'open')
             return send(200, { instance: { state: 'open' } });
           instance.state = 'connecting';
+          if (webhookOnlyCode) return send(200, { count: 1 });
           if (url.searchParams.has('number'))
             instance.pairingCode = 'ABCD-1234';
           return send(200, {
             base64:
               instance.qrCode ??
-              (name === evolutionInstanceName(companyB)
-                ? 'data:image/png;base64,iVBORw0KGgoCAg=='
-                : png),
+              (name === evolutionInstanceName(companyB) ? renewedPng : png),
             pairingCode: instance.pairingCode ?? null,
             apikey: 'private',
           });
@@ -313,6 +320,7 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
     calls.length = 0;
     failStatus = 0;
     errorBody = false;
+    webhookOnlyCode = false;
     delayedCreate = false;
     delayResponse = false;
     browserUser = 'admin';
@@ -425,7 +433,7 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
       post(globalPath + '/prepare'),
     ]);
     expect(results.map((r) => r.status).sort((a, b) => a - b)).toEqual([
-      201, 409,
+      201, 201,
     ]);
     expect(remote.size).toBe(1);
     const replica = new EvolutionService(
@@ -560,6 +568,7 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
     await post(globalPath + '/pairing-code', { phone: '+55 (12) 99605-5129' });
     expect(calls.filter((c) => c.path === '/instance/create')).toHaveLength(1);
     remote.get('kalend_dev_global')!.state = 'open';
+    [...f.rows.values()][0].lastSeenAt = null;
     expect((await get(globalPath)).body).toMatchObject({
       status: 'CONNECTED',
       pairingCode: null,
@@ -629,7 +638,8 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
     failStatus = 0;
     errorBody = true;
     const result = await post(globalPath + '/prepare');
-    expect(result.body.status).toBe('ERROR');
+    expect(result.status).toBe(502);
+    expect(result.body.errorCode).toBe('CONNECTION_FAILED');
     expect(JSON.stringify(result.body)).not.toMatch(
       /integration-test-only-key|private stack/,
     );
@@ -663,7 +673,7 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
           .set('x-kalend-evolution-token', token)
           .send(payload)
       ).status,
-    ).toBe(201);
+    ).toBe(200);
     expect((await get(globalPath)).body.status).toBe('CONNECTED');
     expect(
       (
@@ -680,11 +690,11 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
     remote.get('kalend_global')!.state = 'open';
     const service = app.get(EvolutionService);
     await expect(service.sendGlobalTextMessage('client', 'No')).rejects.toThrow(
-      'Destinatário',
+      'GLOBAL_RECIPIENT_UNAVAILABLE',
     );
     await expect(
       service.sendGlobalTextMessage('professional', 'No'),
-    ).rejects.toThrow('Destinatário');
+    ).rejects.toThrow('GLOBAL_RECIPIENT_UNAVAILABLE');
     expect(calls.some((call) => call.path.startsWith('/message'))).toBe(false);
     await service.sendGlobalTextMessage('owner-a', 'Aviso do Kalend');
     expect(
@@ -699,7 +709,7 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
       post('/company/communication/evolution/prepare', {}, 'owner-a'),
     ]);
     expect(results.map((r) => r.status).sort((a, b) => a - b)).toEqual([
-      201, 409,
+      201, 201,
     ]);
     await post('/company/communication/evolution/prepare', {}, 'owner-b');
     expect(
@@ -792,8 +802,12 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
     await post(globalPath + '/prepare');
     const row = [...f.rows.values()][0];
     row.codeExpiresAt = new Date(Date.now() - 1);
-    const result = await get(globalPath);
-    expect(result.body.qrCode).toBe('data:image/png;base64,iVBORw0KGgoDAw==');
+    expect((await get(globalPath)).body.qrCode).toBeNull();
+    expect(calls.some((c) => c.path.startsWith('/instance/restart'))).toBe(
+      false,
+    );
+    const result = await post(globalPath + '/connect');
+    expect(result.body.qrCode).toBe(renewedPng);
     const replica = new EvolutionService(
       f.db as unknown as PrismaService,
       new EvolutionClient(),
@@ -813,6 +827,79 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
     );
     expect(remote.size).toBe(1);
   });
+  it.skipIf(!availableWeb).each(['qr', 'phone'])(
+    'receives %s only through webhook, responds 200 during a lease, and real web client retrieves persisted code',
+    async (mode) => {
+      webhookOnlyCode = true;
+      if (mode === 'phone')
+        await post(globalPath + '/pairing-code', {
+          phone: '+55 (12) 99605-5129',
+        });
+      else await post(globalPath + '/prepare');
+      const row = [...f.rows.values()][0];
+      const token =
+        remote.get('kalend_global')!.webhook.headers[
+          'x-kalend-evolution-token'
+        ];
+      // Simulate a concurrent remote operation. Receiver must not acquire this lease or call Evolution.
+      row.leaseId = '11111111-1111-4111-8111-111111111111';
+      row.leaseExpiresAt = new Date(Date.now() + 30000);
+      const callsBefore = calls.length;
+      const event = {
+        instance: 'kalend_global',
+        event: 'qrcode.updated',
+        date_time: new Date().toISOString(),
+        data: {
+          qrcode: {
+            base64: png,
+            code: 'not-displayed',
+            pairingCode: mode === 'phone' ? 'ABCD-1234' : null,
+          },
+        },
+        apikey: 'private',
+      };
+      const result = await request(app.getHttpServer())
+        .post('/webhooks/communication/evolution/global/' + row.id)
+        .set('x-kalend-evolution-token', token)
+        .send(event);
+      expect(result.status).toBe(200);
+      expect(calls.length).toBe(callsBefore);
+      expect(
+        (
+          await request(app.getHttpServer())
+            .post('/webhooks/communication/evolution/global/' + row.id)
+            .set('x-kalend-evolution-token', token)
+            .send(event)
+        ).status,
+      ).toBe(200);
+      row.leaseId = null;
+      row.leaseExpiresAt = null;
+      const dom = new JSDOM('<div></div>', { url: 'https://web.example.test' });
+      try {
+        const web = loadWeb('lib/evolution.ts', dom);
+        const dto = await web.evolutionApi.get({
+          scope: 'GLOBAL',
+          userId: 'admin',
+        });
+        expect(dto.qrCode).toBe(mode === 'qr' ? png : null);
+        expect(dto.pairingCode).toBe(mode === 'phone' ? 'ABCD-1234' : null);
+        const view = loadWeb(
+          'components/evolution-settings.tsx',
+          dom,
+        ).EvolutionView;
+        const { renderToStaticMarkup } = webRequire('react-dom/server');
+        const html = renderToStaticMarkup(
+          React.createElement(view, { row: dto, busy: false, now: Date.now() }),
+        );
+        expect(html).toContain(mode === 'qr' ? png : 'ABCD-1234');
+        expect(JSON.stringify(dto)).not.toMatch(
+          /private|integration-test-only-key|webhookSecret|codeEncrypted/,
+        );
+      } finally {
+        dom.window.close();
+      }
+    },
+  );
   function loadWeb(file: string, dom: any): any {
     const full = join(webRoot, file);
     const mod = { exports: {} };
@@ -1076,9 +1163,7 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
           await React.act(async () => {
             await new Promise((r) => setTimeout(r, 50));
           });
-        expect(dom.window.document.querySelector('img')?.src).toBe(
-          'data:image/png;base64,iVBORw0KGgoCAg==',
-        );
+        expect(dom.window.document.querySelector('img')?.src).toBe(renewedPng);
         expect(
           [...f.rows.values()].find((r) => r.companyId === companyB)!
             .instanceName,

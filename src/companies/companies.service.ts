@@ -217,7 +217,11 @@ export class CompaniesService {
           data: {
             id: companyId,
             evolutionConnection: {
-              create: { instanceName: evolutionInstanceName(companyId) },
+              create: {
+                instanceName: evolutionInstanceName(companyId),
+                provisionRequested: true,
+                provisionRetryAt: new Date(),
+              },
             },
             name: companyName,
             slug,

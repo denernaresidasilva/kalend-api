@@ -1,4 +1,6 @@
 import type { EvolutionService } from './evolution.js';
+import { ConflictException } from '@nestjs/common';
+import { EvolutionFailure } from './evolution-client.js';
 import { vi } from 'vitest';
 import nodemailer from 'nodemailer';
 import { jsonRequest, resolvePublic } from './network.js';
@@ -205,10 +207,13 @@ describe('provider contracts using no external network', () => {
       prepare,
     } as unknown as EvolutionService);
     expect(await adapter.pair({}, {})).toEqual({
-      connected: false,
+      status: 'QR_AVAILABLE',
       qrCode: 'data:image/png;base64,iVBORw0KGgo=',
     });
-    await expect(adapter.pair({}, {})).rejects.toThrow();
+    expect(await adapter.pair({}, {})).toEqual({
+      status: 'ERROR',
+      qrCode: null,
+    });
   });
   const meta = {
       graphVersion: 'v25.0',
@@ -279,3 +284,32 @@ describe('provider contracts using no external network', () => {
     expect(jsonRequest).toHaveBeenCalledTimes(1);
   });
 });
+
+it.each([
+  [new EvolutionFailure('EVOLUTION_AUTH_FAILED', 401), 'PERMANENT'],
+  [new EvolutionFailure('EVOLUTION_RATE_LIMITED', 429), 'RATE_LIMIT'],
+  [new EvolutionFailure('EVOLUTION_UNAVAILABLE', 503), 'TRANSIENT'],
+  [new EvolutionFailure('INTEGRATION_BUSY'), 'TRANSIENT'],
+  [new EvolutionFailure('INTEGRATION_STATE_UNAVAILABLE'), 'TRANSIENT'],
+  [new ConflictException(), 'TRANSIENT'],
+  [
+    new EvolutionFailure('MESSAGE_ACCEPTANCE_UNKNOWN', undefined, true),
+    'UNCERTAIN',
+  ],
+])(
+  'Evolution send preserves phase/category instead of quarantining every failure (%j)',
+  async (error, kind) => {
+    const adapter = new EvolutionTransport({
+      sendGlobalTextMessage: async () => {
+        throw error;
+      },
+    } as unknown as EvolutionService);
+    await expect(
+      adapter.send(
+        {},
+        {},
+        { to: 'ignored', text: 'Teste', globalRecipientUserId: 'owner' },
+      ),
+    ).rejects.toMatchObject({ kind });
+  },
+);

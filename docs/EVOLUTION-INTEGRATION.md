@@ -1,181 +1,123 @@
-# Evolution — correções de ambiente, QR e preflight
+# Evolution API 2.3.7 — integração Kalend
 
-Atualização local de 05/10/2026. **Uma empresa = uma instância por ambiente. O Super Admin possui uma conexão GLOBAL independente por ambiente.** Nenhuma chave real foi impressa, nenhum banco real foi consultado ou alterado, nenhuma migration foi aplicada e nenhuma instalação Evolution foi modificada. VPS e aparelhos reais: **NÃO VALIDADO**.
+Atualizado em 07/10/2026 após o diagnóstico e as reproduções de concorrência, perda do QR e close/401. Implementação e testes locais; **nenhum deploy, restart, migration na VPS ou mudança na Evolution real**.
 
-## 1. Ambiente e webhook obrigatório
+## Escopos e ambiente
 
-O projeto não possui um APP_ENV confiável. NODE_ENV=production também é usado nos builds/deploys DEV e não determina o ambiente Evolution.
+GLOBAL: `AdminGuard`, Super Admin, independente de selectedCompanyId e membership. Base `/communication/evolution` e callback `/webhooks/communication/evolution/global/:id`.
 
-A fonte explícita é EVOLUTION_WEBHOOK_BASE_URL, obrigatória e sem fallback:
+COMPANY: `TenantGuard`, OWNER/ADMIN, companyId da sessão; base `/company/communication/evolution`, callback `/webhooks/communication/evolution/:id`. Não há fallback GLOBAL nem seleção de instância pelo browser.
 
-| Ambiente | Origin obrigatório |
-|---|---|
-| DEV | https://api-dev.kalend.tech |
-| Produção | https://api.kalend.tech |
+DEV usa `kalend_dev_global` e `kalend_dev_<UUID sem hífens>`. Produção usa `kalend_global` ou GLOBAL legado autorizado, e `kalend_<UUID sem hífens>`. `EvolutionConnection` possui unicidade e CHECK de contexto. Banco DEV e produtivo devem ser distintos. Registros atribuídos a outro deployment são recusados. Vínculos legados sem ambiente são verificados sob lease antes de uso remoto; instâncias antigas ambíguas não são excluídas automaticamente.
 
-Aceita somente esses origins HTTPS, com raiz e sem credenciais/query/fragmento. Ausência retorna 503 com código sanitizado EVOLUTION_WEBHOOK_BASE_URL_REQUIRED, antes de qualquer chamada Evolution. URL inválida retorna EVOLUTION_WEBHOOK_BASE_URL_INVALID. Não existe fallback silencioso para produção.
+## Variáveis
 
-BILLING_PUBLIC_API_URL, quando presente, deve ter o mesmo origin. DATABASE_URL, quando presente, deve ser PostgreSQL e coerente: DEV exige banco kalend_dev; produção recusa kalend_dev. Divergência retorna EVOLUTION_ENVIRONMENT_MISMATCH. Essa defesa é aplicada à integração, sem alterar configuração de billing, autenticação ou PrismaService. A configuração/URL real da VPS não foi lida ou confirmada.
+| Variável | Uso |
+| --- | --- |
+| EVOLUTION_API_KEY | Somente backend, header apikey para https://evolution-api.kalend.tech |
+| EVOLUTION_WEBHOOK_BASE_URL | Obrigatória: origin https://api-dev.kalend.tech ou https://api.kalend.tech, raiz sem credenciais/query |
+| GATEWAY_ENCRYPTION_KEY | Chave existente AES-256-GCM do SecretVault; 64 caracteres hexadecimais |
+| DATABASE_URL | Prisma/PostgreSQL; DEV exige database kalend_dev |
+| BILLING_PUBLIC_API_URL | Se presente, origin deve coincidir com o webhook |
+| AUTH_JWT_SECRET / AUTH_ALLOWED_ORIGINS / AUTH_TRUSTED_PROXY_CIDRS | Autenticação, Origin/CORS e proxy existentes |
+| NEXT_PUBLIC_API_URL | URL pública **Kalend API**, embutida no build Web |
 
-Os callbacks continuam separados:
-- COMPANY: /webhooks/communication/evolution/:connectionId;
-- GLOBAL: /webhooks/communication/evolution/global/:connectionId.
+Não há nova variável obrigatória. EVOLUTION_API_URL e COMMUNICATION_EVOLUTION_HOSTS não são lidas pelo cliente atual, que usa origin fixo. Não criar NEXT_PUBLIC_EVOLUTION_API_KEY. NODE_ENV não define deployment. O campo environment PRODUCTION de GlobalCommunicationProvider representa o canal real; EvolutionConnection.environment representa DEV/produção e namespace.
 
-Além de token, instanceName e contexto, o receiver exige environment persistido igual ao ambiente verificado da API e nome coerente com esse namespace. Eventos de vínculo antigo não atribuído ou de outro ambiente são rejeitados antes de consultar/controlar instâncias.
+## Endpoints e DTO
 
-## 2. Namespaces e banco
+Todas as operações abaixo usam a base do próprio contexto e autenticação Kalend; mutações exigem Origin autorizada.
 
-| Contexto | DEV | Produção |
-|---|---|---|
-| GLOBAL novo | kalend_dev_global | kalend_global |
-| COMPANY | kalend_dev_<UUID em minúsculas sem hífens> | kalend_<UUID em minúsculas sem hífens> |
+| Método / sufixo | Comportamento |
+| --- | --- |
+| GET / e GET /status | Snapshot temporário + reconciliação de estado quando necessária; nunca connect/restart/logout |
+| POST /prepare, body {} | Provisiona/repara instância e webhook; primeira configuração pode iniciar QR; preserva tentativa ativa e logout concluído |
+| POST /connect, body {} | Solicita QR; reutiliza tentativa válida |
+| POST /pairing-code, body {phone} | Solicita pairing com telefone normalizado |
+| POST /reconnect, body {} | Nova tentativa; mantém PHONE/número da tentativa ainda dentro do prazo |
+| POST /logout, body {} | Cancela intenção/códigos antes da chamada remota e confirma estado local desconectado |
+| DELETE /, body {} | Invalida token/códigos, exclui instância remota e reseta vínculo local; não recria em polling |
+| COMPANY POST /send-test, body {} | Envia somente ao telefone do usuário autenticado OWNER/ADMIN da própria empresa |
 
-O mesmo UUID em ambientes diferentes resulta em nomes distintos. Nenhuma recuperação, consulta, mensagem, restart, logout ou delete usa um nome do outro ambiente. environment persistido é conferido antes das operações, sob a lease para decisões mutáveis.
+Gerenciamento POST mantém HTTP 201; GET retorna 200. Receiver Evolution retorna **HTTP 200** para eventos aceitos/duplicados/obsoletos. `/communication/providers/EVOLUTION/pair` permanece como rota legada, mas agora devolve **o mesmo DTO de sessão**, sem retornar 503 apenas por QR ainda pendente. Clientes antigos que consumiam `connected:boolean` nessa rota precisam usar `status`.
 
-Produção pode preservar um nome GLOBAL antigo válido, já administrado no backend, desde que não ocupe o prefixo DEV ou um nome de Company. DEV não adota configuração GLOBAL legacy sem namespace DEV. Após atribuição, o vínculo/nome não muda em reload, polling, QR expirado, logout ou reconexão.
+Contrato único da sessão:
 
-DATABASE_URL DEV e produção devem apontar para bancos distintos. Os índices companyId/globalKey continuam únicos: não há duas conexões da mesma empresa nem dois GLOBAL dentro do mesmo banco. Uma API ligada a banco contendo vínculo explicitamente atribuído ao outro ambiente falha, sem reinterpretar/reassociar silenciosamente esse vínculo.
+```ts
+{
+  status: 'PENDING' | 'CREATED' | 'CREATING' | 'DELETING' | 'CONNECTING'
+        | 'QR_AVAILABLE' | 'CONNECTED' | 'DISCONNECTED' | 'ERROR';
+  qrCode: string | null; qrExpiresAt: string | null;
+  pairingCode: string | null; pairingExpiresAt: string | null;
+  attemptExpiresAt: string | null;
+  disconnectReason: number | null;
+  operationPending: boolean; pairingSupported: boolean;
+  phone: string | null; profileName: string | null; connectedAt: string | null;
+  errorCode: string | null; message: string | null;
+}
+```
 
-## 3. Dados antigos e compatibilidade
+DTO não contém chaves, tokens, instanceName, companyId, lease, versão, ciphertext ou telefone digitado da tentativa. Testes de envio retornam `{accepted:true,delivered:false}`; aceitação não comprova entrega. O envio GLOBAL continua nos endpoints do provider e resolve Super Admin/OWNER ativo no banco.
 
-A migration complementar deixa environment nulo nos registros antigos; não renomeia/apaga dados nem chama o provedor. A primeira preparação/consulta sob lease atribui o ambiente e verifica o nome antes de qualquer operação remota.
+## QR e pairing: continuidade e retenção
 
-- COMPANY nova continua criada com conexão PENDING dentro da transação comercial. Seu nome local inicial conserva o padrão legacy e environment é nulo. Esse registro **não é usado remotamente** até a atribuição do ambiente; em DEV o serviço altera o vínculo para kalend_dev_<UUID> antes de fetch/create/webhook.
-- Em produção, um vínculo antigo com nome coerente pode reutilizar a instância existente, reconfigurando seu webhook e token; sessão remota não é excluída.
-- Em DEV, vínculo antigo sem prefixo DEV é transferido **somente no registro Kalend** para o nome DEV. Perfil/estado/segredo antigos são resetados. Não executa logout/delete/consulta da instância antiga sem namespace.
-- Registros com environment já atribuído a outro ambiente são recusados, inclusive get/logout/delete/send/webhook.
+Evolution → qrcode.updated → validação de callback → transação curta PostgreSQL → codeEncrypted → GET Kalend → `<img>` / código no Web. **A imagem não depende de ser obtida novamente do connect da Evolution.** Réplicas usam o mesmo snapshot cifrado no banco, sem Map por processo e sem Redis novo.
 
-**Consequência real:** empresas/dados comerciais continuam preservados; um WhatsApp DEV anteriormente vinculado a nome ambíguo pode exigir novo pareamento na instância DEV. Não existe endpoint de rename/migração de sessão comprovado na Evolution 2.3.7. Não é possível prometer preservação automática dessa sessão e simultaneamente garantir que DEV não controle produção. A instância antiga fica intocada; sua propriedade deve ser revisada pelo operador na homologação.
+Imagem PNG é validada (data URI, assinatura, IHDR/IEND, dimensões e limite de tamanho). O campo textual code da Evolution não é renderizado como imagem. PairingCode é exibido exatamente como recebido, dentro do formato suportado. Payloads podem ser diretos ou em qrcode. A tentativa PHONE pode mostrar QR como fallback, com aviso de pairing pendente.
 
-Bancos clonados depois da atribuição de environment não são reinterpretados automaticamente. Preflight aponta vínculos incompatíveis e o operador precisa revisar a estratégia de homologação; esta tarefa não executou reparo manual em banco.
+| Dado | Política local |
+| --- | --- |
+| QR | 60 segundos desde o evento ou resposta que forneceu código novo |
+| Pairing | 120 segundos |
+| Tentativa/telefone de pairing | Máximo 5 minutos |
+| Tentativa sem qualquer código | Termina espera em 60 segundos |
 
-## 4. GLOBAL idempotente
+Esses limites são política de exibição/retentativa Kalend, **não TTL contratual do WhatsApp**. Fingerprint HMAC impede renovar o mesmo código só por repetição/polling. Código novo substitui o anterior. Open, logout, close/refused e delete removem imediatamente os códigos/telefone temporários. GET não mostra material expirado. Manutenção de 30 segundos remove ciphertext expirado mesmo sem visitante, enquanto o processo configurado está ativo; após uma parada, dados vencidos continuam inacessíveis e são removidos no próximo sweep. Backups seguem a política de retenção do PostgreSQL e contêm somente ciphertext.
 
-Fluxo definitivo: Super Admin → Comunicação → WhatsApp — Evolution API → Configurar. Montagem do painel dispara prepare automaticamente. Não é necessário provisionar no login nem na visão geral.
+Telefone digitado é cifrado com AAD própria da conexão. `+55 (12) 99605-5129` resulta em `5512996055129`: apenas separadores são removidos, sem inventar ou eliminar dígitos. GET não pede número ao browser nem inicia handshake. Reconnect explícito usa o telefone preservado da tentativa; após encerrar/expirar a tentativa, o usuário deve informar novamente o número.
 
-Upsert GLOBAL único, nome determinístico ou legado produtivo válido, lease no PostgreSQL e consulta fetchInstances antes de create. Falha/timeout ambíguo de create é recuperado consultando o mesmo nome. Duas abas/requests não geram nomes alternativos. A criação Company permanece assíncrona após commit e independente da disponibilidade/configuração imediata da Evolution; falhas ficam recuperáveis.
+## Concorrência e webhook
 
-GLOBAL usa AdminGuard. COMPANY usa TenantGuard/TenantRoles OWNER/ADMIN e sessão selecionada. GLOBAL não serve como fallback da empresa; seu envio interno resolve Super Admin/proprietário ativo pelo banco, sem telefone arbitrário de clientes. SMTP, Meta, Push e demais canais não foram alterados nesta correção.
+Operações remotas usam lease PostgreSQL de 120 segundos. Pedidos de preparação/conexão concorrentes são coalescidos e devolvem snapshot com operationPending; operações destrutivas em conflito recebem 409. Há versão otimista por conexão. Resposta HTTP antiga não sobrescreve QR/open/close recebido durante a operação.
 
-## 5. QR, expiração e recuperação
+Webhook não adquire a lease e não chama Evolution. Exige UUID, escopo, ambiente, instanceName, token exclusivo cifrado, comparação constante e timestamp válido. Transação curta grava snapshot/version e estado global de provider conjuntamente. Não armazena body bruto/apikey do envelope. QR e conexão têm clocks separados; timestamps iguais de tipos diferentes não são deduplicados entre si. Para transições de conexão empatadas, close/refused vence open e open vence connecting. Duplicatas e eventos anteriores à tentativa não revivem estado/código.
 
-Endpoint real: GET /instance/connect/:instanceName. QR PNG data URI direto ou em qrcode.base64, validado pelo backend. Nenhum endpoint fictício.
+CAS é repetido até oito vezes, somente em escrita concorrente no banco, sem sleep. Contenção da lease não produz 503 no receiver. Se a escrita não puder ser confirmada, não há ACK falso: conflito extremo recebe 409 para redelivery; falha de persistência recebe 500. Token inválido retorna 401; payload inválido retorna 400. Banco/cofre/configuração indisponíveis continuam erros reais, não sucesso mascarado.
 
-QR e pairing code existem apenas na resposta corrente. O cache Map por processo foi removido. Cada réplica consulta a Evolution e compartilha no banco apenas:
-- codeFingerprint: HMAC-SHA256 com token próprio da conexão, sem QR/código bruto; impede comparação/guessing offline de pairing curto;
-- codeExpiresAt: janela local de exibição de 45 segundos;
-- connectionRequested: intenção de pareamento pendente;
-- lastRecoveryAt: cooldown de recuperação entre réplicas.
+Somente state open de webhook autenticado ou connectionState remoto confirmado marca CONNECTED. Close limpa intenção/códigos e grava motivo; 401 significa sessão WhatsApp encerrada/revogada, **não erro da API key REST**. Não é convertido em CONNECTING. Connecting posterior não mascara logout/timeout sem nova tentativa explícita. O logout local protege contra open recebido durante sua execução e finaliza com novo limite temporal de eventos.
 
-Ler o mesmo código em outra réplica não renova sua expiração. Mudança real de código gera nova janela. O TTL é política Kalend, não validade contratual do WhatsApp. Pairing utiliza a identidade do pairingCode, sem prolongar seu prazo por uma simples rotação da imagem QR.
+## Operações remotas
 
-Fluxo automático de recuperação:
-1. Consulta estado e connect da **mesma instanceName**.
-2. Se há código novo válido, mostra sem restart.
-3. Se o código continua expirado/ausente após a janela da tentativa, consulta estado novamente.
-4. Se open, não reinicia a sessão conectada.
-5. Se close, usa connect: o controller 2.3.7 inicia a conexão nesse estado e recusa restart em close.
-6. Se connecting e a tentativa continua sem código válido, usa POST /instance/restart/:instanceName e consulta connect novamente.
-7. Cooldown persistido de 30 segundos impede restart repetido por diferentes abas/réplicas. O mesmo código expirado não ganha prazo novo artificialmente.
+Cliente continua usando os endpoints 2.3.7: POST instance/create, GET fetchInstances, GET connectionState, GET connect?number, POST restart, DELETE logout, DELETE delete, POST webhook/set, POST message/sendText. Origin fixo, header apikey backend, HTTPS verificado, DNS público fixado ao socket, sem redirect, timeout HTTP 15 segundos por chamada e resposta limitada.
 
-Não existe createInstance/deleteInstance nesse caminho. Se a instância sumir externamente, o erro é recuperável por preparação explícita posterior, não por loop de recriação no polling.
+Configure/prepare consulta o mesmo nome antes de criar e recupera timeout/duplicidade consultando novamente. Instância preparada tem webhook reparado em preparação explícita. Abrir tela/polling/repetir QR válido não executa logout. Troca real de método/número pode cancelar uma sessão pendente porque 2.3.7 ignora number em connecting; antes de cancelar, estado é reconferido para não encerrar uma sessão que acabou de abrir. Expiração pede código atual antes de recuperar. Restart é restrito a pedido explícito e código/tentativa vencidos; não acontece em GET. Recuperação tem cooldown de 30 segundos. PHONE vencido pode exigir cancelamento da sessão pendente para reaplicar o número; isso é distinto de repetir um pairing válido.
 
-Webhook de queda/refused durante pareamento mantém a tentativa pendente para consulta/recuperação; não confunde isso com logout intencional. Ao detectar CONNECTED, limpa intenção/metadados de código. Logout/delete limpam a intenção e o polling não reconecta deliberadamente uma sessão desconectada.
+## Provisionamento de empresa e envio
 
-A interface oculta QR expirado e informa que está solicitando novo código na mesma conexão. Polling de 10 segundos durante tentativa, sem consulta em documento oculto; para ao conectar, logout/delete, erro não recuperado, troca de tenant/sessão ou unmount. Requests e respostas tardias continuam abortados/versionados.
+A transação de criação de empresa grava provisionRequested e provisionRetryAt. Após commit há tentativa imediata de preparar **sem gerar QR**. A flag sobrevive a falha/restart; manutenção processa até duas pendências por sweep com lease e retry de um minuto. Configuração ausente não rejeita a Promise destacada nem derruba a criação comercial. QR começa somente na configuração do usuário.
 
-## 6. Pairing
+Envio GLOBAL permanece no engine/outbox/worker existentes; sua supervisão precisa ser homologada na VPS. A empresa dispõe do send-test e do método interno sendTextMessage(companyId,number,text), sem reutilizar a conexão global. Automação de mensagens de domínio da empresa requer consumidor/outbox próprio conforme os eventos de negócio; não foi criada campanha genérica para destinatário arbitrário.
 
-Contrato confirmado: GET /instance/connect/:instanceName?number=... . Telefone com DDI validado/normalizado no frontend e backend; não adivinha país, não é persistido como configuração de pareamento. Código é mostrado exatamente como recebido.
+Erros distinguem 400/401/403/404/409/429/5xx do provider e preservam status sanitizado. REST 401/403 da Evolution vira erro de integração 502 para não renovar indevidamente a sessão do browser; instância ausente/conflito 409, rate limit 429, timeout 504, indisponibilidade 503 e resposta inválida 502. QR/pairing aguardando não são indisponibilidade. Envio distingue rejeição/transitório de aceitação realmente incerta.
 
-Controller 2.3.7 ignora número novo em connecting: troca explícita de modo/número usa logout da sessão pendente antes de connect. Instância permanece a mesma. Quando recebe somente QR, permite QR e indica pairing pendente.
+## Logs e operação
 
-**Limite deliberado:** recuperação por polling não guarda/reenvia o número digitado. Se um pairing expirar e o provedor reiniciar sem esse número, a recuperação pode devolver QR; para novo pairing o usuário informa o telefone novamente. Não armazenamos o número ou pairing code permanentemente apenas para tentar reconstruir uma tentativa expirada.
+Logs EVOLUTION contêm ação, connectionId, instanceName/contexto, companyId quando aplicável, evento, estado, motivo, status e duração do webhook. Nunca contêm API key, token, telefone completo de pairing, QR/base64, pairingCode ou body remoto. A instalação Evolution pode possuir logging sensível próprio; ela não foi modificada e seus logs permanecem pendentes de auditoria real.
 
-## 7. Logout/delete/webhook
+Migration nova: `20261007150000_evolution_session_snapshot`, aditiva ao schema Kalend. Não muda nomes/contextos de instâncias nem a Evolution. Acrescenta snapshot cifrado, controle de tentativa/version, clock de conexão, motivo e fila de preparação. Preserva clock anterior e limita intenções antigas a cinco minutos, em UTC. As migrations anteriores ficaram intactas. Atualizar schema antes de iniciar o novo backend; não misturar writers antigos e novos durante transição.
 
-Logout confirmado fecha sessão e preserva registro/instância. Reconectar usa o mesmo vínculo. Delete confirmado é separado, remove a instância atual e reseta o registro; somente preparar/configurar de novo permite recriação.
+Para publicação posteriormente autorizada: revisar preflight e backup → migration Kalend → prisma generate → build API → restart/reload API → build Web com NEXT_PUBLIC_API_URL correto → publicação Web → homologação com aparelho real. Nenhuma dessas operações foi feita na VPS. Não há nova Evolution, Redis, fila externa ou alteração em volumes/configuração do provedor.
 
-Webhook exige contexto GLOBAL/COMPANY, ambiente persistido, nome autorizado, token exclusivo cifrado, comparação constante e timestamp válido. Token é reconferido após claim; eventos duplicados/anteriores são ignorados. Reset de namespace/delete invalida callbacks antigos. Body/headers/QR não são persistidos em logs.
+## Homologação real pendente
 
-## 8. Logs e credenciais
+1. Super Admin sem empresa selecionada: preparar/reutilizar kalend_dev_global, receber QR por callback 200 e exibir no navegador.
+2. Repetir pedido e abrir duas abas: mesmo vínculo/instância, sem logout indevido ou 503 por lease.
+3. Expirar/renovar QR; escanear; observar open e retirada da imagem.
+4. Solicitar pairing pelo telefone formatado, verificar dígitos/código, confirmar no celular e observar open.
+5. Logout pelo celular e pelo Kalend; close/401 deve mostrar desconectado e limpar códigos.
+6. Reconectar, excluir e recriar; token antigo rejeitado, mesmo nome por contexto.
+7. Repetir com empresas A/B; usuários comuns bloqueados em GLOBAL e em conexão de outra empresa.
+8. Enviar teste GLOBAL/COMPANY para destinatário autenticado; diferenciar aceitação de entrega.
+9. Correlacionar logs Kalend/Nginx/Evolution com horários; conferir env, migration/DDL, PM2 e privacidade dos logs do provedor.
 
-EVOLUTION_API_KEY exclusivamente process.env, só no EvolutionClient. Nenhuma NEXT_PUBLIC_EVOLUTION_API_KEY. Nenhum formulário técnico/instanceName/chave no browser; nenhum endpoint externo Evolution chamado pelo frontend. Nenhuma alteração de chave ou .env.
-
-Kalend loga apenas mensagens/códigos fixos. Testes verificam ausência de API key, Authorization, apikey, token de webhook, credenciais e QR completos nos logs/respostas. HMAC/datas não são retornados ao frontend.
-
-**Pendente VPS:** a própria Evolution 2.3.7 pode logar QR/pairing e envelopes com apikey conforme log level. Não foi alterada a instalação/configuração do provedor. Verificar logs e níveis, retenção e acesso durante homologação, sem copiar secrets para terminal/relatório.
-
-## 9. Migrations e preflight
-
-Ordem preservada:
-1. 20261005160000_company_evolution: enum/tabela, PK, unique companyId/instanceName, FK Company CASCADE;
-2. 20261005200000_global_evolution: CREATED/DELETING, companyId nullable, globalKey unique, CHECK exclusivo GLOBAL/COMPANY;
-3. **20261005220000_evolution_environment_recovery**: enum DEV/PRODUCTION, environment nullable, connectionRequested, codeFingerprint, codeExpiresAt e lastRecoveryAt; substitui CHECK pelo equivalente com namespaces/ambiente.
-
-As duas primeiras ficaram byte a byte intactas. Não remove dados ou altera índices/FK; a terceira permite os novos nomes com environment atribuído e os registros legacy ainda não atribuídos. Não salva payload QR/pairing. Nenhuma migration aplicada. Schema/SQL declarativos e testes não comprovam DDL no DEV real: **NÃO VALIDADO**.
-
-Preflight disponível em scripts/evolution-preflight.mjs, com checker testável. Exige build local da API para o módulo dist.
-
-Modo offline, sem banco:
-
-    node scripts/evolution-preflight.mjs --snapshot /caminho/snapshot.json --environment DEV
-
-Snapshot: objeto com rows; cada linha contém somente id, companyId, globalKey, instanceName, environment opcional e companyExists opcional. globalMigrationApplied informa se a segunda migration já consta aplicada. Nunca inclua credentials/QR/tokens. O checker ignora campos extras e não os imprime. Não modifica o snapshot.
-
-Para operador autorizado, **DEV somente**, não executado nesta tarefa:
-
-    node scripts/evolution-preflight.mjs --dev --environment DEV
-
-Recusa modo produção e banco com nome diferente de kalend_dev; usa BEGIN READ ONLY, SELECTs de metadados/linhas e ROLLBACK. Não executa Prisma migrate deploy, UPDATE ou DDL. Recusa histórico Prisma incompleto/falho ou tabela sem a migration inicial registrada. O operador continua responsável por conferir host/URL realmente DEV, sem divulgar credenciais.
-
-Detecta CHECK incompatível da segunda/terceira migration, contextos nulos/duplos, unique duplicado, órfãos quando há evidência de Company e environment divergente. Informa quantidade de vínculos legacy DEV que mudarão namespace. Dados DEV já prefixados antes da segunda migration pendente são apontados: a segunda CHECK poderia rejeitá-los mesmo que a terceira aceite.
-
-Exit 0: snapshot compatível; exit 2: linhas incompatíveis; exit 1: configuração/histórico/entrada inválidos, erro sanitizado. Preflight não substitui backup, revisão da versão PostgreSQL, drift de schema ou aplicação em ambiente autorizado. Banco DEV real não foi consultado.
-
-## 10. Variáveis e workflows
-
-| Variável | Finalidade |
-|---|---|
-| EVOLUTION_API_KEY | Secret backend para a Evolution existente; valor não publicado |
-| EVOLUTION_WEBHOOK_BASE_URL | Origin explícito api-dev.kalend.tech em DEV ou api.kalend.tech em produção |
-| GATEWAY_ENCRYPTION_KEY | Secret existente do SecretVault; valor não publicado |
-| DATABASE_URL | Conexão ao banco do ambiente; valor não publicado |
-| BILLING_PUBLIC_API_URL | Variável existente; quando definida, precisa corresponder ao origin do ambiente |
-| AUTH_* e demais existentes | Autenticação/Origin/sessões existentes, preservadas |
-| NEXT_PUBLIC_API_URL | Somente URL pública do Kalend API, configurada no build Web; não é chave Evolution |
-
-Sem nova variável pública de chave. Nenhum arquivo de ambiente foi alterado. Workflows intactos, Node 24.21.0:
-- API: npm ci → prisma generate → prisma migrate deploy → npm run build → restart PM2 → health check;
-- Web: npm ci → npm run build -- --webpack → restart PM2.
-
-Esses passos foram **confirmados pela leitura**, não executados no deploy. API e Web têm workflows independentes; homologação deve publicar API/migrations antes de validar Web. A Evolution continua na infraestrutura pública oficial, sem badge Sandbox/seletor no canal; namespace DEV é separação de instâncias, não sandbox do WhatsApp.
-
-## 11. Validação local
-
-- API npm test: **628 casos / 38 arquivos aprovados**.
-- API e2e: **119 casos / 6 arquivos aprovados**.
-- Evolution HTTP/TLS integrada: **21 casos**, incluídos na suíte API, mantendo controllers/guards/cliente reais, Evolution simulada e três fluxos React reais no workspace conjunto.
-- Web npm test: **16 arquivos aprovados**; Evolution específica: **25 casos aprovados**.
-- Lint/build API e Web webpack aprovados; Prisma validate aprovado; git diff --check aprovado nos dois.
-- Preflight por snapshot executado localmente com sucesso; CLI e helpers têm testes de incompatibilidade, recusa de produção e sanitização. Nenhum cliente de banco real foi conectado nos testes.
-- Hashes das migrations anteriores conferidos; terceira migration comparada ao diff de schemas sem banco e acrescida do CHECK específico.
-
-Tests/HTTP/subprocessos usam Node 24 existente e autorização de execução fora do sandbox quando necessária. Nenhuma dependência/infra foi instalada. Os resultados não significam funcionamento na VPS, PostgreSQL real ou aparelho físico.
-
-## 12. Arquivos e pendências
-
-Correção API: evolution-environment.ts/spec; evolution.ts; evolution.spec.ts; evolution-flow.integration.spec.ts; evolution-preflight.ts; evolution-preflight-cli.spec.ts; scripts/evolution-preflight.mjs; test/support/evolution-database.ts; prisma/schema.prisma; terceira migration; esta documentação.
-
-Correção Web: components/evolution-settings.tsx; tests/evolution.test.cjs; docs/EVOLUTION-INTEGRATION.md. Alterações anteriores dos dois projetos foram preservadas.
-
-Homologação real pendente (**NÃO VALIDADO**): ambiente/secrets publicados; propriedade de instâncias legacy; transição DEV sem perder dados comerciais; DDL/dados DEV; concorrência PostgreSQL/réplicas; callback público e token; QR real após limite, POST restart e races com conexão de celular; pairing/telefone após expiração; logout/delete/reconexão; isolamento DEV/produção; logs do provedor; navegador/aparelho real.
-
-Fontes oficiais da tag 2.3.7: [controller connect/restart](https://github.com/EvolutionAPI/evolution-api/blob/2.3.7/src/api/controllers/instance.controller.ts), [rotas](https://github.com/EvolutionAPI/evolution-api/blob/2.3.7/src/api/routes/instance.router.ts), [Baileys e limite QR](https://github.com/EvolutionAPI/evolution-api/blob/2.3.7/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts), [monitor no.connection](https://github.com/EvolutionAPI/evolution-api/blob/2.3.7/src/api/services/monitor.service.ts), [webhook/logging](https://github.com/EvolutionAPI/evolution-api/blob/2.3.7/src/api/integrations/event/webhook/webhook.controller.ts).
-
-SEM GIT ADD.
-SEM COMMIT.
-SEM PUSH.
-SEM DEPLOY.
-SEM RESTART PM2.
-SEM MIGRATION APLICADA.
+Testes HTTP/TLS locais usam provider e persistência simulados; PNGs completos de QR de teste são legíveis, gerados offline e não correspondem a sessões reais. O código de produção somente recebe imagens da Evolution. Homologação física/VPS e a perícia do 503/logout histórico **não são substituídas por testes locais**.

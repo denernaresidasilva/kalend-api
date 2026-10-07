@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import {
   EvolutionClient,
   EvolutionFailure,
@@ -7,7 +8,10 @@ import {
 import { secureRequest } from './secure-http.js';
 vi.mock('./secure-http.js', () => ({ secureRequest: vi.fn() }));
 const http = vi.mocked(secureRequest);
-const png = 'data:image/png;base64,iVBORw0KGgo=';
+const png = readFileSync(
+  new URL('../../test/fixtures/evolution-qr.txt', import.meta.url),
+  'utf8',
+).trim();
 describe('Evolution 2.3.7 client', () => {
   beforeEach(() => {
     vi.stubEnv('EVOLUTION_API_KEY', 'unit-only-secret');
@@ -61,6 +65,47 @@ describe('Evolution 2.3.7 client', () => {
       JSON.parse(http.mock.calls[7][3]!.toString()).webhook.headers,
     ).toEqual({ 'x-kalend-evolution-token': 'separate-token' });
   });
+  it.each([
+    [400, 'EVOLUTION_BAD_REQUEST', 502],
+    [401, 'EVOLUTION_AUTH_FAILED', 502],
+    [403, 'EVOLUTION_FORBIDDEN', 502],
+    [404, 'CONNECTION_NOT_FOUND', 409],
+    [409, 'INSTANCE_ALREADY_EXISTS', 409],
+    [429, 'EVOLUTION_RATE_LIMITED', 429],
+    [500, 'EVOLUTION_UNAVAILABLE', 503],
+    [503, 'EVOLUTION_UNAVAILABLE', 503],
+  ])(
+    'preserves sanitized provider status %s and maps HTTP correctly',
+    async (status, code, httpStatus) => {
+      http.mockResolvedValue({
+        status: Number(status),
+        body: Buffer.from('unit-only-secret private stack'),
+      });
+      await expect(
+        new EvolutionClient().connectInstance('kalend_a'),
+      ).rejects.toMatchObject({ code, status, httpStatus });
+    },
+  );
+  it('separates timeout, invalid JSON, and possible acceptance without leaking provider response', async () => {
+    const timeout = Object.assign(new Error('unit-only-secret'), {
+      name: 'HttpRequestTimeout',
+    });
+    http.mockRejectedValueOnce(timeout);
+    await expect(
+      new EvolutionClient().connectInstance('kalend_a'),
+    ).rejects.toMatchObject({ code: 'EVOLUTION_TIMEOUT', httpStatus: 504 });
+    http.mockResolvedValueOnce({
+      status: 200,
+      body: Buffer.from('private not-json'),
+    });
+    await expect(
+      new EvolutionClient().sendTextMessage('kalend_a', '5512996055129', 'Olá'),
+    ).rejects.toMatchObject({
+      code: 'EVOLUTION_INVALID_RESPONSE',
+      uncertain: true,
+    });
+    expect(evolutionQr('data:image/png;base64,iVBORw0KGgo=')).toBeNull();
+  });
   it('handles the real 404 fetchInstances contract', async () => {
     http.mockResolvedValue({
       status: 404,
@@ -70,10 +115,10 @@ describe('Evolution 2.3.7 client', () => {
   });
   it.each([
     [401, 'EVOLUTION_AUTH_FAILED'],
-    [403, 'EVOLUTION_AUTH_FAILED'],
+    [403, 'EVOLUTION_FORBIDDEN'],
     [500, 'EVOLUTION_UNAVAILABLE'],
-    [429, 'EVOLUTION_UNAVAILABLE'],
-    [400, 'CONNECTION_FAILED'],
+    [429, 'EVOLUTION_RATE_LIMITED'],
+    [400, 'EVOLUTION_BAD_REQUEST'],
   ])('sanitizes remote HTTP %s', async (status, code) => {
     http.mockResolvedValue({
       status: status as number,

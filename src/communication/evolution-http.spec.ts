@@ -26,6 +26,11 @@ describe('Evolution HTTP tenant boundary with real guards', () => {
     })),
     prepare: vi.fn(async () => ({})),
     connect: vi.fn(async () => ({})),
+    reconnect: vi.fn(async () => ({})),
+    sendCompanyTestMessage: vi.fn(async () => ({
+      accepted: true,
+      delivered: false,
+    })),
     logout: vi.fn(async () => ({})),
     remove: vi.fn(async () => ({})),
     webhook: vi.fn(async () => {
@@ -183,5 +188,38 @@ describe('Evolution HTTP tenant boundary with real guards', () => {
           .send({ event: 'connection.update' })
       ).status,
     ).toBe(401);
+  });
+  it('company send-test resolves its own user/company and refuses arbitrary recipients', async () => {
+    const path = '/company/communication/evolution/send-test';
+    expect(
+      (
+        await request(app.getHttpServer())
+          .post(path)
+          .set('Origin', 'https://web.example.test')
+          .send({})
+      ).status,
+    ).toBe(201);
+    expect(evolution.sendCompanyTestMessage).toHaveBeenCalledWith(
+      'company-a',
+      'user-a',
+    );
+    expect(
+      (
+        await request(app.getHttpServer())
+          .post(path)
+          .set('Origin', 'https://web.example.test')
+          .send({ phone: '5512996055129', companyId: 'company-b' })
+      ).status,
+    ).toBe(400);
+    selectedCompanyId = 'company-b';
+    expect(
+      (
+        await request(app.getHttpServer())
+          .post(path)
+          .set('Origin', 'https://web.example.test')
+          .send({})
+      ).status,
+    ).toBe(403);
+    expect(evolution.sendCompanyTestMessage).toHaveBeenCalledOnce();
   });
 });

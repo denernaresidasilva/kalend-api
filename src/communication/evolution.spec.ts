@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import type { EvolutionConnection } from '@prisma/client';
+import { evolutionDatabase } from '../../test/support/evolution-database.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SecretVault } from '../billing/secret-vault.js';
 import { EvolutionClient, EvolutionFailure } from './evolution-client.js';
@@ -10,68 +11,22 @@ import {
 } from './evolution.js';
 const a = '11111111-1111-4111-8111-111111111111';
 const b = '22222222-2222-4222-8222-222222222222';
-const qr = 'data:image/png;base64,iVBORw0KGgo=';
+const qr = readFileSync(
+  new URL('../../test/fixtures/evolution-qr.txt', import.meta.url),
+  'utf8',
+).trim();
 function fixture() {
-  const rows = new Map<string, EvolutionConnection>();
+  const { rows, db } = evolutionDatabase();
   const remote = new Set<string>();
   const states = new Map<string, string>();
   const find = (where: { id?: string; companyId?: string }) =>
     [...rows.values()].find((row) =>
       where.id ? row.id === where.id : row.companyId === where.companyId,
     ) ?? null;
-  const db = {
-    evolutionConnection: {
-      upsert: vi.fn(async ({ where, create }) => {
-        const found = find(where);
-        if (found) return { ...found };
-        const row = {
-          id: randomUUID(),
-          status: 'PENDING',
-          prepared: false,
-          pairingMethod: 'QR',
-          phone: null,
-          profileName: null,
-          connectedAt: null,
-          disconnectedAt: null,
-          lastSeenAt: null,
-          lastQrAt: null,
-          lastError: null,
-          webhookSecretEncrypted: null,
-          lastWebhookAt: null,
-          leaseId: null,
-          leaseExpiresAt: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          ...create,
-        } as EvolutionConnection;
-        rows.set(row.id, row);
-        return { ...row };
-      }),
-      findUnique: vi.fn(async ({ where }) => {
-        const row = find(where);
-        return row ? { ...row } : null;
-      }),
-      findUniqueOrThrow: vi.fn(async ({ where }) => {
-        const row = find(where);
-        if (!row) throw new Error();
-        return { ...row };
-      }),
-      updateMany: vi.fn(async ({ where, data }) => {
-        const row = find(where);
-        if (!row) return { count: 0 };
-        if (where.OR && row.leaseId && row.leaseExpiresAt! >= new Date())
-          return { count: 0 };
-        if (where.leaseId && row.leaseId !== where.leaseId) return { count: 0 };
-        if (
-          where.leaseExpiresAt?.gt &&
-          row.leaseExpiresAt! <= where.leaseExpiresAt.gt
-        )
-          return { count: 0 };
-        Object.assign(row, data);
-        return { count: 1 };
-      }),
-    },
-  };
+  vi.spyOn(db.evolutionConnection, 'upsert');
+  vi.spyOn(db.evolutionConnection, 'findUnique');
+  vi.spyOn(db.evolutionConnection, 'findUniqueOrThrow');
+  vi.spyOn(db.evolutionConnection, 'updateMany');
   const client = {
     fetchInstances: vi.fn(async (name) =>
       remote.has(name)
@@ -155,7 +110,7 @@ describe('tenant Evolution lifecycle', () => {
     await f.service.prepare(a);
     await f.service.prepare(a);
     expect(f.client.createInstance).not.toHaveBeenCalled();
-    expect(f.client.setWebhook).toHaveBeenCalledOnce();
+    expect(f.client.setWebhook).toHaveBeenCalledTimes(2);
     const g = fixture();
     await g.service.prepare(a);
     await g.service.prepare(a);
@@ -189,7 +144,7 @@ describe('tenant Evolution lifecycle', () => {
     vi.advanceTimersByTime(10000);
     const second = await f.service.get(a);
     expect(second.qrExpiresAt).toBe(first.qrExpiresAt);
-    vi.advanceTimersByTime(40000);
+    vi.advanceTimersByTime(60000);
     expect((await f.service.get(a)).qrCode).toBeNull();
   });
   it('maps connected/disconnected and captures phone/profile', async () => {
@@ -204,6 +159,7 @@ describe('tenant Evolution lifecycle', () => {
       qrCode: null,
     });
     f.states.set(f.row().instanceName, 'close');
+    f.rows.get(f.row().id)!.lastSeenAt = null;
     expect((await f.service.get(a)).status).toBe('DISCONNECTED');
     expect(f.row().disconnectedAt).not.toBeNull();
     expect(evolutionStatus('refused')).toBe('ERROR');
@@ -239,12 +195,11 @@ describe('tenant Evolution lifecycle', () => {
     f.client.fetchInstances.mockRejectedValueOnce(
       new Error('API-key private stack'),
     );
-    const result = await f.service.prepare(a);
-    expect(result).toMatchObject({
-      status: 'ERROR',
-      errorCode: 'EVOLUTION_UNAVAILABLE',
+    await expect(f.service.prepare(a)).rejects.toMatchObject({
+      status: 500,
+      response: { errorCode: 'INTEGRATION_INTERNAL_ERROR' },
     });
-    expect(JSON.stringify(result)).not.toMatch(/API-key|stack/);
+    expect(f.row().lastError).toBe('INTEGRATION_INTERNAL_ERROR');
     await f.service.prepare(a);
     expect(f.client.createInstance).toHaveBeenCalledOnce();
     f.client.fetchInstances.mockRejectedValueOnce(new Error());
@@ -264,7 +219,9 @@ describe('tenant Evolution lifecycle', () => {
     });
     const pending = f.service.prepare(a);
     await vi.waitFor(() => expect(resume).toBeTypeOf('function'));
-    await expect(f.service.prepare(a)).rejects.toThrow('andamento');
+    expect(await f.service.prepare(a)).toMatchObject({
+      operationPending: true,
+    });
     resume();
     await pending;
     expect(f.client.createInstance).toHaveBeenCalledOnce();
@@ -274,6 +231,7 @@ describe('tenant Evolution lifecycle', () => {
     await f.service.prepare(a);
     await f.service.prepare(b);
     f.states.set(evolutionInstanceName(a), 'open');
+    f.rows.get(f.row().id)!.lastSeenAt = null;
     expect((await f.service.get(a)).status).toBe('CONNECTED');
     expect((await f.service.get(b)).status).toBe('QR_AVAILABLE');
     await f.service.logout(a);
@@ -317,6 +275,7 @@ describe('tenant Evolution lifecycle', () => {
     expect(result.status).toBe('CONNECTING');
     expect(result.pairingCode).toBe('ABCD1234');
     f.states.set(evolutionInstanceName(a), 'open');
+    f.rows.get(f.row().id)!.lastSeenAt = null;
     expect((await f.service.get(a)).status).toBe('CONNECTED');
   });
   it('preserves phone pairing method across API processes and recovers expired leases', async () => {
@@ -367,7 +326,7 @@ describe('tenant Evolution lifecycle', () => {
     );
     expect(f.client.sendTextMessage).toHaveBeenCalledWith(
       evolutionInstanceName(a),
-      '+5511999999999',
+      '5511999999999',
       'Olá',
     );
   });

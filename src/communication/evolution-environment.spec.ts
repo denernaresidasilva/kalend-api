@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { ServiceUnavailableException, Logger } from '@nestjs/common';
 import { EvolutionClient } from './evolution-client.js';
 import { EvolutionService, GLOBAL_EVOLUTION } from './evolution.js';
@@ -15,8 +16,14 @@ import { evolutionDatabase } from '../../test/support/evolution-database.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SecretVault } from '../billing/secret-vault.js';
 const id = '11111111-1111-4111-8111-111111111111';
-const qr = 'data:image/png;base64,iVBORw0KGgo=';
-const renewed = 'data:image/png;base64,iVBORw0KGgoCAg==';
+const qr = readFileSync(
+  new URL('../../test/fixtures/evolution-qr.txt', import.meta.url),
+  'utf8',
+).trim();
+const renewed = readFileSync(
+  new URL('../../test/fixtures/evolution-qr-renewed.txt', import.meta.url),
+  'utf8',
+).trim();
 function setup() {
   const f = evolutionDatabase();
   let code = qr;
@@ -178,8 +185,10 @@ describe('Evolution deployment isolation and recovery', () => {
     vi.advanceTimersByTime(10000);
     const second = await x.service().get(id);
     expect(second.qrExpiresAt).toBe(first.qrExpiresAt);
-    vi.advanceTimersByTime(40000);
-    const recovered = await x.service().get(id);
+    vi.advanceTimersByTime(60000);
+    expect((await x.service().get(id)).qrCode).toBeNull();
+    expect(x.client.restartInstance).not.toHaveBeenCalled();
+    const recovered = await x.service().connect(id);
     expect(recovered.qrCode).toBe(renewed);
     expect(x.client.restartInstance).toHaveBeenCalledWith(
       evolutionInstanceName(id, 'DEV'),
@@ -195,22 +204,23 @@ describe('Evolution deployment isolation and recovery', () => {
     vi.useFakeTimers();
     const x = setup();
     await x.service().prepare(id);
-    vi.advanceTimersByTime(50000);
+    vi.advanceTimersByTime(70000);
     x.setState('close');
     x.setCode(renewed);
-    expect((await x.service().get(id)).qrCode).toBe(renewed);
+    expect((await x.service().get(id)).status).toBe('DISCONNECTED');
+    expect((await x.service().connect(id)).qrCode).toBe(renewed);
     expect(x.client.restartInstance).not.toHaveBeenCalled();
     expect(x.client.createInstance).not.toHaveBeenCalled();
   });
-  it('limits recovery across replicas while waiting for a new QR', async () => {
+  it('never restarts through reads from multiple replicas while waiting for a new QR', async () => {
     vi.useFakeTimers();
     const x = setup();
     x.client.restartInstance.mockImplementation(async () => ({}));
     await x.service().prepare(id);
-    vi.advanceTimersByTime(50000);
+    vi.advanceTimersByTime(70000);
     await x.service().get(id);
     await x.service().get(id);
-    expect(x.client.restartInstance).toHaveBeenCalledOnce();
+    expect(x.client.restartInstance).not.toHaveBeenCalled();
     expect(x.client.createInstance).not.toHaveBeenCalled();
   });
   it('never logs or returns QR, token, credentials or request headers', async () => {

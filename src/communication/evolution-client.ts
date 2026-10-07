@@ -1,9 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { secureRequest } from './secure-http.js';
+import { TransportFailure } from './contracts.js';
 
 export class EvolutionFailure extends Error {
-  constructor(public readonly code: string) {
+  constructor(
+    public readonly code: string,
+    public readonly status?: number,
+    public readonly uncertain = false,
+  ) {
     super(code);
+  }
+  get httpStatus() {
+    if (this.code === 'INVALID_PHONE' || this.code === 'INVALID_MESSAGE')
+      return 400;
+    if (
+      this.code === 'INSTANCE_ALREADY_EXISTS' ||
+      this.code === 'CONNECTION_NOT_FOUND' ||
+      this.code === 'CONNECTION_NOT_OPEN' ||
+      this.code === 'INTEGRATION_BUSY'
+    )
+      return 409;
+    if (this.code === 'EVOLUTION_RATE_LIMITED') return 429;
+    if (this.code === 'EVOLUTION_TIMEOUT') return 504;
+    if (this.code === 'EVOLUTION_UNAVAILABLE') return 503;
+    if (this.code === 'INTEGRATION_STATE_UNAVAILABLE') return 503;
+    return 502;
   }
 }
 export const record = (value: unknown): Record<string, unknown> =>
@@ -17,19 +38,29 @@ export function evolutionQr(value: unknown): string | null {
     !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(value)
   )
     return null;
-  return Buffer.from(value.split(',')[1], 'base64')
-    .subarray(0, 8)
-    .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+  const png = Buffer.from(value.split(',')[1], 'base64');
+  if (
+    png.length < 45 ||
+    !png
+      .subarray(0, 8)
+      .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ||
+    png.toString('ascii', 12, 16) !== 'IHDR' ||
+    png.toString('ascii', png.length - 8, png.length - 4) !== 'IEND'
+  )
+    return null;
+  const width = png.readUInt32BE(16),
+    height = png.readUInt32BE(20);
+  return width > 0 && height > 0 && width <= 4096 && height <= 4096
     ? value
     : null;
 }
 export function evolutionPhone(value: unknown): string {
   if (typeof value !== 'string' || value.length > 32)
     throw new EvolutionFailure('INVALID_PHONE');
-  const normalized = value.trim().replace(/[ ()-]/g, '');
-  if (!/^\+?[1-9]\d{7,14}$/.test(normalized))
+  const normalized = value.replace(/\D/g, '');
+  if (!/^[1-9]\d{7,14}$/.test(normalized))
     throw new EvolutionFailure('INVALID_PHONE');
-  return normalized.replace(/^\+/, '');
+  return normalized;
 }
 /** Evolution 2.3.7 contracts. Fixed origin; no caller-controlled URL or credentials. */
 @Injectable()
@@ -49,25 +80,48 @@ export class EvolutionClient {
         body === undefined ? undefined : Buffer.from(JSON.stringify(body)),
         262144,
       );
-      if (result.status === 401 || result.status === 403)
-        throw new EvolutionFailure('EVOLUTION_AUTH_FAILED');
+      if (result.status === 401)
+        throw new EvolutionFailure('EVOLUTION_AUTH_FAILED', 401);
+      if (result.status === 403)
+        throw new EvolutionFailure('EVOLUTION_FORBIDDEN', 403);
       if (result.status === 404)
-        throw new EvolutionFailure('CONNECTION_NOT_FOUND');
+        throw new EvolutionFailure('CONNECTION_NOT_FOUND', 404);
       if (result.status === 409)
-        throw new EvolutionFailure('INSTANCE_ALREADY_EXISTS');
+        throw new EvolutionFailure('INSTANCE_ALREADY_EXISTS', 409);
+      if (result.status === 429)
+        throw new EvolutionFailure('EVOLUTION_RATE_LIMITED', 429);
       if (result.status < 200 || result.status >= 300)
         throw new EvolutionFailure(
-          result.status >= 500 || result.status === 429
+          result.status >= 500
             ? 'EVOLUTION_UNAVAILABLE'
-            : 'CONNECTION_FAILED',
+            : 'EVOLUTION_BAD_REQUEST',
+          result.status,
         );
-      const parsed: unknown = JSON.parse(result.body.toString('utf8'));
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(result.body.toString('utf8'));
+      } catch {
+        throw new EvolutionFailure(
+          'EVOLUTION_INVALID_RESPONSE',
+          result.status,
+          method === 'POST' && path.startsWith('/message/'),
+        );
+      }
       if (record(parsed).error === true)
         throw new EvolutionFailure('CONNECTION_FAILED');
       return parsed;
     } catch (error) {
       if (error instanceof EvolutionFailure) throw error;
-      throw new EvolutionFailure('EVOLUTION_UNAVAILABLE');
+      const uncertain =
+        error instanceof TransportFailure && error.kind === 'UNCERTAIN';
+      const timeout =
+        error instanceof Error && error.name === 'HttpRequestTimeout';
+      throw new EvolutionFailure(
+        timeout ? 'EVOLUTION_TIMEOUT' : 'EVOLUTION_UNAVAILABLE',
+        undefined,
+        uncertain ||
+          (timeout && method === 'POST' && path.startsWith('/message/')),
+      );
     }
   }
   createInstance(instanceName: string) {
@@ -91,7 +145,8 @@ export class EvolutionClient {
         return null;
       throw error;
     }
-    if (!Array.isArray(value)) throw new EvolutionFailure('CONNECTION_FAILED');
+    if (!Array.isArray(value))
+      throw new EvolutionFailure('EVOLUTION_INVALID_RESPONSE');
     return (
       value
         .map(record)
@@ -157,7 +212,7 @@ export class EvolutionClient {
     );
     const id = record(result.key).id;
     if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,200}$/.test(id))
-      throw new EvolutionFailure('MESSAGE_ACCEPTANCE_UNKNOWN');
+      throw new EvolutionFailure('MESSAGE_ACCEPTANCE_UNKNOWN', undefined, true);
     return { accepted: true, messageId: id };
   }
 }

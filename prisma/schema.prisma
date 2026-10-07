@@ -639,6 +639,16 @@ enum EvolutionEnvironment {
 }
 
 model EvolutionConnection {
+  // Optimistic concurrency: callbacks never wait for the remote-operation lease.
+  version                Int @default(0)
+  codeEncrypted          String?
+  pairingPhoneEncrypted  String?
+  attemptStartedAt       DateTime?
+  attemptExpiresAt       DateTime?
+  lastConnectionEventAt  DateTime?
+  disconnectReason       Int?
+  provisionRequested     Boolean @default(false)
+  provisionRetryAt       DateTime?
   environment            EvolutionEnvironment?
   connectionRequested    Boolean @default(false)
   codeFingerprint        String?
@@ -665,4 +675,7 @@ model EvolutionConnection {
   leaseExpiresAt         DateTime?
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
+  @@index([codeExpiresAt])
+  @@index([attemptExpiresAt])
+  @@index([provisionRequested, provisionRetryAt])
 }

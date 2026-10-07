@@ -1,10 +1,11 @@
 import { EvolutionService, GLOBAL_EVOLUTION } from './evolution.js';
+import { EvolutionFailure } from './evolution-client.js';
 import { connect, type Socket } from 'node:net';
 import { MetaTransport } from './meta.js';
 import nodemailer from 'nodemailer';
 import { GmailTransport } from './gmail.js';
 import { GlobalPush } from './push.js';
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpException, Inject, Injectable } from '@nestjs/common';
 import { allowedHost, resolvePublic } from './network.js';
 import { email, TransportFailure } from './contracts.js';
 import type { Message, Provider, Transport, Variables } from './contracts.js';
@@ -125,16 +126,36 @@ export class EvolutionTransport implements Transport {
       return await operation();
     } catch (error) {
       if (error instanceof TransportFailure) throw error;
+      if (error instanceof HttpException)
+        throw new TransportFailure(
+          [409, 500, 503].includes(error.getStatus())
+            ? 'TRANSIENT'
+            : 'PERMANENT',
+        );
+      if (error instanceof EvolutionFailure) {
+        throw new TransportFailure(
+          error.uncertain
+            ? 'UNCERTAIN'
+            : error.code === 'EVOLUTION_RATE_LIMITED'
+              ? 'RATE_LIMIT'
+              : [
+                    'EVOLUTION_UNAVAILABLE',
+                    'EVOLUTION_TIMEOUT',
+                    'CONNECTION_NOT_OPEN',
+                    'INTEGRATION_BUSY',
+                    'INTEGRATION_STATE_UNAVAILABLE',
+                  ].includes(error.code)
+                ? 'TRANSIENT'
+                : 'PERMANENT',
+        );
+      }
       throw new TransportFailure(sending ? 'UNCERTAIN' : 'PERMANENT');
     }
   }
   async pair(_c: Variables, _s: Variables) {
     return this.run(async () => {
       if (!this.evolution) throw new TransportFailure('PERMANENT');
-      const result = await this.evolution.prepare(GLOBAL_EVOLUTION);
-      if (result.status === 'CONNECTED') return { connected: true };
-      if (!result.qrCode) throw new TransportFailure('PERMANENT');
-      return { connected: false, qrCode: result.qrCode };
+      return this.evolution.prepare(GLOBAL_EVOLUTION);
     });
   }
   async verify(_c: Variables, _s: Variables) {

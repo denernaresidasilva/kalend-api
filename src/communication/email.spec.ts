@@ -324,30 +324,87 @@ describe('SMTP HTTP guards, tenant session and shared database rate limits', () 
     const { app, global, db } = await appSetup();
     try {
       const server = app.getHttpServer();
-      const empty = await request(server).get('/communication/email').set('Cookie', `${ACCESS_COOKIE}=super`).expect(200);
-      expect(empty.body).toMatchObject({ configured: false, hasPassword: false, email: '', smtpHost: '' });
-      await request(server).put('/communication/email').set('Origin', 'https://web.test').send(body).expect(401);
-      await request(server).put('/communication/email').set('Cookie', `${ACCESS_COOKIE}=owner`).set('Origin', 'https://web.test').send(body).expect(403);
-      await request(server).put('/communication/email').set('Cookie', `${ACCESS_COOKIE}=super`).set('Origin', 'https://web.test').send({ ...body, smtpPort: 25 }).expect(400);
-      const saved = await request(server).put('/communication/email').set('Cookie', `${ACCESS_COOKIE}=super`).set('Origin', 'https://web.test').send(body).expect(200);
-      expect(saved.body).toMatchObject({ configured: true, hasPassword: true, email: body.email, smtpHost: body.smtpHost });
+      const empty = await request(server)
+        .get('/communication/email')
+        .set('Cookie', `${ACCESS_COOKIE}=super`)
+        .expect(200);
+      expect(empty.body).toMatchObject({
+        configured: false,
+        hasPassword: false,
+        email: '',
+        smtpHost: '',
+      });
+      await request(server)
+        .put('/communication/email')
+        .set('Origin', 'https://web.test')
+        .send(body)
+        .expect(401);
+      await request(server)
+        .put('/communication/email')
+        .set('Cookie', `${ACCESS_COOKIE}=owner`)
+        .set('Origin', 'https://web.test')
+        .send(body)
+        .expect(403);
+      await request(server)
+        .put('/communication/email')
+        .set('Cookie', `${ACCESS_COOKIE}=super`)
+        .set('Origin', 'https://web.test')
+        .send({ ...body, smtpPort: 25 })
+        .expect(400);
+      const saved = await request(server)
+        .put('/communication/email')
+        .set('Cookie', `${ACCESS_COOKIE}=super`)
+        .set('Origin', 'https://web.test')
+        .send(body)
+        .expect(200);
+      expect(saved.body).toMatchObject({
+        configured: true,
+        hasPassword: true,
+        email: body.email,
+        smtpHost: body.smtpHost,
+      });
       expect(saved.body).not.toHaveProperty('password');
       expect(saved.body).not.toHaveProperty('credentialsEncrypted');
       const encrypted = global.get('SMTP')!.credentialsEncrypted as string;
       expect(encrypted).not.toContain(body.password);
       expect(db.$transaction).toHaveBeenCalled();
-      const reloaded = await request(server).get('/communication/email').set('Cookie', `${ACCESS_COOKIE}=super`).expect(200);
+      const reloaded = await request(server)
+        .get('/communication/email')
+        .set('Cookie', `${ACCESS_COOKIE}=super`)
+        .expect(200);
       expect(reloaded.body).toEqual(saved.body);
       const { password: _, ...update } = body;
-      await request(server).put('/communication/email').set('Cookie', `${ACCESS_COOKIE}=super`).set('Origin', 'https://web.test').send(update).expect(200);
+      await request(server)
+        .put('/communication/email')
+        .set('Cookie', `${ACCESS_COOKIE}=super`)
+        .set('Origin', 'https://web.test')
+        .send(update)
+        .expect(200);
       expect(global.get('SMTP')!.credentialsEncrypted).toBe(encrypted);
-      await request(server).put('/communication/email').set('Cookie', `${ACCESS_COOKIE}=super`).set('Origin', 'https://web.test').send({ ...body, password: 'replacement-test-only' }).expect(200);
+      await request(server)
+        .put('/communication/email')
+        .set('Cookie', `${ACCESS_COOKIE}=super`)
+        .set('Origin', 'https://web.test')
+        .send({ ...body, password: 'replacement-test-only' })
+        .expect(200);
       const replacement = global.get('SMTP')!.credentialsEncrypted as string;
       expect(replacement).not.toBe(encrypted);
-      expect(JSON.parse(new SecretVault().decrypt(replacement, 'communication:GLOBAL:SMTP:PRODUCTION:credentials'))).toEqual({ password: 'replacement-test-only' });
-      const again = await request(server).get('/communication/email').set('Cookie', `${ACCESS_COOKIE}=super`).expect(200);
+      expect(
+        JSON.parse(
+          new SecretVault().decrypt(
+            replacement,
+            'communication:GLOBAL:SMTP:PRODUCTION:credentials',
+          ),
+        ),
+      ).toEqual({ password: 'replacement-test-only' });
+      const again = await request(server)
+        .get('/communication/email')
+        .set('Cookie', `${ACCESS_COOKIE}=super`)
+        .expect(200);
       expect(again.body).toEqual(saved.body);
-    } finally { await app.close(); }
+    } finally {
+      await app.close();
+    }
   });
   it('authorizes only Super Admin globally and OWNER/ADMIN for the current company', async () => {
     const { app } = await appSetup();
@@ -543,7 +600,7 @@ describe('SMTP compatibility with existing global configurations', () => {
       'EMAIL_SEND_TEST_REQUIRED',
     );
   });
-  it.each(['GOOGLE', 'MICROSOFT', 'ICLOUD'])(
+  it.each(['GOOGLE', 'MICROSOFT', 'ICLOUD'] as const)(
     'accepts official %s without a manual allowlist',
     (provider) => {
       vi.stubEnv('COMMUNICATION_SMTP_HOSTS', '');

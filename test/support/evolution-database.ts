@@ -1,5 +1,29 @@
 import { randomUUID } from 'node:crypto';
 import type { EvolutionConnection } from '@prisma/client';
+export function matches(
+  row: Record<string, any>,
+  where: Record<string, any>,
+): boolean {
+  return Object.entries(where).every(([key, value]) => {
+    if (key === 'OR') return value.some((part: any) => matches(row, part));
+    if (key === 'AND') return value.every((part: any) => matches(row, part));
+    if (value && typeof value === 'object' && !(value instanceof Date))
+      return Object.entries(value).every(([op, target]: any) =>
+        op === 'not'
+          ? row[key] !== target
+          : op === 'lt'
+            ? row[key] != null && row[key] < target
+            : op === 'lte'
+              ? row[key] != null && row[key] <= target
+              : op === 'gt'
+                ? row[key] != null && row[key] > target
+                : op === 'in'
+                  ? target.includes(row[key])
+                  : false,
+      );
+    return row[key] === value;
+  });
+}
 /** Stateful persistence double: models context uniqueness and atomic lease claims; no real database. */
 export function evolutionDatabase() {
   const rows = new Map<string, EvolutionConnection>();
@@ -13,7 +37,7 @@ export function evolutionDatabase() {
           : row.companyId === where.companyId,
     ) ?? null;
   const model = {
-    async upsert({ where, create }: any) {
+    async upsert(this: void, { where, create }: any) {
       const existing = find(where);
       if (existing) return { ...existing };
       if (
@@ -27,6 +51,15 @@ export function evolutionDatabase() {
         companyId: null,
         globalKey: null,
         environment: null,
+        version: 0,
+        codeEncrypted: null,
+        pairingPhoneEncrypted: null,
+        attemptStartedAt: null,
+        attemptExpiresAt: null,
+        lastConnectionEventAt: null,
+        disconnectReason: null,
+        provisionRequested: false,
+        provisionRetryAt: null,
         connectionRequested: false,
         codeFingerprint: null,
         codeExpiresAt: null,
@@ -52,28 +85,32 @@ export function evolutionDatabase() {
       rows.set(row.id, row);
       return { ...row };
     },
-    async findUnique({ where }: any) {
+    async findUnique(this: void, { where }: any) {
       const row = find(where);
       return row ? { ...row } : null;
     },
-    async findUniqueOrThrow({ where }: any) {
+    async findUniqueOrThrow(this: void, { where }: any) {
       const row = find(where);
       if (!row) throw new Error('Missing row');
       return { ...row };
     },
-    async updateMany({ where, data }: any) {
-      const row = find(where);
-      if (!row) return { count: 0 };
-      if (where.OR && row.leaseId && row.leaseExpiresAt! >= new Date())
-        return { count: 0 };
-      if (where.leaseId && row.leaseId !== where.leaseId) return { count: 0 };
-      if (
-        where.leaseExpiresAt?.gt &&
-        row.leaseExpiresAt! <= where.leaseExpiresAt.gt
-      )
-        return { count: 0 };
-      Object.assign(row, data);
-      return { count: 1 };
+    async findMany(this: void, { where = {}, take = 100 }: any) {
+      return [...rows.values()]
+        .filter((row) => matches(row, where))
+        .slice(0, take)
+        .map((row) => ({ ...row }));
+    },
+    async updateMany(this: void, { where, data }: any) {
+      const selected = [...rows.values()].filter((row) => matches(row, where));
+      for (const row of selected) {
+        for (const [key, value] of Object.entries(data)) {
+          (row as any)[key] =
+            value && typeof value === 'object' && 'increment' in value
+              ? ((row as any)[key] ?? 0) + (value as any).increment
+              : value;
+        }
+      }
+      return { count: selected.length };
     },
   };
   const providers = {
@@ -83,7 +120,7 @@ export function evolutionDatabase() {
     async findMany() {
       return provider ? [provider] : [];
     },
-    async upsert({ create, update }: any) {
+    async upsert(this: void, { create, update }: any) {
       provider = provider
         ? { ...provider, ...update }
         : { revision: 1, ...create };
@@ -98,6 +135,9 @@ export function evolutionDatabase() {
   return {
     rows,
     db: {
+      async $transaction(operation: any) {
+        return operation(this);
+      },
       evolutionConnection: model,
       globalCommunicationProvider: providers,
       user: {
