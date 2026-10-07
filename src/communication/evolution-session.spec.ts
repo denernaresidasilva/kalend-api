@@ -111,6 +111,112 @@ describe('durable Evolution session snapshots and concurrent callbacks', () => {
       Buffer.from(qr.split(',')[1], 'base64').readUInt32BE(16),
     ).toBeGreaterThan(100);
   });
+  it.each(['qr', 'phone'])(
+    'uses receipt TTL for %s with the real incident timestamp',
+    async (mode) => {
+      vi.setSystemTime(new Date('2026-10-07T20:24:50.476Z'));
+      const f = fixture();
+      if (mode === 'phone')
+        await f.service().connect(GLOBAL_EVOLUTION, '5512996055129');
+      else await f.service().prepare(GLOBAL_EVOLUTION);
+      vi.setSystemTime(new Date('2026-10-07T20:24:51.000Z'));
+      const providerAt = new Date('2026-10-07T17:24:51.000Z');
+      await f.hook(
+        'qrcode.updated',
+        {
+          qrcode: {
+            base64: qr,
+            pairingCode: mode === 'phone' ? 'ABCD1234' : null,
+          },
+        },
+        providerAt,
+      );
+      expect(f.row().codeEncrypted).not.toBeNull();
+      expect(f.row().connectionRequested).toBe(true);
+      expect(f.row().codeExpiresAt!.getTime()).toBe(
+        Date.now() + (mode === 'phone' ? 120000 : 60000),
+      );
+      expect(f.row().lastWebhookAt).toEqual(providerAt);
+      expect(f.row().lastQrAt).toEqual(new Date());
+      expect(await f.service().get(GLOBAL_EVOLUTION)).toMatchObject({
+        qrCode: mode === 'qr' ? qr : null,
+        pairingCode: mode === 'phone' ? 'ABCD1234' : null,
+        status: mode === 'qr' ? 'QR_AVAILABLE' : 'CONNECTING',
+      });
+      vi.advanceTimersByTime(1000);
+      await f.hook(
+        'qrcode.updated',
+        {
+          qrcode: {
+            base64: renewed,
+            pairingCode: mode === 'phone' ? 'NEWW1234' : null,
+          },
+        },
+        new Date(providerAt.getTime() + 1000),
+      );
+      const fingerprint = f.row().codeFingerprint;
+      const expiry = f.row().codeExpiresAt;
+      await f.hook(
+        'qrcode.updated',
+        { qrcode: { base64: qr, pairingCode: 'ABCD1234' } },
+        providerAt,
+      );
+      expect(f.row().codeFingerprint).toBe(fingerprint);
+      expect(f.row().codeExpiresAt).toEqual(expiry);
+      await f.hook(
+        'connection.update',
+        { state: 'connecting' },
+        new Date(providerAt.getTime() + 2000),
+      );
+      expect(await f.service().get(GLOBAL_EVOLUTION)).toMatchObject({
+        qrCode: mode === 'qr' ? renewed : null,
+        pairingCode: mode === 'phone' ? 'NEWW1234' : null,
+      });
+      await f.hook(
+        'connection.update',
+        { state: 'open' },
+        new Date(providerAt.getTime() + 3000),
+      );
+      expect(f.row().codeEncrypted).toBeNull();
+      expect(f.row().status).toBe('CONNECTED');
+    },
+  );
+  it('accepts a provider clock ahead without shifting receipt TTL', async () => {
+    const f = fixture();
+    await f.service().prepare(company);
+    await f.hook(
+      'qrcode.updated',
+      { qrcode: { base64: qr } },
+      new Date(Date.now() + 14 * 3600000),
+    );
+    expect((await f.service().get(company)).qrCode).toBe(qr);
+    expect(f.row().codeExpiresAt!.getTime()).toBe(Date.now() + 60000);
+  });
+  it('rejects offsetless timestamps rather than interpreting the host timezone', async () => {
+    const f = fixture();
+    await f.service().prepare(company);
+    await expect(
+      f
+        .service()
+        .webhook(f.row().id, f.client.setWebhook.mock.calls.at(-1)![2], {
+          instance: f.row().instanceName,
+          event: 'qrcode.updated',
+          date_time: '2026-10-07T15:00:00',
+          data: { qrcode: { base64: qr } },
+        }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(f.row().codeEncrypted).toBeNull();
+  });
+  it('rejects events beyond the bounded provider age', async () => {
+    const f = fixture();
+    await f.service().prepare(company);
+    await f.hook(
+      'qrcode.updated',
+      { qrcode: { base64: qr } },
+      new Date(Date.now() - 86400001),
+    );
+    expect(f.row().codeEncrypted).toBeNull();
+  });
   it('accepts QR and open callbacks while prepare holds a lease and stale HTTP QR cannot undo open', async () => {
     const f = fixture();
     let finish!: (v: unknown) => void;

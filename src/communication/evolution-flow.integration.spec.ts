@@ -848,7 +848,7 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
       const event = {
         instance: 'kalend_global',
         event: 'qrcode.updated',
-        date_time: new Date().toISOString(),
+        date_time: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
         data: {
           qrcode: {
             base64: png,
@@ -892,6 +892,59 @@ describe('Evolution full HTTP contract: React → Kalend → TLS Evolution simul
           React.createElement(view, { row: dto, busy: false, now: Date.now() }),
         );
         expect(html).toContain(mode === 'qr' ? png : 'ABCD-1234');
+        expect(row.codeEncrypted).not.toBeNull();
+        expect(row.codeExpiresAt!.getTime()).toBeGreaterThan(Date.now());
+        if (mode === 'qr') {
+          const send = async (
+            eventName: string,
+            data: unknown,
+            offset: number,
+          ) => {
+            const response = await request(app.getHttpServer())
+              .post('/webhooks/communication/evolution/global/' + row.id)
+              .set('x-kalend-evolution-token', token)
+              .send({
+                ...event,
+                event: eventName,
+                data,
+                date_time: new Date(
+                  new Date(event.date_time).getTime() + offset,
+                ).toISOString(),
+              });
+            expect(response.status).toBe(200);
+          };
+          await send(
+            'qrcode.updated',
+            { qrcode: { base64: renewedPng } },
+            1000,
+          );
+          const latest = await web.evolutionApi.get({
+            scope: 'GLOBAL',
+            userId: 'admin',
+          });
+          expect(latest.qrCode).toBe(renewedPng);
+          expect(
+            renderToStaticMarkup(
+              React.createElement(view, {
+                row: latest,
+                busy: false,
+                now: Date.now(),
+              }),
+            ),
+          ).toContain(renewedPng);
+          await send('qrcode.updated', { qrcode: { base64: png } }, 0);
+          await send('connection.update', { state: 'connecting' }, 2000);
+          expect(
+            (await web.evolutionApi.get({ scope: 'GLOBAL', userId: 'admin' }))
+              .qrCode,
+          ).toBe(renewedPng);
+          await send('connection.update', { state: 'open' }, 3000);
+          expect(
+            await web.evolutionApi.get({ scope: 'GLOBAL', userId: 'admin' }),
+          ).toMatchObject({ status: 'CONNECTED', qrCode: null });
+          expect(row.codeEncrypted).toBeNull();
+        }
+
         expect(JSON.stringify(dto)).not.toMatch(
           /private|integration-test-only-key|webhookSecret|codeEncrypted/,
         );

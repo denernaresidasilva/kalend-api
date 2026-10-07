@@ -57,6 +57,9 @@ export function evolutionStatus(state: unknown): EvolutionConnectionStatus {
 }
 // An event superseded the remote operation. Never overwrite it with a stale response.
 class StateChanged extends Error {}
+// Admission tolerance for skewed provider clocks and delivery, NOT code lifetime.
+// Symmetric to accommodate providers in every timezone without converting timestamps.
+const MAX_PROVIDER_CLOCK_SKEW_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class EvolutionService implements OnModuleInit, OnModuleDestroy {
@@ -790,10 +793,7 @@ export class EvolutionService implements OnModuleInit, OnModuleDestroy {
         lastError: 'WHATSAPP_LOGGED_OUT',
         disconnectReason: 401,
         attemptStartedAt: completed,
-        lastConnectionEventAt:
-          row.lastConnectionEventAt && row.lastConnectionEventAt > completed
-            ? row.lastConnectionEventAt
-            : completed,
+        // Preserve the provider watermark; completed belongs to the local clock.
       });
       return this.view(row);
     });
@@ -967,6 +967,8 @@ export class EvolutionService implements OnModuleInit, OnModuleDestroy {
     body: unknown,
     scope: 'COMPANY' | 'GLOBAL' = 'COMPANY',
   ) {
+    // Capture on entry, before I/O; retries must never move the display deadline.
+    const receivedAt = new Date();
     let row = await this.db.evolutionConnection.findUnique({ where: { id } });
     const payload = record(body);
     if (
@@ -1001,14 +1003,11 @@ export class EvolutionService implements OnModuleInit, OnModuleDestroy {
     if (event !== 'qrcode.updated' && event !== 'connection.update')
       return { accepted: true };
     const date =
-      typeof payload.date_time === 'string'
+      typeof payload.date_time === 'string' &&
+      /(?:Z|[+-]\d{2}:\d{2})$/i.test(payload.date_time)
         ? new Date(payload.date_time)
         : null;
-    if (
-      !date ||
-      !Number.isFinite(date.getTime()) ||
-      date.getTime() > Date.now() + 60000
-    )
+    if (!date || !Number.isFinite(date.getTime()))
       throw new BadRequestException('Evento inválido.');
     const data = record(payload.data);
     if (
@@ -1016,14 +1015,46 @@ export class EvolutionService implements OnModuleInit, OnModuleDestroy {
       !['open', 'connecting', 'close', 'refused'].includes(String(data.state))
     )
       throw new BadRequestException('Estado inválido.');
-    this.log(row, 'Webhook received', { event });
+    const timing = {
+      providerEventAt: date.toISOString(),
+      receivedAt: receivedAt.toISOString(),
+    };
+    const logRow = row;
+    const discard = (reason: string) => {
+      this.log(
+        logRow,
+        event === 'qrcode.updated'
+          ? 'QR discarded as stale'
+          : 'Webhook discarded as stale',
+        { ...timing, reason },
+      );
+      return { accepted: true };
+    };
+    this.log(
+      row,
+      event === 'qrcode.updated' ? 'QR webhook received' : 'Webhook received',
+      { event, ...timing },
+    );
+    // Bounded clock-skew/retry tolerance, independent of the short display TTL.
+    // This is not a timezone conversion. Watermarks below reject older/replayed events.
+    if (
+      Math.abs(receivedAt.getTime() - date.getTime()) >
+      MAX_PROVIDER_CLOCK_SKEW_MS
+    )
+      return discard('PROVIDER_CLOCK_OUTSIDE_TOLERANCE');
     const started = Date.now();
     // Optimistic retry is only for short database writes, never remote operations or sleeps.
     for (let attempt = 0; attempt < 8; attempt++) {
       if (row.webhookSecretEncrypted !== validatedSecret)
         throw new UnauthorizedException('Webhook inválido.');
-      if (row.attemptStartedAt && date < row.attemptStartedAt)
-        return { accepted: true };
+      // Never compare provider timestamps with local attempt timestamps.
+      // lastWebhookAt / lastConnectionEventAt are provider ordering watermarks.
+      if (
+        event === 'connection.update' &&
+        row.lastWebhookAt &&
+        date < row.lastWebhookAt
+      )
+        return discard('CONNECTION_EVENT_BEFORE_CURRENT_CODE');
       const clock =
         event === 'qrcode.updated'
           ? row.lastWebhookAt
@@ -1032,7 +1063,7 @@ export class EvolutionService implements OnModuleInit, OnModuleDestroy {
         clock &&
         (date < clock || (event === 'qrcode.updated' && date <= clock))
       )
-        return { accepted: true };
+        return discard('OUT_OF_ORDER_OR_DUPLICATE');
       if (
         event === 'connection.update' &&
         clock &&
@@ -1067,8 +1098,8 @@ export class EvolutionService implements OnModuleInit, OnModuleDestroy {
           attemptTimedOut(row) ||
           (row.lastConnectionEventAt && date < row.lastConnectionEventAt)
         )
-          return { accepted: true };
-        const code = codePatch(row, data, this.vault, date);
+          return discard('INACTIVE_ATTEMPT_OR_SUPERSEDED');
+        const code = codePatch(row, data, this.vault, receivedAt);
         if (!code) {
           // Evolution's QR-limit event is valid but contains no image.
           if (
@@ -1082,7 +1113,14 @@ export class EvolutionService implements OnModuleInit, OnModuleDestroy {
             lastError: 'CONNECTION_TIMEOUT',
             lastWebhookAt: date,
           };
-        } else patch = { ...code, lastWebhookAt: date, lastSeenAt: new Date() };
+        } else {
+          this.log(row, 'QR accepted', {
+            ...timing,
+            expiresAt: code.codeExpiresAt.toISOString(),
+            reason: code.lastError,
+          });
+          patch = { ...code, lastWebhookAt: date, lastSeenAt: receivedAt };
+        }
       } else {
         const state = data.state;
         const reason =
@@ -1147,7 +1185,19 @@ export class EvolutionService implements OnModuleInit, OnModuleDestroy {
           patch.status = 'QR_AVAILABLE';
       }
       try {
+        const previousFingerprint = row.codeFingerprint;
         await this.persist(row, patch);
+        if (event === 'qrcode.updated')
+          this.log(
+            row,
+            row.codeEncrypted
+              ? previousFingerprint &&
+                previousFingerprint !== row.codeFingerprint
+                ? 'QR replaced'
+                : 'QR persisted'
+              : 'QR expired',
+            { ...timing, expiresAt: row.codeExpiresAt?.toISOString() ?? null },
+          );
         this.log(row, 'Webhook processed', {
           event,
           state:
