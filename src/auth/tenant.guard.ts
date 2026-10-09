@@ -13,6 +13,17 @@ import { AuthConfig } from './auth.config.js';
 import type { AuthRequest } from './auth.types.js';
 export const BillingRecovery = () =>
   SetMetadata('kalend:billing-recovery', true);
+// Only these tenant operations bypass commercial entitlement, never membership/role/Origin.
+// Login, account/session, tenant selection and global administration use their own Auth/Admin guards.
+export function billingRecoveryAllowed(method: string, path = '') {
+  const route = path.replace(/\/$/, '');
+  return (
+    (method === 'GET' && /^\/billing\/payments\/[^/]+$/.test(route)) ||
+    (method === 'POST' &&
+      (route === '/billing/checkout' ||
+        /^\/billing\/subscriptions\/[^/]+\/cancel$/.test(route)))
+  );
+}
 const TENANT_ROLES = 'kalend:tenant-roles';
 export const TenantRoles = (...roles: MembershipRole[]) =>
   SetMetadata(TENANT_ROLES, roles);
@@ -34,10 +45,13 @@ export class TenantGuard extends AuthGuard {
     const membership = await this.auth.membership(
       request.auth.user.id,
       companyId,
-      this.reflector.getAllAndOverride<boolean>('kalend:billing-recovery', [
-        context.getHandler(),
-        context.getClass(),
-      ]) ?? false,
+      request.auth.user.isSuperAdmin ||
+        ((this.reflector.getAllAndOverride<boolean>('kalend:billing-recovery', [
+          context.getHandler(),
+          context.getClass(),
+        ]) ??
+          false) &&
+          billingRecoveryAllowed(request.method, request.path)),
     );
     const roles = this.reflector.getAllAndOverride<MembershipRole[]>(
       TENANT_ROLES,

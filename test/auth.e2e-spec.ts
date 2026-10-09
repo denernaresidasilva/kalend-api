@@ -592,6 +592,10 @@ describe('authentication HTTP with real bcrypt/JWT and mock persistence', () => 
       .set('Cookie', access)
       .send({ companyId: COMPANY_ID })
       .expect(200);
+    // A normal tenant request now requires a persisted, unexpired entitlement.
+    fixture.db.subscription.findFirst.mockResolvedValueOnce({
+      status: 'ACTIVE', currentPeriodEnd: new Date(Date.now() + 86400000),
+    } as never);
     const tenant = await request(app.getHttpServer())
       .get('/auth/tenant')
       .set('Cookie', access)

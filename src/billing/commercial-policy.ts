@@ -1,5 +1,27 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+type AccessSubscription = { status: string; trialEndsAt?: Date | null };
+export function effectiveAccessStatus(
+  current: AccessSubscription | null,
+  last: AccessSubscription | null,
+  now: Date,
+) {
+  if (current?.status === 'TRIALING')
+    return current.trialEndsAt &&
+      current.trialEndsAt.getTime() - now.getTime() <= 3 * 86400000
+      ? 'TRIAL_EXPIRING'
+      : 'TRIAL_ACTIVE';
+  if (current) return current.status;
+  if (
+    last?.trialEndsAt &&
+    last.trialEndsAt <= now &&
+    ['TRIALING', 'EXPIRED'].includes(last.status)
+  )
+    return 'TRIAL_EXPIRED';
+  return last?.status === 'ACTIVE' || last?.status === 'PAST_DUE'
+    ? 'SUSPENDED'
+    : (last?.status ?? 'NO_SUBSCRIPTION');
+}
 export function graceEnd(from: Date): Date {
   const value = process.env.BILLING_GRACE_DAYS;
   // Unconfigured means no grace, never an invented positive allowance.

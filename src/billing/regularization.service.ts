@@ -15,7 +15,11 @@ import { object, boolean } from '../common/validation.js';
 import { PlansService } from '../plans/plans.service.js';
 import { GatewaysService } from './gateways.service.js';
 import { GatewayRegistry, gatewayName } from './gateway.provider.js';
-import { entitledWhere, suspendIfUnentitled } from './commercial-policy.js';
+import {
+  entitledWhere,
+  suspendIfUnentitled,
+  effectiveAccessStatus,
+} from './commercial-policy.js';
 @Injectable()
 export class RegularizationService {
   constructor(
@@ -35,6 +39,8 @@ export class RegularizationService {
       companyId: null,
       accessAllowed: false,
       status: 'NOT_APPLICABLE',
+      accessStatus: 'NOT_APPLICABLE',
+      revalidateAfterMs: 15000,
       reason: null,
       trialExpired: false,
       trial: {
@@ -76,6 +82,14 @@ export class RegularizationService {
       last?.status === 'TRIALING' &&
       !!last.trialEndsAt &&
       last.trialEndsAt > now;
+    const deadline =
+      current?.status === 'TRIALING'
+        ? current.trialEndsAt
+        : current?.status === 'ACTIVE'
+          ? current.currentPeriodEnd
+          : current?.status === 'PAST_DUE'
+            ? current.graceEndsAt
+            : null;
     const managesBilling = ['OWNER', 'ADMIN'].includes(role);
     const latestPayment = last
       ? await this.prisma.payment.findFirst({
@@ -123,6 +137,11 @@ export class RegularizationService {
       } satisfies CommercialFinancial,
       companyId,
       accessAllowed: !!current,
+      accessStatus: effectiveAccessStatus(current, last, now),
+      // Browser timers only request a new authoritative decision; they never grant access.
+      revalidateAfterMs: deadline
+        ? Math.max(1, Math.min(15000, deadline.getTime() - now.getTime()))
+        : 5000,
       status: trialExpired
         ? 'TRIAL_EXPIRED'
         : (last?.status ?? 'NO_SUBSCRIPTION'),

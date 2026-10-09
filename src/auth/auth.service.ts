@@ -22,6 +22,10 @@ import {
 } from './auth.config.js';
 import { AuthRateLimit } from './auth-rate-limit.service.js';
 import type { AuthIdentity } from './auth.types.js';
+import {
+  entitledWhere,
+  effectiveAccessStatus,
+} from '../billing/commercial-policy.js';
 const identitySelect = {
   id: true,
   name: true,
@@ -292,6 +296,23 @@ export class AuthService {
         !['SUSPENDED', 'CANCELED'].includes(membership.company.status))
     )
       throw new ForbiddenException('Acesso à empresa não permitido.');
+    if (!recovery) {
+      const now = new Date();
+      const current = await this.prisma.subscription.findFirst({
+        where: entitledWhere(companyId, now),
+      });
+      if (!current) {
+        const last = await this.prisma.subscription.findFirst({
+          where: { companyId, status: { not: 'PENDING' } },
+          orderBy: { createdAt: 'desc' },
+        });
+        throw new ForbiddenException({
+          code: 'SUBSCRIPTION_REQUIRED',
+          accessStatus: effectiveAccessStatus(current, last, now),
+          regularizationRequired: true,
+        });
+      }
+    }
     return membership;
   }
   async selectTenant(identity: AuthIdentity, input: unknown) {
