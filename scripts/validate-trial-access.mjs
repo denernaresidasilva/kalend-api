@@ -20,6 +20,8 @@ import { RegularizationService } from '../dist/billing/regularization.service.js
 import { CommunicationEngine } from '../dist/communication/engine.js';
 import { EvolutionService } from '../dist/communication/evolution.js';
 import { ACCESS_COOKIE } from '../dist/auth/auth.config.js';
+const qaRunId = `${Date.now()}-${randomBytes(4).toString('hex')}`;
+const qaOwnerEmail = `qa+${qaRunId}@example.invalid`;
 const sql = await PGlite.create();
 const server = new PGLiteSocketServer({
   db: sql,
@@ -127,18 +129,18 @@ try {
   });
   const password = 'trial-disposable-password';
   const created = await companyService.createManual({
-    companyName: 'Trial descartável',
-    slug: 'trial-disposable',
+    companyName: `QA-E2E-${qaRunId}-A`,
+    slug: `qa-e2e-${qaRunId}-a`,
     ownerName: 'Owner fixture',
-    ownerEmail: 'trial@fixture.test',
+    ownerEmail: qaOwnerEmail,
     ownerPassword: password,
     planId: plan.id,
   });
   const companyB = await companyService.createManual({
-    companyName: 'Empresa B paga',
-    slug: 'trial-paid-b',
+    companyName: `QA-E2E-${qaRunId}-B`,
+    slug: `qa-e2e-${qaRunId}-b`,
     ownerName: 'Owner fixture',
-    ownerEmail: 'trial@fixture.test',
+    ownerEmail: qaOwnerEmail,
     ownerPassword: password,
     planId: plan.id,
     startWithTrial: false,
@@ -177,7 +179,7 @@ try {
     const login = await request(app.getHttpServer())
       .post('/auth/login')
       .set('Origin', origin)
-      .send({ email: 'trial@fixture.test', password })
+      .send({ email: qaOwnerEmail, password })
       .expect(200);
     const cookie = login.headers['set-cookie']
       .find((s) => s.startsWith(`${ACCESS_COOKIE}=`))
@@ -240,7 +242,7 @@ try {
   const isolationLogin = await request(app.getHttpServer())
     .post('/auth/login')
     .set('Origin', origin)
-    .send({ email: 'trial@fixture.test', password })
+    .send({ email: qaOwnerEmail, password })
     .expect(200);
   const isolationCookie = isolationLogin.headers['set-cookie']
     .find((s) => s.startsWith(`${ACCESS_COOKIE}=`))
@@ -289,7 +291,7 @@ try {
   const login = await request(app.getHttpServer())
     .post('/auth/login')
     .set('Origin', origin)
-    .send({ email: 'trial@fixture.test', password })
+    .send({ email: qaOwnerEmail, password })
     .expect(200);
   const cookie = login.headers['set-cookie']
     .find((s) => s.startsWith(`${ACCESS_COOKIE}=`))
@@ -391,7 +393,7 @@ try {
   await prisma.user.create({
     data: {
       name: 'Global fixture',
-      email: 'admin@fixture.test',
+      email: `qa+admin-${qaRunId}@example.invalid`,
       passwordHash: ownerRecord.passwordHash,
       isSuperAdmin: true,
     },
@@ -399,7 +401,7 @@ try {
   const adminLogin = await request(app.getHttpServer())
     .post('/auth/login')
     .set('Origin', origin)
-    .send({ email: 'admin@fixture.test', password })
+    .send({ email: `qa+admin-${qaRunId}@example.invalid`, password })
     .expect(200);
   const adminCookie = adminLogin.headers['set-cookie']
     .find((s) => s.startsWith(`${ACCESS_COOKIE}=`))
