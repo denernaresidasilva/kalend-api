@@ -703,7 +703,11 @@ export class CommunicationEngine {
       { timeout: 15000 },
     );
   }
-  async processOne(options: { qaMode?: boolean; companyIds?: string[] } = {}) {
+  async processOne(options: {
+    qaMode?: boolean;
+    companyIds?: string[];
+    onResult?: (status: 'ACCEPTED' | 'SKIPPED' | 'RETRY' | 'FAILED' | 'UNCERTAIN') => void;
+  } = {}) {
     const qaMode = options.qaMode === true;
     const allowlist = qaMode ? requireQaCommunicationAllowlist() : undefined;
     const companyIds = qaMode ? allowlist!.companyIds : options.companyIds;
@@ -898,6 +902,7 @@ export class CommunicationEngine {
         if (next) nextAttemptAt = next;
       }
       // Crash or DB error here leaves SENDING; it is quarantined, never automatically sent again.
+      let resultPersisted = false;
       await this.db.$transaction(async (tx) => {
         const updated = await tx.globalCommunicationDelivery.updateMany({
           where: { id: row.id, status: 'SENDING', attempts: row.attempts + 1 },
@@ -909,7 +914,8 @@ export class CommunicationEngine {
             ...(status === 'RETRY' ? {} : { payloadEncrypted: null }),
           },
         });
-        if (updated.count)
+        if (updated.count) {
+          resultPersisted = true;
           await tx.globalCommunicationLog.create({
             data: {
               deliveryId: row.id,
@@ -918,6 +924,7 @@ export class CommunicationEngine {
               attempt: row.attempts + 1,
             },
           });
+        }
         if (status === 'ACCEPTED')
           await tx.globalCommunicationProvider.updateMany({
             where: {
@@ -927,6 +934,7 @@ export class CommunicationEngine {
             data: { lastSentAt: new Date() },
         });
       });
+      if (resultPersisted) options.onResult?.(status);
       if (qaMode)
         console.info(
           JSON.stringify({
@@ -946,7 +954,7 @@ export class CommunicationEngine {
     return false;
   }
   async run() {
-    await this.db.globalCommunicationDelivery.updateMany({
+    const recovered = await this.db.globalCommunicationDelivery.updateMany({
       where: {
         status: 'SENDING',
         startedAt: { lt: new Date(Date.now() - 300000) },
@@ -959,8 +967,20 @@ export class CommunicationEngine {
     });
     const expanded = await this.expand();
     let processed = 0;
-    while (processed < 50 && (await this.processOne())) processed++;
-    return { expanded, processed };
+    const outcomes = {
+      ACCEPTED: 0,
+      SKIPPED: 0,
+      RETRY: 0,
+      FAILED: 0,
+      UNCERTAIN: 0,
+    };
+    while (
+      processed < 50 &&
+      (await this.processOne({
+        onResult: (status) => { outcomes[status]++; },
+      }))
+    ) processed++;
+    return { expanded, processed, recovered: recovered.count, outcomes };
   }
   /** Preflight is read-only: it reports only identifiers, masked recipients and counts. */
   async qaPreflight(workerEnabled = process.env.COMMUNICATION_WORKER_ENABLED === 'true') {

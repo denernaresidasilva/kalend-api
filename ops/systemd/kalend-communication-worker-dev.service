@@ -1,0 +1,19 @@
+[Unit]
+Description=Kalend DEV communication outbox worker (single batch)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=kalend-api-dev
+Group=kalend-api-dev
+WorkingDirectory=/home/kalend-api-dev/htdocs/api-dev.kalend.tech/app
+Environment=PATH=/home/kalend-api-dev/.nvm/versions/node/v24.21.0/bin:/usr/local/bin:/usr/bin:/bin
+Environment=COMMUNICATION_WORKER_ENABLED=true
+ExecStartPre=/usr/bin/echo COMMUNICATION_WORKER_START
+ExecStart=/home/kalend-api-dev/.nvm/versions/node/v24.21.0/bin/npm run communication:worker
+TimeoutStartSec=15min
+Restart=no
+KillMode=control-group
+StandardOutput=journal
+StandardError=journal

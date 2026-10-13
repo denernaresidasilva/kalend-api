@@ -44,6 +44,7 @@ function fixture() {
         ['PENDING', 'RETRY'].includes(delivery.status) ? [{ ...delivery }] : [],
       ),
       updateMany: vi.fn(async ({ where, data }) => {
+        if (!where.id) return { count: 0 };
         if (
           where.id &&
           (where.status !== delivery.status ||
@@ -111,6 +112,28 @@ beforeEach(() =>
 );
 afterEach(() => vi.unstubAllEnvs());
 describe('outbox delivery and retries', () => {
+  it('returns bounded worker outcomes for safe journal reporting', async () => {
+    const { engine, db } = fixture();
+    vi.spyOn(engine, 'expand').mockResolvedValue(3);
+    let call = 0;
+    vi.spyOn(engine, 'processOne').mockImplementation(async (options) => {
+      const outcomes = ['ACCEPTED', 'RETRY', 'FAILED'] as const;
+      if (call >= outcomes.length) return false;
+      options.onResult?.(outcomes[call++]);
+      return true;
+    });
+
+    await expect(engine.run()).resolves.toEqual({
+      expanded: 3,
+      processed: 3,
+      recovered: 0,
+      outcomes: { ACCEPTED: 1, SKIPPED: 0, RETRY: 1, FAILED: 1, UNCERTAIN: 0 },
+    });
+    expect(db.globalCommunicationDelivery.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ status: 'SENDING' }),
+    }));
+  });
+
   it('persists each GLOBAL event/channel independently and keeps provider state separate', async () => {
     const f = fixture();
     const records = new Map<string, Record<string, unknown>>();

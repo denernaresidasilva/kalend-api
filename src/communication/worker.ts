@@ -7,6 +7,7 @@ import { qaCommunicationEnabled } from './qa-policy.js';
 // One bounded invocation, intended for a supervised external timer. No HTTP listener or in-process interval.
 const qaOnly = process.argv.includes('--qa-only');
 const qaCheck = process.argv.includes('--qa-check');
+const startedAt = Date.now();
 if (
   (!qaCheck && process.env.COMMUNICATION_WORKER_ENABLED !== 'true') ||
   ((qaOnly || qaCheck) && !qaCommunicationEnabled())
@@ -43,15 +44,28 @@ if (
           ),
         );
       } else {
-        await engine.temporal();
+        const temporal = await engine.temporal();
         const inbox = await app.get(NotificationsService).ingest();
-        console.log(JSON.stringify({ ...(await engine.run()), inbox }));
+        const batch = await engine.run();
+        console.log(JSON.stringify({
+          mode: 'COMMERCIAL',
+          phase: 'batch-complete',
+          durationMs: Date.now() - startedAt,
+          temporal,
+          inbox,
+          ...batch,
+        }));
       }
     } finally {
       await app.close();
     }
   } catch {
-    console.error('COMMUNICATION_WORKER_FAILED');
+    console.error(JSON.stringify({
+      mode: qaOnly || qaCheck ? 'QA' : 'COMMERCIAL',
+      phase: 'batch-failed',
+      durationMs: Date.now() - startedAt,
+      error: 'COMMUNICATION_WORKER_FAILED',
+    }));
     process.exitCode = 1;
   }
 }

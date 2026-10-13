@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the Kalend DEV communication worker every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=kalend-communication-worker-dev.service
+
+[Install]
+WantedBy=timers.target
