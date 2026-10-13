@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import * as bcrypt from 'bcrypt';
 import { AuthConfig } from './auth.config.js';
 import { AuthRateLimit } from './auth-rate-limit.service.js';
 import { TenantGuard } from './tenant.guard.js';
@@ -63,6 +64,10 @@ describe('authorization and limiting boundaries', () => {
     );
     auth.membership.mockResolvedValue({ id: 'm', role: 'OWNER' });
     expect(await guard.canActivate(ctx as never)).toBe(true);
+    auth.membership.mockRejectedValue(new Error('Acesso à empresa não permitido.'));
+    await expect(guard.canActivate(ctx as never)).rejects.toThrow(
+      'Acesso à empresa não permitido',
+    );
   });
   it('rejects a valid JWT bound to a session belonging to another user', async () => {
     const store = authDatabase('unused');
@@ -91,6 +96,65 @@ describe('authorization and limiting boundaries', () => {
       new Date(Date.now() + 600000),
     );
     await expect(service.authenticate(raw)).rejects.toThrow('Sessão inválida');
+  });
+  it('rejects old access and refresh credentials after a company deletion revokes the user session', async () => {
+    const store = authDatabase('unused');
+    const { credentialHash, newRefresh, refreshHash } = await import('./auth.tokens.js');
+    const now = new Date();
+    const sessionId = randomUUID();
+    const refresh = newRefresh();
+    store.sessions.push({
+      id: sessionId,
+      userId: MEMBER_ID,
+      credentialHash: credentialHash('unused'),
+      selectedCompanyId: randomUUID(),
+      createdAt: now,
+      lastUsedAt: now,
+      expiresAt: new Date(now.getTime() + 86400000),
+      refreshExpiresAt: new Date(now.getTime() + 86400000),
+      revokedAt: null,
+    });
+    store.refreshes.push({
+      id: randomUUID(),
+      sessionId,
+      tokenHash: refreshHash(refresh),
+      expiresAt: new Date(now.getTime() + 86400000),
+      usedAt: null,
+    });
+    const tokens = new AuthTokens(new AuthConfig());
+    const service = new AuthService(
+      store.db as never,
+      tokens,
+      new AuthRateLimit(store.db as never, new AuthConfig()),
+    );
+    const access = await tokens.access(
+      MEMBER_ID,
+      sessionId,
+      new Date(now.getTime() + 600000),
+    );
+
+    store.users.find((user) => user.id === MEMBER_ID)!.isActive = false;
+    store.sessions[0].revokedAt = now;
+
+    await expect(service.authenticate(access)).rejects.toThrow('Sessão inválida');
+    await expect(service.refresh(refresh, 'test-ip')).rejects.toThrow('Sessão inválida');
+  });
+  it('rejects a new login after the last-company deletion deactivates the owner account', async () => {
+    const store = authDatabase('unused');
+    const password = 'test-only-owner-password';
+    const owner = store.users.find((user) => user.id === MEMBER_ID)!;
+    owner.passwordHash = await bcrypt.hash(password, 4);
+    owner.isActive = false;
+    const service = new AuthService(
+      store.db as never,
+      new AuthTokens(new AuthConfig()),
+      new AuthRateLimit(store.db as never, new AuthConfig()),
+    );
+
+    await expect(
+      service.login({ email: owner.email, password }, 'test-ip'),
+    ).rejects.toThrow('E-mail ou senha inválidos');
+    expect(store.sessions).toHaveLength(0);
   });
   it('losing refresh claim commits family revocation instead of rolling it back', async () => {
     const store = authDatabase('unused');

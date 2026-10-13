@@ -41,7 +41,10 @@ export class TenantGuard extends AuthGuard {
     const request = context.switchToHttp().getRequest<AuthRequest>();
     const companyId = request.auth.session.selectedCompanyId;
     if (!companyId)
-      throw new ForbiddenException('Selecione uma empresa autorizada.');
+      throw new ForbiddenException({
+        code: 'TENANT_ACCESS_REQUIRED',
+        message: 'Selecione uma empresa autorizada.',
+      });
     const membership = await this.auth.membership(
       request.auth.user.id,
       companyId,

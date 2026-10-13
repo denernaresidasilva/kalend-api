@@ -285,9 +285,12 @@ export class AuthService {
       where: { userId_companyId: { userId, companyId } },
       select: membershipSelect,
     });
+    if (!membership || !membership.isActive)
+      throw new ForbiddenException({
+        code: 'TENANT_ACCESS_REQUIRED',
+        message: 'Acesso à empresa não permitido.',
+      });
     if (
-      !membership ||
-      !membership.isActive ||
       (!recovery &&
         (!membership.company.isActive ||
           !['ACTIVE', 'TRIAL'].includes(membership.company.status))) ||

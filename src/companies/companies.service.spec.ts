@@ -25,6 +25,8 @@ function setup(existing = false) {
       findUnique: vi
         .fn()
         .mockResolvedValue(existing ? { id: 'owner', isActive: true } : null),
+      findMany: vi.fn().mockResolvedValue([]),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       upsert: vi
         .fn()
         .mockImplementation(({ create }) => ({ ...create, id: 'owner' })),
@@ -40,9 +42,11 @@ function setup(existing = false) {
     },
     membership: {
       create: vi.fn().mockResolvedValue({ id: 'membership', role: 'OWNER' }),
+      findMany: vi.fn().mockResolvedValue([]),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       upsert: vi.fn().mockResolvedValue({ id: 'membership', role: 'OWNER' }),
     },
+    authSession: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     subscription: {
       create: vi
         .fn()
@@ -226,6 +230,71 @@ describe('manual company', () => {
     expect(db.webhookEvent.deleteMany).toHaveBeenCalledWith({ where: { companyId: 'company' } });
     expect(db.company.delete).toHaveBeenCalledWith({ where: { id: 'company' } });
     expect(db.user).not.toHaveProperty('delete');
+  });
+  it('deactivates an owner with no other active company and revokes all of their sessions atomically', async () => {
+    const { service, db } = setup();
+    db.company.findUnique.mockResolvedValue({ id: 'company', name: 'QA Empresa', evolutionConnection: null });
+    db.membership.findMany.mockResolvedValue([{ userId: 'owner' }]);
+    db.user.findMany.mockResolvedValue([{ id: 'owner' }]);
+
+    await service.remove('company', { confirmationName: 'QA Empresa' });
+
+    expect(db.user.findMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ['owner'] },
+        isSuperAdmin: false,
+        memberships: { none: { isActive: true } },
+      },
+      select: { id: true },
+    });
+    expect(db.user.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ['owner'] },
+        isSuperAdmin: false,
+        memberships: { none: { isActive: true } },
+      },
+      data: { isActive: false },
+    });
+    expect(db.authSession.updateMany).toHaveBeenCalledWith({
+      where: { userId: { in: ['owner'] }, revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
+    expect(db.$transaction).toHaveBeenCalledOnce();
+    expect(db.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      { isolationLevel: 'Serializable' },
+    );
+    expect(db.user).not.toHaveProperty('delete');
+  });
+  it('preserves users with an active membership in another company and does not revoke their sessions', async () => {
+    const { service, db } = setup();
+    db.company.findUnique.mockResolvedValue({ id: 'company', name: 'QA Empresa', evolutionConnection: null });
+    db.membership.findMany.mockResolvedValue([{ userId: 'shared-user' }]);
+
+    await service.remove('company', { confirmationName: 'QA Empresa' });
+
+    expect(db.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        id: { in: ['shared-user'] },
+        isSuperAdmin: false,
+        memberships: { none: { isActive: true } },
+      }),
+    }));
+    expect(db.user.updateMany).not.toHaveBeenCalled();
+    expect(db.authSession.updateMany).not.toHaveBeenCalled();
+  });
+  it('never deactivates or revokes a Super Admin during company deletion', async () => {
+    const { service, db } = setup();
+    db.company.findUnique.mockResolvedValue({ id: 'company', name: 'QA Empresa', evolutionConnection: null });
+    db.membership.findMany.mockResolvedValue([{ userId: 'super-admin' }]);
+
+    await service.remove('company', { confirmationName: 'QA Empresa' });
+
+    expect(db.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ isSuperAdmin: false }),
+    }));
+    expect(db.user.updateMany).not.toHaveBeenCalled();
+    expect(db.authSession.updateMany).not.toHaveBeenCalled();
   });
   it('keeps a company intact if Evolution cleanup fails', async () => {
     const { db } = setup();

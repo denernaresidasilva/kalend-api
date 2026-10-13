@@ -655,6 +655,11 @@ export class CompaniesService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      // Keep the affected identities before the company cascade removes memberships.
+      const companyMemberships = await tx.membership.findMany({
+        where: { companyId: id },
+        select: { userId: true },
+      });
       const outbox = await tx.globalCommunicationOutbox.findMany({
         where: { companyId: id },
         select: { id: true },
@@ -686,7 +691,37 @@ export class CompaniesService {
       }
       await tx.webhookEvent.deleteMany({ where: { companyId: id } });
       await tx.company.delete({ where: { id } });
-    });
+
+      const affectedUserIds = [...new Set(companyMemberships.map((m) => m.userId))];
+      if (affectedUserIds.length) {
+        // A user is disabled only when the deleted tenant was their last active
+        // membership. Shared users and Super Admin accounts remain untouched.
+        const orphanedUsers = await tx.user.findMany({
+          where: {
+            id: { in: affectedUserIds },
+            isSuperAdmin: false,
+            memberships: { none: { isActive: true } },
+          },
+          select: { id: true },
+        });
+        const orphanedUserIds = orphanedUsers.map((user) => user.id);
+        if (orphanedUserIds.length) {
+          const revokedAt = new Date();
+          await tx.user.updateMany({
+            where: {
+              id: { in: orphanedUserIds },
+              isSuperAdmin: false,
+              memberships: { none: { isActive: true } },
+            },
+            data: { isActive: false },
+          });
+          await tx.authSession.updateMany({
+            where: { userId: { in: orphanedUserIds }, revokedAt: null },
+            data: { revokedAt },
+          });
+        }
+      }
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     return { deleted: true, companyId: id };
   }
