@@ -40,6 +40,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CommunicationConfiguration } from './configuration.js';
 import { CommunicationEngine } from './engine.js';
 import { CommunicationTransports } from './transports.js';
+import { QA_COMMUNICATION_EVENT, qaCommunicationEnabled } from './qa-policy.js';
 import { EVENTS, variablesFor } from './contracts.js';
 @Controller('communication')
 @UseGuards(AdminGuard)
@@ -104,9 +105,24 @@ export class CommunicationController {
   @Get('events') events() {
     return EVENTS.map((event) => ({ event, variables: variablesFor(event) }));
   }
+  @Post('qa-test') async qaTest(
+    @Body() body: unknown,
+    @Req() req: AuthRequest,
+  ) {
+    await this.limit.consume(
+      'communication-qa-test',
+      req.auth.user.id,
+      1,
+      3600,
+    );
+    return this.engine.createQaIntent(body, req.auth.user.id);
+  }
   @Get('templates') templates() {
     return this.db.globalCommunicationTemplate.findMany({
       take: 100,
+      where: qaCommunicationEnabled()
+        ? {}
+        : { event: { not: QA_COMMUNICATION_EVENT } },
       orderBy: [{ event: 'asc' }, { channel: 'asc' }],
     });
   }

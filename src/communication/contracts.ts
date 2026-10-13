@@ -15,7 +15,7 @@ export const EVENTS = [
   'SUBSCRIPTION_CANCELLED',
   'SECURITY_PASSWORD_CHANGED',
 ] as const;
-export type Event = (typeof EVENTS)[number];
+export type Event = (typeof EVENTS)[number] | 'QA_COMMUNICATION_TEST';
 export type Channel = 'EMAIL' | 'WHATSAPP' | 'PUSH';
 export type Provider = 'SMTP' | 'GMAIL' | 'META' | 'EVOLUTION' | 'PUSH_PENDING';
 export type Variables = Record<string, string>;
@@ -27,7 +27,8 @@ export const channels: Record<Provider, Channel> = {
   PUSH_PENDING: 'PUSH',
 };
 export function eventName(v: unknown): Event {
-  if (!EVENTS.includes(v as Event))
+  if (v === 'QA_COMMUNICATION_TEST') return v;
+  if (!EVENTS.includes(v as (typeof EVENTS)[number]))
     throw new BadRequestException('COMMUNICATION_EVENT_INVALID');
   return v as Event;
 }
@@ -38,6 +39,7 @@ export function providerName(v: string): Provider {
 }
 export function variablesFor(event: Event): string[] {
   if (event === 'SECURITY_PASSWORD_CHANGED') return ['nome'];
+  if (event === 'QA_COMMUNICATION_TEST') return ['nome', 'empresa'];
   return [
     'nome',
     'empresa',

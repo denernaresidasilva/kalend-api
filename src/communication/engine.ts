@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ConflictException,
   HttpException,
+  ForbiddenException,
   Inject,
   Injectable,
 } from '@nestjs/common';
@@ -23,8 +24,20 @@ import {
   TransportFailure,
 } from './contracts.js';
 import type { Message, Variables } from './contracts.js';
-import { boolean, object } from '../common/validation.js';
+import { boolean, object, uuid } from '../common/validation.js';
 import type { Prisma } from '@prisma/client';
+import {
+  QA_COMMUNICATION_EVENT,
+  QA_COMPANY_SLUG,
+  allowedRecipient,
+  allowlistedRecipient,
+  assertQaScope,
+  maskQaRecipient,
+  normalizeQaDestination,
+  qaBusinessKeyPrefix,
+  requireQaCommunicationAllowlist,
+  type QaChannel,
+} from './qa-policy.js';
 const payloadScope = (id: string) => `communication:GLOBAL:delivery:${id}`;
 @Injectable()
 export class CommunicationEngine {
@@ -42,6 +55,8 @@ export class CommunicationEngine {
     input: unknown,
     actorId: string,
   ) {
+    if (event === QA_COMMUNICATION_EVENT)
+      throw new ForbiddenException('QA_TEMPLATE_IS_IMMUTABLE');
     eventName(event);
     if (!['EMAIL', 'WHATSAPP', 'PUSH'].includes(channel))
       throw new BadRequestException('CHANNEL_INVALID');
@@ -91,13 +106,215 @@ export class CommunicationEngine {
       return result;
     });
   }
+  /** Creates one allowlisted QA intent; its payload is fixed and never supplied by the caller. */
+  async createQaIntent(input: unknown, actorId: string) {
+    const allowlist = requireQaCommunicationAllowlist();
+    const data = object(input, [
+      'companyId',
+      'userId',
+      'channel',
+      'idempotencyKey',
+    ]);
+    const companyId = uuid(data.companyId);
+    const userId = uuid(data.userId);
+    const idempotencyKey = uuid(data.idempotencyKey);
+    assertQaScope(companyId, userId, allowlist);
+    if (!['EMAIL', 'WHATSAPP', 'PUSH'].includes(String(data.channel)))
+      throw new BadRequestException('QA_CHANNEL_INVALID');
+    const channel = data.channel as QaChannel;
+    const company = await this.db.company.findUnique({
+      where: { id: companyId },
+      select: { id: true, slug: true, name: true, isActive: true },
+    });
+    const membership = await this.db.membership.findFirst({
+      where: {
+        companyId,
+        userId,
+        role: 'OWNER',
+        isActive: true,
+        user: { isActive: true, isSuperAdmin: false },
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true, phone: true } },
+      },
+    });
+    if (!company?.isActive || company.slug !== QA_COMPANY_SLUG || !membership)
+      throw new ForbiddenException('QA_COMMUNICATION_TENANT_INVALID');
+
+    const provider = await this.configuration.resolveProvider(channel);
+    if (!provider) throw new BadRequestException('QA_PROVIDER_UNAVAILABLE');
+    const providerRow = await this.db.globalCommunicationProvider.findUnique({
+      where: { provider },
+    });
+    if (!providerRow?.enabled || providerRow.scope !== 'GLOBAL')
+      throw new ForbiddenException('QA_PROVIDER_NOT_ALLOWED');
+
+    let recipient: string;
+    let targetKey = 'USER';
+    if (channel === 'EMAIL') recipient = membership.user.email;
+    else if (channel === 'WHATSAPP') {
+      if (!membership.user.phone)
+        throw new ForbiddenException('QA_RECIPIENT_NOT_ALLOWLISTED');
+      recipient = membership.user.phone;
+    } else {
+      const subscriptionId = allowlist.pushSubscriptionId;
+      if (!subscriptionId)
+        throw new ForbiddenException('QA_RECIPIENT_NOT_ALLOWLISTED');
+      const subscription = await this.db.globalPushSubscription.findFirst({
+        where: {
+          id: subscriptionId,
+          userId,
+          scope: 'GLOBAL',
+          provider: 'WEB_PUSH',
+          environment: providerRow.environment,
+          active: true,
+          revokedAt: null,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+          authorizations: {
+            some: {
+              companyId,
+              userId,
+              active: true,
+              revokedAt: null,
+            },
+          },
+        },
+        select: { id: true },
+      });
+      if (!subscription)
+        throw new ForbiddenException('QA_PUSH_DEVICE_NOT_AUTHORIZED');
+      recipient = subscription.id;
+      targetKey = subscription.id;
+    }
+    const normalized = normalizeQaDestination(channel, recipient);
+    const configured = allowlistedRecipient(channel, allowlist);
+    if (!normalized || normalized !== configured)
+      throw new ForbiddenException('QA_RECIPIENT_NOT_ALLOWLISTED');
+    recipient = normalized;
+
+    const content: Variables =
+      channel === 'EMAIL'
+        ? {
+            subject: 'Kalend DEV: teste de comunicação',
+            text: 'Mensagem de homologação QA do Kalend. Nenhuma ação é necessária.',
+          }
+        : channel === 'PUSH'
+          ? {
+              title: 'Kalend DEV: teste QA',
+              text: 'Mensagem de homologação. Nenhuma ação é necessária.',
+            }
+          : {
+              text: 'Mensagem de homologação QA do Kalend. Nenhuma ação é necessária.',
+            };
+    const businessKey = `${qaBusinessKeyPrefix(companyId)}${idempotencyKey}`;
+    const existing = await this.db.globalCommunicationOutbox.findUnique({
+      where: { businessKey },
+      include: { deliveries: true },
+    });
+    const existingVariables = existing?.variables;
+    const existingChannel =
+      existingVariables &&
+      typeof existingVariables === 'object' &&
+      !Array.isArray(existingVariables)
+        ? existingVariables.channel
+        : undefined;
+    if (existing && (existing.userId !== userId || existingChannel !== channel))
+      throw new ConflictException('QA_IDEMPOTENCY_KEY_CONFLICT');
+    if (existing?.deliveries.length === 1)
+      return {
+        outboxId: existing.id,
+        event: QA_COMMUNICATION_EVENT,
+        channel,
+        provider,
+        recipient: maskQaRecipient(channel, recipient),
+        deliveries: 1,
+      };
+    if (existing && existing.deliveries.length > 1)
+      throw new ConflictException('QA_DELIVERY_CARDINALITY_INVALID');
+    const template = await this.db.globalCommunicationTemplate.upsert({
+      where: { event_channel: { event: QA_COMMUNICATION_EVENT, channel } },
+      create: {
+        event: QA_COMMUNICATION_EVENT,
+        channel,
+        provider,
+        enabled: true,
+        content,
+      },
+      update: { provider, enabled: true, content, revision: { increment: 1 } },
+    });
+    const outbox =
+      existing ??
+      (await this.db.globalCommunicationOutbox.create({
+        data: {
+          scope: 'GLOBAL',
+          event: QA_COMMUNICATION_EVENT,
+          businessKey,
+          companyId,
+          userId,
+          variables: { channel },
+          notificationProcessedAt: new Date(),
+          expandedAt: new Date(),
+        },
+        include: { deliveries: true },
+      }));
+    if (!outbox.deliveries.length) {
+      const deliveryId = randomUUID();
+      const message = render(
+        content,
+        channel,
+        QA_COMMUNICATION_EVENT,
+        {
+          nome: membership.user.name,
+          empresa: company.name,
+        },
+        recipient,
+      );
+      if (channel === 'PUSH') pushPayload(message);
+      await this.db.globalCommunicationDelivery.create({
+        data: {
+          id: deliveryId,
+          outboxId: outbox.id,
+          userId,
+          targetKey,
+          channel,
+          provider,
+          environment: providerRow.environment,
+          configurationRevision: providerRow.revision,
+          templateId: template.id,
+          templateRevision: template.revision,
+          recipientMasked: maskQaRecipient(channel, recipient),
+          payloadEncrypted: this.vault.encrypt(
+            JSON.stringify(message),
+            payloadScope(deliveryId),
+          ),
+          status: 'PENDING',
+        },
+      });
+    }
+    await this.db.globalCommunicationLog.create({
+      data: {
+        outboxId: outbox.id,
+        actorId,
+        action: 'QA_INTENT_CREATED',
+        code: channel,
+      },
+    });
+    return {
+      outboxId: outbox.id,
+      event: QA_COMMUNICATION_EVENT,
+      channel,
+      provider,
+      recipient: maskQaRecipient(channel, recipient),
+      deliveries: 1,
+    };
+  }
   /** Expansion is atomic; a concurrent worker either sees all deliveries or none. */
   async expand() {
     return this.db.$transaction(
       async (tx) => {
         const rows = await tx.$queryRaw<
           { id: string }[]
-        >`SELECT id FROM "GlobalCommunicationOutbox" WHERE "expandedAt" IS NULL AND "notificationProcessedAt" IS NOT NULL ORDER BY "createdAt", id LIMIT 20 FOR UPDATE SKIP LOCKED`;
+        >`SELECT id FROM "GlobalCommunicationOutbox" WHERE event <> 'QA_COMMUNICATION_TEST' AND "expandedAt" IS NULL AND "notificationProcessedAt" IS NOT NULL ORDER BY "createdAt", id LIMIT 20 FOR UPDATE SKIP LOCKED`;
         for (const { id } of rows) {
           const event = await tx.globalCommunicationOutbox.findUniqueOrThrow({
             where: { id },
@@ -155,9 +372,10 @@ export class CommunicationEngine {
                   ? t.provider
                   : await this.configuration.resolveProvider(t.channel, tx);
               if (!provider) {
-                const configured = await tx.globalCommunicationProvider.findUnique({
-                  where: { provider: t.provider },
-                });
+                const configured =
+                  await tx.globalCommunicationProvider.findUnique({
+                    where: { provider: t.provider },
+                  });
                 blocked.set(
                   t.channel,
                   !configured
@@ -305,16 +523,27 @@ export class CommunicationEngine {
       { timeout: 15000 },
     );
   }
-  async processOne() {
+  async processOne(qaOnly = false) {
+    const allowlist = qaOnly ? requireQaCommunicationAllowlist() : undefined;
     const now = new Date();
     const candidates = await this.db.globalCommunicationDelivery.findMany({
       where: {
         status: { in: ['PENDING', 'RETRY'] },
         nextAttemptAt: { lte: now },
         attempts: { lt: 5 },
+        outbox: qaOnly
+          ? {
+              event: QA_COMMUNICATION_EVENT,
+              companyId: allowlist!.companyId,
+              userId: allowlist!.userId,
+              businessKey: {
+                startsWith: qaBusinessKeyPrefix(allowlist!.companyId),
+              },
+            }
+          : { event: { not: QA_COMMUNICATION_EVENT } },
       },
       orderBy: [{ nextAttemptAt: 'asc' }, { id: 'asc' }],
-      take: 10,
+      take: qaOnly ? 1 : 10,
     });
     for (const row of candidates) {
       const claimed = await this.db.globalCommunicationDelivery.updateMany({
@@ -347,79 +576,120 @@ export class CommunicationEngine {
             isActive: true,
             user: { isActive: true },
           },
-          include: { user: { select: { email: true, phone: true } } },
+          include: {
+            user: { select: { email: true, phone: true, isSuperAdmin: true } },
+            company: { select: { slug: true, isActive: true } },
+          },
         });
         const t = await this.db.globalCommunicationTemplate.findUnique({
           where: { id: row.templateId },
         });
-        let c: Awaited<ReturnType<CommunicationConfiguration['context']>>;
-        try {
-          c = await this.configuration.context(row.provider);
-        } catch (error) {
-          if (error instanceof HttpException)
-            throw new TransportFailure('CONFIGURATION', 'PROVIDER_UNAVAILABLE');
-          throw error;
-        }
-        if (
-          !member ||
-          !t?.enabled ||
-          t.revision !== row.templateRevision ||
-          c.row.environment !== row.environment ||
-          c.row.revision !== row.configurationRevision
-        ) {
-          status = 'SKIPPED';
-          code = 'AUTHORIZATION_OR_CONFIGURATION_CHANGED';
-        } else {
-          if (!row.payloadEncrypted) throw new TransportFailure('PERMANENT');
-          const message = JSON.parse(
-            this.vault.decrypt(row.payloadEncrypted, payloadScope(row.id)),
-          ) as Message;
-          const current =
-            row.channel === 'EMAIL'
-              ? email(member.user.email)
-              : row.channel === 'WHATSAPP'
-                ? phone(member.user.phone)
+        if (qaOnly) {
+          const channel = row.channel as QaChannel;
+          const currentRecipient =
+            channel === 'EMAIL'
+              ? member?.user.email
+              : channel === 'WHATSAPP'
+                ? (member?.user.phone ?? '')
                 : row.targetKey;
-          const device =
-            row.channel === 'PUSH'
-              ? await this.db.globalPushSubscription.findFirst({
-                  where: {
-                    ...pushTargets({
-                      userId: row.userId,
-                      environment: row.environment,
-                      audience: event.companyId ? 'COMPANY' : 'ACCOUNT',
-                      ...(event.companyId
-                        ? { companyId: event.companyId }
-                        : {}),
-                    }),
-                    id: row.targetKey,
-                  },
-                })
-              : true;
-          if (!device || current !== message.to) {
+          if (
+            event.event !== QA_COMMUNICATION_EVENT ||
+            event.companyId !== allowlist!.companyId ||
+            event.userId !== allowlist!.userId ||
+            !event.businessKey.startsWith(
+              qaBusinessKeyPrefix(allowlist!.companyId),
+            ) ||
+            !member ||
+            member.company.slug !== QA_COMPANY_SLUG ||
+            !member.company.isActive ||
+            member.user.isSuperAdmin ||
+            !allowedRecipient(
+              channel,
+              currentRecipient ?? '',
+              row.targetKey,
+              allowlist!,
+            )
+          ) {
             status = 'SKIPPED';
-            code = 'RECIPIENT_CHANGED';
+            code = 'QA_SCOPE_REJECTED';
+          }
+        }
+        if (status === 'SKIPPED') {
+          // Keep this delivery quarantined; no provider context or external call is made.
+        } else {
+          let c: Awaited<ReturnType<CommunicationConfiguration['context']>>;
+          try {
+            c = await this.configuration.context(row.provider);
+          } catch (error) {
+            if (error instanceof HttpException)
+              throw new TransportFailure(
+                'CONFIGURATION',
+                'PROVIDER_UNAVAILABLE',
+              );
+            throw error;
+          }
+          if (
+            !member ||
+            !t?.enabled ||
+            (qaOnly && t.event !== QA_COMMUNICATION_EVENT) ||
+            t.revision !== row.templateRevision ||
+            c.row.environment !== row.environment ||
+            c.row.revision !== row.configurationRevision
+          ) {
+            status = 'SKIPPED';
+            code = 'AUTHORIZATION_OR_CONFIGURATION_CHANGED';
           } else {
-            providerMessageId = await this.transports.get(row.provider).send(
-              c.config,
-              c.secret,
+            if (!row.payloadEncrypted) throw new TransportFailure('PERMANENT');
+            const message = JSON.parse(
+              this.vault.decrypt(row.payloadEncrypted, payloadScope(row.id)),
+            ) as Message;
+            const current =
+              row.channel === 'EMAIL'
+                ? email(member.user.email)
+                : row.channel === 'WHATSAPP'
+                  ? phone(member.user.phone)
+                  : row.targetKey;
+            const device =
               row.channel === 'PUSH'
-                ? {
-                    ...message,
-                    pushRecipient: {
-                      userId: row.userId,
-                      environment: row.environment,
-                      audience: event.companyId ? 'COMPANY' : 'ACCOUNT',
-                      ...(event.companyId
-                        ? { companyId: event.companyId }
-                        : {}),
+                ? await this.db.globalPushSubscription.findFirst({
+                    where: {
+                      ...pushTargets({
+                        userId: row.userId,
+                        environment: row.environment,
+                        audience: event.companyId ? 'COMPANY' : 'ACCOUNT',
+                        ...(event.companyId
+                          ? { companyId: event.companyId }
+                          : {}),
+                      }),
+                      id: row.targetKey,
                     },
-                  }
-                : row.provider === 'EVOLUTION'
-                  ? { ...message, globalRecipientUserId: row.userId }
-                  : message,
-            );
-            status = 'ACCEPTED';
+                  })
+                : true;
+            if (!device || current !== message.to) {
+              status = 'SKIPPED';
+              code = 'RECIPIENT_CHANGED';
+            } else {
+              providerMessageId = await this.transports.get(row.provider).send(
+                c.config,
+                c.secret,
+                row.channel === 'PUSH'
+                  ? {
+                      ...message,
+                      pushRecipient: {
+                        userId: row.userId,
+                        environment: row.environment,
+                        audience: event.companyId ? 'COMPANY' : 'ACCOUNT',
+                        ...(event.companyId
+                          ? { companyId: event.companyId }
+                          : {}),
+                      },
+                    }
+                  : row.provider === 'EVOLUTION'
+                    ? { ...message, globalRecipientUserId: row.userId }
+                    : message,
+              );
+              status = 'ACCEPTED';
+            }
           }
         }
       } catch (e) {
@@ -484,6 +754,29 @@ export class CommunicationEngine {
     let processed = 0;
     while (processed < 50 && (await this.processOne())) processed++;
     return { expanded, processed };
+  }
+  /** Processes at most one already-created QA delivery and never reads commercial events. */
+  async runQaOnly() {
+    const allowlist = requireQaCommunicationAllowlist();
+    const pending = await this.db.globalCommunicationDelivery.findMany({
+      where: {
+        status: { in: ['PENDING', 'RETRY'] },
+        nextAttemptAt: { lte: new Date() },
+        attempts: { lt: 5 },
+        outbox: {
+          event: QA_COMMUNICATION_EVENT,
+          companyId: allowlist.companyId,
+          userId: allowlist.userId,
+          businessKey: { startsWith: qaBusinessKeyPrefix(allowlist.companyId) },
+        },
+      },
+      take: 2,
+      select: { id: true },
+    });
+    if (pending.length > 1)
+      throw new ConflictException('QA_PENDING_DELIVERY_LIMIT_EXCEEDED');
+    const processed = pending.length && (await this.processOne(true)) ? 1 : 0;
+    return { qaOnly: true, eligible: pending.length, processed };
   }
   async reprocess(id: string, actorId: string) {
     return this.db.$transaction(async (tx) => {

@@ -23,6 +23,7 @@
     "postinstall": "prisma skills sync || exit 0",
     "admin:create": "npm run build && node scripts/admin-create.mjs",
     "communication:worker": "node dist/communication/worker.js",
+    "communication:worker:qa": "node dist/communication/worker.js --qa-only",
     "communication:scheduler": "node dist/communication/scheduler.js"
   },
   "dependencies": {
