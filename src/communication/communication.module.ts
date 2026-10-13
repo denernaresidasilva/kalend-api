@@ -131,6 +131,11 @@ export class CommunicationController {
   @Get('deliveries') deliveries(@Query() query: Record<string, string> = {}) {
     return this.engine.listDeliveries({}, query);
   }
+  @Get('outbox/failures') outboxFailures(
+    @Query() query: Record<string, string> = {},
+  ) {
+    return this.engine.listOutboxFailures(query);
+  }
   @Get('failures') failures(@Query() query: Record<string, string> = {}) {
     return this.engine.listDeliveries(
       {

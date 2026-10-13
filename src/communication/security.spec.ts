@@ -220,13 +220,16 @@ describe('global communication security contracts', () => {
     const now = new Date(0);
     expect(retry('TRANSIENT', 1, now)?.getTime()).toBe(60000);
     expect(retry('RATE_LIMIT', 4, now)?.getTime()).toBe(480000);
+    expect(retry('UNKNOWN', 2, now)?.getTime()).toBe(120000);
     expect(retry('TRANSIENT', 5, now)).toBeNull();
+    expect(retry('UNKNOWN', 5, now)).toBeNull();
     for (const kind of [
       'AUTH',
       'PERMANENT',
       'UNCERTAIN',
       'TEMPLATE',
       'RECIPIENT',
+      'CONFIGURATION',
     ] as const)
       expect(retry(kind, 1, now)).toBeNull();
   });

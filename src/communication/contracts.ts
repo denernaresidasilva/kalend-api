@@ -205,6 +205,8 @@ export type FailureKind =
   | 'RATE_LIMIT'
   | 'AUTH'
   | 'PERMANENT'
+  | 'CONFIGURATION'
+  | 'UNKNOWN'
   | 'UNCERTAIN'
   | 'TEMPLATE'
   | 'RECIPIENT';
@@ -217,7 +219,10 @@ export class TransportFailure extends Error {
   }
 }
 export function retry(kind: FailureKind, attempts: number, now = new Date()) {
-  return (kind === 'TRANSIENT' || kind === 'RATE_LIMIT') && attempts < 5
+  return (
+    (kind === 'TRANSIENT' || kind === 'RATE_LIMIT' || kind === 'UNKNOWN') &&
+    attempts < 5
+  )
     ? new Date(
         now.getTime() +
           Math.min(3600, 60 * 2 ** Math.max(0, attempts - 1)) * 1000,

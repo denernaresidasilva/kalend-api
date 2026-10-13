@@ -1,10 +1,27 @@
 import { randomBytes } from 'node:crypto';
+import { ServiceUnavailableException } from '@nestjs/common';
 import { CommunicationEngine } from './engine.js';
 import { SecretVault } from '../billing/secret-vault.js';
 import { TransportFailure } from './contracts.js';
 function fixture() {
   const vault = new SecretVault();
-  const delivery = {
+  const delivery: {
+    id: string;
+    outboxId: string;
+    userId: string;
+    channel: string;
+    provider: string;
+    environment: string;
+    configurationRevision: number;
+    templateId: string;
+    templateRevision: number;
+    status: string;
+    attempts: number;
+    payloadEncrypted: string | null;
+    providerMessageId?: string | null;
+    nextAttemptAt?: Date | null;
+    lastError?: string | null;
+  } = {
     id: 'delivery',
     outboxId: 'event',
     userId: 'owner',
@@ -56,13 +73,13 @@ function fixture() {
     globalCommunicationTemplate: {
       findUnique: vi.fn().mockResolvedValue({ enabled: true, revision: 1 }),
     },
-    globalCommunicationProvider: { updateMany: vi.fn() },
+    globalCommunicationProvider: { findUnique: vi.fn(), updateMany: vi.fn() },
     globalCommunicationLog: { create: vi.fn() },
     $transaction: vi.fn(),
   };
   db.$transaction.mockImplementation((fn) => fn(db));
   const config = {
-    resolveProvider: vi.fn(async (channel: string) =>
+    resolveProvider: vi.fn(async (channel: string): Promise<string | null> =>
       channel === 'EMAIL'
         ? 'SMTP'
         : channel === 'WHATSAPP'
@@ -96,6 +113,7 @@ describe('outbox delivery and retries', () => {
     expect(send).toHaveBeenCalledTimes(1);
     expect(delivery.status).toBe('ACCEPTED');
     expect(delivery.attempts).toBe(1);
+    expect(delivery.providerMessageId).toBe('message-id');
     expect(delivery.payloadEncrypted).toBeNull();
   });
   it.each([
@@ -105,6 +123,8 @@ describe('outbox delivery and retries', () => {
     ['PERMANENT', 'FAILED'],
     ['TEMPLATE', 'FAILED'],
     ['RECIPIENT', 'FAILED'],
+    ['CONFIGURATION', 'FAILED'],
+    ['UNKNOWN', 'RETRY'],
     ['UNCERTAIN', 'UNCERTAIN'],
   ] as const)(
     'classifies %s as %s and sanitizes logs',
@@ -126,6 +146,22 @@ describe('outbox delivery and retries', () => {
     await engine.processOne();
     expect(delivery.status).toBe('FAILED');
     expect(delivery.attempts).toBe(5);
+  });
+  it('retries the same delivery after backoff and records provider acceptance', async () => {
+    const { engine, send, delivery } = fixture();
+    send.mockRejectedValueOnce(new TransportFailure('TRANSIENT'));
+    send.mockResolvedValueOnce('accepted-message-id');
+    await engine.processOne();
+    expect(delivery.status).toBe('RETRY');
+    expect(delivery.attempts).toBe(1);
+    expect(delivery.nextAttemptAt).toBeInstanceOf(Date);
+    expect(delivery.nextAttemptAt!.getTime()).toBeGreaterThan(Date.now());
+    delivery.nextAttemptAt = new Date(0);
+    await engine.processOne();
+    expect(delivery.status).toBe('ACCEPTED');
+    expect(delivery.attempts).toBe(2);
+    expect(delivery.providerMessageId).toBe('accepted-message-id');
+    expect(send).toHaveBeenCalledTimes(2);
   });
   it.each(['membership', 'template', 'configuration', 'recipient'])(
     'revalidates %s before sending',
@@ -163,13 +199,24 @@ describe('outbox delivery and retries', () => {
     expect(send).not.toHaveBeenCalled();
     expect(delivery.status).toBe('FAILED');
   });
-  it('does not invoke any financial mutation when a provider fails', async () => {
+  it('retries a bounded unknown error and persists no raw provider exception', async () => {
     const { engine, send, db } = fixture();
     send.mockRejectedValue(new Error('provider token SECRET'));
     await expect(engine.processOne()).resolves.toBe(true);
     expect(db.globalCommunicationLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ code: 'COMMUNICATION_PERMANENT' }),
+      data: expect.objectContaining({ code: 'COMMUNICATION_UNKNOWN', action: 'RETRY', attempt: 1 }),
     });
+    expect(JSON.stringify(db.globalCommunicationLog.create.mock.calls)).not.toContain('SECRET');
+  });
+  it('does not retry a provider disabled or misconfigured after expansion', async () => {
+    const { engine, send, db, delivery, config } = fixture();
+    const configFailure = new ServiceUnavailableException('SMTP secret SECRET');
+    config.context.mockRejectedValue(configFailure);
+    await engine.processOne();
+    expect(send).not.toHaveBeenCalled();
+    expect(delivery.status).toBe('FAILED');
+    expect(delivery.lastError).toBe('PROVIDER_UNAVAILABLE');
+    expect(JSON.stringify(db.globalCommunicationLog.create.mock.calls)).not.toContain('SECRET');
   });
   it('does not resend after DB fails to persist external acceptance', async () => {
     const { engine, send, db, delivery } = fixture();
@@ -260,6 +307,113 @@ describe('outbox delivery and retries', () => {
     expect(additions.globalCommunicationTemplate.findMany).toHaveBeenCalledWith(
       { where: { event: 'PAYMENT_APPROVED', enabled: true } },
     );
+  });
+
+  it('keeps provider-missing outbox recoverable and expands it once configuration returns', async () => {
+    const f = fixture();
+    const outbox = {
+      id: 'outbox-no-provider',
+      event: 'PAYMENT_APPROVED',
+      companyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      variables: { valor: '10 BRL' },
+      expandedAt: null as Date | null,
+      lastError: null as string | null,
+    };
+    const createMany = vi.fn();
+    const outboxUpdate = vi.fn(async ({ data }) => Object.assign(outbox, data));
+    const outboxLog = vi.fn();
+    Object.assign(f.db, {
+      $queryRaw: vi.fn(async () => (outbox.expandedAt ? [] : [{ id: outbox.id }])),
+      globalCommunicationOutbox: {
+        findUniqueOrThrow: vi.fn(async () => ({ ...outbox })),
+        update: outboxUpdate,
+      },
+      globalCommunicationTemplate: {
+        findMany: vi.fn(async () => [{
+          id: 'email-template', revision: 1, provider: 'SMTP', channel: 'EMAIL',
+          content: { subject: 'Pagamento', text: '{{valor}}' },
+        }]),
+      },
+      membership: {
+        findMany: vi.fn(async () => [{
+          userId: 'owner', user: { name: 'Owner', email: 'owner@example.test' },
+          company: { name: 'Empresa QA' },
+        }]),
+      },
+      globalCommunicationProvider: { findUnique: vi.fn(async () => null) },
+      globalCommunicationDelivery: { createMany },
+      globalCommunicationLog: { create: outboxLog },
+    });
+    f.config.resolveProvider.mockResolvedValue(null);
+
+    await f.engine.expand();
+
+    expect(outbox.expandedAt).toBeNull();
+    expect(outbox.lastError).toBe('NO_ACTIVE_PROVIDER');
+    expect(createMany).not.toHaveBeenCalled();
+    expect(outboxLog).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        outboxId: outbox.id,
+        action: 'OUTBOX_BLOCKED_EMAIL',
+        code: 'NO_ACTIVE_PROVIDER',
+      }),
+    });
+
+    // The same business event remains pending and is expanded once the provider returns.
+    (f.db.globalCommunicationProvider.findUnique as ReturnType<typeof vi.fn>)
+      .mockResolvedValue({ scope: 'GLOBAL', enabled: true, environment: 'SANDBOX', revision: 1 });
+    f.config.resolveProvider.mockResolvedValue('SMTP');
+    await f.engine.expand();
+    expect(createMany).toHaveBeenCalledTimes(1);
+    expect(createMany.mock.calls[0][0].data[0]).toMatchObject({
+      outboxId: outbox.id,
+      userId: 'owner',
+      channel: 'EMAIL',
+      status: 'PENDING',
+      provider: 'SMTP',
+    });
+    expect(outbox.expandedAt).toBeInstanceOf(Date);
+    expect(outbox.lastError).toBeNull();
+    expect(outboxLog).toHaveBeenCalledWith({
+      data: expect.objectContaining({ outboxId: outbox.id, action: 'OUTBOX_EXPANDED' }),
+    });
+    await f.engine.expand();
+    expect(createMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('records a disabled GLOBAL provider as a blocked configuration, without creating a delivery', async () => {
+    const f = fixture();
+    const outbox = { id: 'disabled', event: 'PAYMENT_APPROVED', companyId: 'company', variables: {}, expandedAt: null, lastError: null };
+    const createMany = vi.fn();
+    const log = vi.fn();
+    Object.assign(f.db, {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: outbox.id }]),
+      globalCommunicationOutbox: { findUniqueOrThrow: vi.fn().mockImplementation(async () => ({ ...outbox })), update: vi.fn(async ({ data }) => Object.assign(outbox, data)) },
+      globalCommunicationTemplate: { findMany: vi.fn().mockResolvedValue([{ id: 'template', revision: 1, provider: 'SMTP', channel: 'EMAIL', content: {} }]) },
+      membership: { findMany: vi.fn().mockResolvedValue([{ userId: 'owner', user: { name: 'Owner', email: 'owner@example.test' }, company: { name: 'QA' } }]) },
+      globalCommunicationProvider: { findUnique: vi.fn().mockResolvedValue({ scope: 'GLOBAL', enabled: false }) },
+      globalCommunicationDelivery: { createMany },
+      globalCommunicationLog: { create: log },
+    });
+    f.config.resolveProvider.mockResolvedValue(null);
+    await f.engine.expand();
+    expect(outbox.expandedAt).toBeNull();
+    expect(outbox.lastError).toBe('PROVIDER_DISABLED');
+    expect(createMany).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith({ data: expect.objectContaining({ code: 'PROVIDER_DISABLED' }) });
+  });
+  it('lists blocked outbox rows without returning event variables', async () => {
+    const { engine, db } = fixture();
+    const findMany = vi.fn().mockResolvedValue([]);
+    Object.assign(db, { globalCommunicationOutbox: { findMany } });
+    await engine.listOutboxFailures({ limit: '25', offset: '10' });
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { scope: 'GLOBAL', expandedAt: null, lastError: { not: null } },
+      select: expect.objectContaining({ id: true, event: true, lastError: true }),
+      take: 25,
+      skip: 10,
+    }));
+    expect(JSON.stringify(findMany.mock.calls)).not.toContain('variables');
   });
 });
 

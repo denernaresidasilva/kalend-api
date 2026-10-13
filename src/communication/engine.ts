@@ -3,6 +3,7 @@ import { pushPayload, pushTargets } from './push.js';
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
   Inject,
   Injectable,
 } from '@nestjs/common';
@@ -142,27 +143,48 @@ export class CommunicationEngine {
           });
           // Security event has an explicit user, never any arbitrary tenant user.
           const unique = new Map(members.map((m) => [m.userId, m]));
+          const blocked = new Map<string, string>();
           for (const member of unique.values())
             for (const t of templates) {
               if (channels[t.provider] !== t.channel) {
-                await tx.globalCommunicationLog.create({
-                  data: {
-                    outboxId: id,
-                    action: 'TEMPLATE_REJECTED',
-                    code: 'OUTBOX_CHANNEL_INVALID',
-                  },
-                });
+                blocked.set(t.channel, 'TEMPLATE_PROVIDER_MISMATCH');
                 continue;
               }
               const provider =
                 t.provider === 'META'
                   ? t.provider
                   : await this.configuration.resolveProvider(t.channel, tx);
-              if (!provider) continue;
+              if (!provider) {
+                const configured = await tx.globalCommunicationProvider.findUnique({
+                  where: { provider: t.provider },
+                });
+                blocked.set(
+                  t.channel,
+                  !configured
+                    ? 'NO_ACTIVE_PROVIDER'
+                    : configured.scope !== 'GLOBAL'
+                      ? 'PROVIDER_SCOPE_INVALID'
+                      : !configured.enabled
+                        ? 'PROVIDER_DISABLED'
+                        : 'PROVIDER_UNAVAILABLE',
+                );
+                continue;
+              }
               const cfg = await tx.globalCommunicationProvider.findUnique({
                 where: { provider },
               });
-              if (!cfg?.enabled || cfg.scope !== 'GLOBAL') continue;
+              if (!cfg) {
+                blocked.set(t.channel, 'NO_ACTIVE_PROVIDER');
+                continue;
+              }
+              if (cfg.scope !== 'GLOBAL') {
+                blocked.set(t.channel, 'PROVIDER_SCOPE_INVALID');
+                continue;
+              }
+              if (!cfg.enabled) {
+                blocked.set(t.channel, 'PROVIDER_DISABLED');
+                continue;
+              }
               const targets =
                 t.channel === 'PUSH'
                   ? await tx.globalPushSubscription.findMany({
@@ -251,16 +273,32 @@ export class CommunicationEngine {
                 });
               }
             }
+          const failure = [...blocked.values()].sort().join(',') || null;
           await tx.globalCommunicationOutbox.update({
             where: { id },
-            data: { expandedAt: new Date() },
+            data: failure
+              ? { lastError: failure }
+              : { expandedAt: new Date(), lastError: null },
           });
-          await tx.globalCommunicationLog.create({
-            data: {
-              action: 'OUTBOX_EXPANDED',
-              code: unique.size ? 'PROCESSED' : 'NO_OWNER',
-            },
-          });
+          if (failure) {
+            if (event.lastError !== failure)
+              for (const [channel, code] of blocked)
+                await tx.globalCommunicationLog.create({
+                  data: {
+                    outboxId: id,
+                    action: `OUTBOX_BLOCKED_${channel}`,
+                    code,
+                  },
+                });
+          } else {
+            await tx.globalCommunicationLog.create({
+              data: {
+                outboxId: id,
+                action: 'OUTBOX_EXPANDED',
+                code: unique.size ? 'PROCESSED' : 'NO_OWNER',
+              },
+            });
+          }
         }
         return rows.length;
       },
@@ -314,7 +352,14 @@ export class CommunicationEngine {
         const t = await this.db.globalCommunicationTemplate.findUnique({
           where: { id: row.templateId },
         });
-        const c = await this.configuration.context(row.provider);
+        let c: Awaited<ReturnType<CommunicationConfiguration['context']>>;
+        try {
+          c = await this.configuration.context(row.provider);
+        } catch (error) {
+          if (error instanceof HttpException)
+            throw new TransportFailure('CONFIGURATION', 'PROVIDER_UNAVAILABLE');
+          throw error;
+        }
         if (
           !member ||
           !t?.enabled ||
@@ -378,8 +423,13 @@ export class CommunicationEngine {
           }
         }
       } catch (e) {
-        const kind = e instanceof TransportFailure ? e.kind : 'PERMANENT';
-        code = `COMMUNICATION_${kind}`;
+        const kind = e instanceof TransportFailure ? e.kind : 'UNKNOWN';
+        code =
+          e instanceof TransportFailure &&
+          e.code &&
+          /^[A-Z0-9_]{1,64}$/.test(e.code)
+            ? e.code
+            : `COMMUNICATION_${kind}`;
         const next = retry(kind, row.attempts + 1, now);
         status = next ? 'RETRY' : kind === 'UNCERTAIN' ? 'UNCERTAIN' : 'FAILED';
         if (next) nextAttemptAt = next;
@@ -497,6 +547,27 @@ export class CommunicationEngine {
       skip: page.skip,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       omit: { payloadEncrypted: true },
+    });
+  }
+  listOutboxFailures(query: unknown = {}) {
+    const page = adminList(query, []);
+    return this.db.globalCommunicationOutbox.findMany({
+      where: {
+        scope: 'GLOBAL',
+        expandedAt: null,
+        lastError: { not: null },
+      },
+      take: page.take,
+      skip: page.skip,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: {
+        id: true,
+        event: true,
+        companyId: true,
+        expandedAt: true,
+        lastError: true,
+        createdAt: true,
+      },
     });
   }
 }
