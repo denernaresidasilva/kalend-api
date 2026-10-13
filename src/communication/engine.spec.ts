@@ -73,6 +73,10 @@ function fixture() {
     globalCommunicationTemplate: {
       findUnique: vi.fn().mockResolvedValue({ enabled: true, revision: 1 }),
     },
+    companyCommunicationTemplate: {
+      findUnique: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     globalCommunicationProvider: { findUnique: vi.fn(), updateMany: vi.fn() },
     globalCommunicationLog: { create: vi.fn() },
     $transaction: vi.fn(),
@@ -100,13 +104,40 @@ function fixture() {
     config as never,
     transports as never,
   );
-  return { engine, db, delivery, send, config };
+  return { engine, db, delivery, send, config, transports };
 }
 beforeEach(() =>
   vi.stubEnv('GATEWAY_ENCRYPTION_KEY', randomBytes(32).toString('hex')),
 );
 afterEach(() => vi.unstubAllEnvs());
 describe('outbox delivery and retries', () => {
+  it('persists each GLOBAL event/channel independently and keeps provider state separate', async () => {
+    const f = fixture();
+    const records = new Map<string, Record<string, unknown>>();
+    const upsert = vi.fn(async ({ where, create, update }: { where: { event_channel: { event: string; channel: string } }; create: Record<string, unknown>; update: Record<string, unknown> }) => {
+      const key = `${where.event_channel.event}:${where.event_channel.channel}`;
+      const old = records.get(key);
+      const next = old ? { ...old, ...update } : { id: key, revision: 1, ...create };
+      records.set(key, next);
+      return next;
+    });
+    Object.assign(f.db, { globalCommunicationTemplate: { upsert }, globalCommunicationLog: { create: vi.fn() } });
+    f.transports.available = vi.fn().mockReturnValue(false);
+    const save = (channel: 'EMAIL' | 'WHATSAPP' | 'PUSH', content: Record<string, string>) =>
+      f.engine.template('OWNER_WELCOME', channel, { enabled: true, content }, 'admin');
+
+    await save('EMAIL', { subject: 'Assunto inicial', text: 'Email {{nome}}' });
+    await save('WHATSAPP', { text: 'WhatsApp {{nome}}' });
+    await save('PUSH', { title: 'Push', text: 'Push {{nome}}' });
+    await save('EMAIL', { subject: 'Assunto editado', text: 'Email atualizado {{nome}}' });
+
+    expect(upsert).toHaveBeenCalledTimes(4);
+    expect(records.size).toBe(3);
+    expect(records.get('OWNER_WELCOME:EMAIL')).toMatchObject({ enabled: true, content: { subject: 'Assunto editado', text: 'Email atualizado {{nome}}' } });
+    expect(records.get('OWNER_WELCOME:WHATSAPP')).toMatchObject({ enabled: true, content: { text: 'WhatsApp {{nome}}' } });
+    expect(records.get('OWNER_WELCOME:PUSH')).toMatchObject({ enabled: true, content: { title: 'Push', text: 'Push {{nome}}' } });
+  });
+
   it('claims concurrent workers once and purges recipient/content after acceptance', async () => {
     const { engine, send, delivery } = fixture();
     await Promise.all([engine.processOne(), engine.processOne()]);
@@ -250,6 +281,7 @@ describe('outbox delivery and retries', () => {
           {
             id: 'email',
             revision: 1,
+            enabled: true,
             provider: 'SMTP',
             channel: 'EMAIL',
             content: { subject: 'Pagamento', text: '{{nome}} {{valor}}' },
@@ -257,6 +289,7 @@ describe('outbox delivery and retries', () => {
           {
             id: 'wa',
             revision: 1,
+            enabled: true,
             provider: 'EVOLUTION',
             channel: 'WHATSAPP',
             content: { text: '{{valor}}' },
@@ -305,8 +338,67 @@ describe('outbox delivery and retries', () => {
       }),
     );
     expect(additions.globalCommunicationTemplate.findMany).toHaveBeenCalledWith(
-      { where: { event: 'PAYMENT_APPROVED', enabled: true } },
+      { where: { event: 'PAYMENT_APPROVED', scope: 'GLOBAL' } },
     );
+  });
+
+  it.each([
+    ['no company override falls back to GLOBAL', [], 'global-template', 'GLOBAL'],
+    ['active company override wins', [{ id: 'company-template', revision: 2, channel: 'EMAIL', enabled: true, content: { subject: 'Company', text: 'custom' } }], 'company-template', 'COMPANY'],
+    ['disabled company override blocks GLOBAL fallback', [{ id: 'company-disabled', revision: 3, channel: 'EMAIL', enabled: false, content: { subject: 'Company', text: 'custom' } }], null, null],
+  ] as const)('%s', async (_label, companyRows, expectedTemplateId, expectedScope) => {
+    const f = fixture();
+    const outboxId = 'company-template-outbox';
+    const createMany = vi.fn();
+    Object.assign(f.db, {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: outboxId }]),
+      globalCommunicationOutbox: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          id: outboxId,
+          companyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          event: 'PAYMENT_APPROVED',
+          variables: { valor: '10 BRL' },
+          expandedAt: null,
+          lastError: null,
+        }),
+        update: vi.fn(),
+      },
+      globalCommunicationTemplate: {
+        findMany: vi.fn().mockResolvedValue([{
+          id: 'global-template', revision: 1, provider: 'SMTP', channel: 'EMAIL', enabled: true,
+          content: { subject: 'Global', text: 'global' },
+        }]),
+      },
+      companyCommunicationTemplate: {
+        findMany: vi.fn().mockResolvedValue(companyRows),
+        findUnique: vi.fn(),
+      },
+      membership: {
+        findMany: vi.fn().mockResolvedValue([{
+          userId: 'owner',
+          user: { name: 'Owner', email: 'owner@example.test', phone: null },
+          company: { name: 'Empresa' },
+        }]),
+      },
+      globalCommunicationProvider: {
+        findUnique: vi.fn().mockResolvedValue({ enabled: true, scope: 'GLOBAL', environment: 'SANDBOX', revision: 1 }),
+      },
+      globalCommunicationDelivery: { createMany },
+    });
+    f.config.resolveProvider.mockResolvedValue('SMTP');
+
+    await f.engine.expand();
+
+    if (expectedTemplateId) {
+      expect(createMany).toHaveBeenCalledTimes(1);
+      expect(createMany.mock.calls[0][0].data[0]).toMatchObject({
+        templateId: expectedTemplateId,
+        templateScope: expectedScope,
+      });
+    } else expect(createMany).not.toHaveBeenCalled();
+    expect(f.db.companyCommunicationTemplate.findMany).toHaveBeenCalledWith({
+      where: { companyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', event: 'PAYMENT_APPROVED' },
+    });
   });
 
   it('keeps provider-missing outbox recoverable and expands it once configuration returns', async () => {
@@ -330,7 +422,7 @@ describe('outbox delivery and retries', () => {
       },
       globalCommunicationTemplate: {
         findMany: vi.fn(async () => [{
-          id: 'email-template', revision: 1, provider: 'SMTP', channel: 'EMAIL',
+          id: 'email-template', revision: 1, enabled: true, provider: 'SMTP', channel: 'EMAIL',
           content: { subject: 'Pagamento', text: '{{valor}}' },
         }]),
       },
@@ -389,7 +481,7 @@ describe('outbox delivery and retries', () => {
     Object.assign(f.db, {
       $queryRaw: vi.fn().mockResolvedValue([{ id: outbox.id }]),
       globalCommunicationOutbox: { findUniqueOrThrow: vi.fn().mockImplementation(async () => ({ ...outbox })), update: vi.fn(async ({ data }) => Object.assign(outbox, data)) },
-      globalCommunicationTemplate: { findMany: vi.fn().mockResolvedValue([{ id: 'template', revision: 1, provider: 'SMTP', channel: 'EMAIL', content: {} }]) },
+      globalCommunicationTemplate: { findMany: vi.fn().mockResolvedValue([{ id: 'template', revision: 1, enabled: true, provider: 'SMTP', channel: 'EMAIL', content: {} }]) },
       membership: { findMany: vi.fn().mockResolvedValue([{ userId: 'owner', user: { name: 'Owner', email: 'owner@example.test' }, company: { name: 'QA' } }]) },
       globalCommunicationProvider: { findUnique: vi.fn().mockResolvedValue({ scope: 'GLOBAL', enabled: false }) },
       globalCommunicationDelivery: { createMany },
@@ -436,6 +528,7 @@ describe('Phase 3 shares the existing outbox motor', () => {
           {
             id: 'email',
             revision: 1,
+            enabled: true,
             provider: 'GMAIL',
             channel: 'EMAIL',
             content: { subject: 'Pagamento', text: '{{valor}}' },
@@ -443,6 +536,7 @@ describe('Phase 3 shares the existing outbox motor', () => {
           {
             id: 'push',
             revision: 1,
+            enabled: true,
             provider: 'PUSH_PENDING',
             channel: 'PUSH',
             content: { title: 'Kalend', text: '{{valor}}' },

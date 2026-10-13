@@ -118,6 +118,10 @@ describe('Phase 4 Push HTTP and existing worker with real authorization/cryptogr
         findMany: vi.fn(async () => [template]),
         findUnique: vi.fn(async () => template),
       },
+      companyCommunicationTemplate: {
+        findMany: vi.fn(async () => []),
+        findUnique: vi.fn(async () => null),
+      },
       globalCommunicationDelivery: {
         findMany: vi.fn(async () =>
           deliveries

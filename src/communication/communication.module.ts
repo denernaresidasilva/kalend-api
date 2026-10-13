@@ -21,6 +21,7 @@ import { MetaTemplates } from './meta.js';
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Inject,
   Module,
@@ -42,6 +43,9 @@ import { CommunicationEngine } from './engine.js';
 import { CommunicationTransports } from './transports.js';
 import { QA_COMMUNICATION_EVENT, qaCommunicationEnabled } from './qa-policy.js';
 import { EVENTS, variablesFor } from './contracts.js';
+import { GlobalTemplateDefaults } from './template-defaults.js';
+import { CompanyCommunicationTemplates } from './company-templates.js';
+import { TenantGuard, TenantRoles } from '../auth/tenant.guard.js';
 @Controller('communication')
 @UseGuards(AdminGuard)
 export class CommunicationController {
@@ -52,6 +56,8 @@ export class CommunicationController {
     @Inject(CommunicationEngine) private readonly engine: CommunicationEngine,
     @Inject(PrismaService) private readonly db: PrismaService,
     @Inject(AuthRateLimit) private readonly limit: AuthRateLimit,
+    @Inject(GlobalTemplateDefaults)
+    private readonly templateDefaults: GlobalTemplateDefaults,
   ) {}
   @Get('providers') providers() {
     return this.config.list();
@@ -117,7 +123,8 @@ export class CommunicationController {
     );
     return this.engine.createQaIntent(body, req.auth.user.id);
   }
-  @Get('templates') templates() {
+  @Get('templates') async templates() {
+    await this.templateDefaults.ensure();
     return this.db.globalCommunicationTemplate.findMany({
       take: 100,
       where: qaCommunicationEnabled()
@@ -177,6 +184,48 @@ export class CommunicationController {
     return this.engine.reprocess(id, req.auth.user.id);
   }
 }
+@Controller('communication/company/templates')
+@UseGuards(TenantGuard)
+@TenantRoles('OWNER', 'ADMIN')
+export class CompanyCommunicationTemplatesController {
+  constructor(
+    @Inject(CompanyCommunicationTemplates)
+    private readonly templatesService: CompanyCommunicationTemplates,
+  ) {}
+
+  @Get() list(@Req() req: AuthRequest) {
+    return this.templatesService.list(req.tenant!.companyId);
+  }
+
+  @Patch(':event/:channel') save(
+    @Param('event') event: string,
+    @Param('channel') channel: string,
+    @Body() body: unknown,
+    @Req() req: AuthRequest,
+  ) {
+    return this.templatesService.save(
+      req.tenant!.companyId,
+      event,
+      channel,
+      body,
+      req.auth.user.id,
+    );
+  }
+
+  @Delete(':event/:channel') restore(
+    @Param('event') event: string,
+    @Param('channel') channel: string,
+    @Req() req: AuthRequest,
+  ) {
+    return this.templatesService.restore(
+      req.tenant!.companyId,
+      event,
+      channel,
+      req.auth.user.id,
+    );
+  }
+}
+
 @Module({
   controllers: [
     GlobalEvolutionController,
@@ -185,6 +234,7 @@ export class CommunicationController {
     SystemEmailController,
     CompanyEmailController,
     CommunicationController,
+    CompanyCommunicationTemplatesController,
     MetaWebhookController,
     GmailController,
     PushController,
@@ -201,6 +251,8 @@ export class CommunicationController {
     MetaWebhook,
     CommunicationConfiguration,
     CommunicationEngine,
+    GlobalTemplateDefaults,
+    CompanyCommunicationTemplates,
     CommunicationTransports,
     SecretVault,
     AuthRateLimit,

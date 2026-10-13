@@ -24,6 +24,7 @@ import {
   TransportFailure,
 } from './contracts.js';
 import type { Message, Variables } from './contracts.js';
+import { resolveEffectiveTemplate } from './company-templates.js';
 import { boolean, object, uuid } from '../common/validation.js';
 import type { Prisma } from '@prisma/client';
 import {
@@ -75,8 +76,6 @@ export class CommunicationEngine {
         ? await this.configuration.resolveProvider(typedChannel, this.db, false)
         : d.provider
     ) as keyof typeof channels;
-    if (d.enabled && !this.transports.available(provider))
-      throw new BadRequestException('PROVIDER_UNAVAILABLE');
     const content = templateContent(
       d.content,
       typedChannel,
@@ -341,9 +340,40 @@ export class CommunicationEngine {
             });
             continue;
           }
-          const templates = await tx.globalCommunicationTemplate.findMany({
-            where: { event: name, enabled: true },
-          });
+          const [globalTemplates, companyTemplates] = await Promise.all([
+            tx.globalCommunicationTemplate.findMany({
+              where: { event: name, scope: 'GLOBAL' },
+            }),
+            event.companyId
+              ? tx.companyCommunicationTemplate.findMany({
+                  where: { event: name, companyId: event.companyId },
+                })
+              : Promise.resolve([]),
+          ]);
+          const globalByChannel = new Map(
+            globalTemplates.map((template) => [template.channel, template]),
+          );
+          const companyByChannel = new Map(
+            companyTemplates.map((template) => [template.channel, template]),
+          );
+          const channelsToResolve = new Set([
+            ...globalByChannel.keys(),
+            ...companyByChannel.keys(),
+          ]);
+          const templates = [...channelsToResolve]
+            .map((channel) => {
+              const selected = resolveEffectiveTemplate(
+                globalByChannel.get(channel),
+                companyByChannel.get(channel),
+              );
+              if (!selected?.enabled) return null;
+              return {
+                ...selected,
+                channel,
+                provider: selected.source === 'GLOBAL' ? selected.provider : undefined,
+              };
+            })
+            .filter((template) => template !== null);
           const members = await tx.membership.findMany({
             where: {
               companyId: event.companyId ?? undefined,
@@ -363,7 +393,7 @@ export class CommunicationEngine {
           const blocked = new Map<string, string>();
           for (const member of unique.values())
             for (const t of templates) {
-              if (channels[t.provider] !== t.channel) {
+              if (t.provider && channels[t.provider] !== t.channel) {
                 blocked.set(t.channel, 'TEMPLATE_PROVIDER_MISMATCH');
                 continue;
               }
@@ -372,10 +402,14 @@ export class CommunicationEngine {
                   ? t.provider
                   : await this.configuration.resolveProvider(t.channel, tx);
               if (!provider) {
-                const configured =
-                  await tx.globalCommunicationProvider.findUnique({
-                    where: { provider: t.provider },
-                  });
+                const candidateProvider =
+                  t.provider ??
+                  (Object.keys(channels).find(
+                    (name) => channels[name as keyof typeof channels] === t.channel,
+                  ) as keyof typeof channels);
+                const configured = await tx.globalCommunicationProvider.findUnique({
+                  where: { provider: candidateProvider },
+                });
                 blocked.set(
                   t.channel,
                   !configured
@@ -482,6 +516,7 @@ export class CommunicationEngine {
                       configurationRevision: cfg.revision,
                       templateId: t.id,
                       templateRevision: t.revision,
+                      templateScope: t.source,
                       recipientMasked,
                       payloadEncrypted,
                       status,
@@ -581,9 +616,14 @@ export class CommunicationEngine {
             company: { select: { slug: true, isActive: true } },
           },
         });
-        const t = await this.db.globalCommunicationTemplate.findUnique({
-          where: { id: row.templateId },
-        });
+        const t =
+          row.templateScope === 'COMPANY' && event.companyId
+            ? await this.db.companyCommunicationTemplate.findUnique({
+                where: { id: row.templateId },
+              })
+            : await this.db.globalCommunicationTemplate.findUnique({
+                where: { id: row.templateId },
+              });
         if (qaOnly) {
           const channel = row.channel as QaChannel;
           const currentRecipient =
