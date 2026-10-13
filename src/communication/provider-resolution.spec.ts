@@ -120,6 +120,8 @@ describe('GLOBAL WhatsApp test and enable path', () => {
     expect(f.evolution.sendGlobalTextMessage).toHaveBeenCalledWith(
       'admin',
       '✅ Teste de WhatsApp do Kalend realizado com sucesso.',
+      undefined,
+      '5511999999999',
     );
   });
   it('allows an explicit Super Admin test number without modifying the stored profile or selecting a COMPANY connection', async () => {

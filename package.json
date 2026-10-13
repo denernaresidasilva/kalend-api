@@ -24,6 +24,7 @@
     "admin:create": "npm run build && node scripts/admin-create.mjs",
     "communication:worker": "node dist/communication/worker.js",
     "communication:worker:qa": "node dist/communication/worker.js --qa-only",
+    "communication:worker:qa:check": "node dist/communication/worker.js --qa-check",
     "communication:scheduler": "node dist/communication/scheduler.js"
   },
   "dependencies": {

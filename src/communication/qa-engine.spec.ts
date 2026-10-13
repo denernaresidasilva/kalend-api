@@ -1,21 +1,22 @@
 import { randomBytes } from 'node:crypto';
 import { SecretVault } from '../billing/secret-vault.js';
 import { CommunicationEngine } from './engine.js';
-import { QA_COMMUNICATION_EVENT, qaBusinessKeyPrefix } from './qa-policy.js';
+import { QA_COMMUNICATION_EVENT } from './qa-policy.js';
 
 const companyId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const otherCompanyId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 const userId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const idempotencyKey = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 
-function qaFixture(overrides: { slug?: string; email?: string } = {}) {
+function qaFixture(overrides: { companyId?: string; email?: string; slug?: string } = {}) {
   let outbox: Record<string, unknown> | null = null;
   const deliveries: Record<string, unknown>[] = [];
   const db = {
     company: {
       findUnique: vi.fn().mockResolvedValue({
-        id: companyId,
-        slug: overrides.slug ?? 'qa-communication-dev',
-        name: 'QA Communication DEV',
+        id: overrides.companyId ?? companyId,
+        slug: overrides.slug ?? 'any-reserved-name-is-irrelevant',
+        name: 'QA Kalend',
         isActive: true,
       }),
     },
@@ -25,17 +26,14 @@ function qaFixture(overrides: { slug?: string; email?: string } = {}) {
           id: userId,
           name: 'QA User',
           email: overrides.email ?? 'qa@example.test',
-          phone: '+15551234567',
+          phone: '(12) 99601-5129',
         },
       }),
     },
     globalCommunicationProvider: {
       findUnique: vi.fn().mockResolvedValue({
-        provider: 'SMTP',
-        scope: 'GLOBAL',
-        enabled: true,
-        environment: 'SANDBOX',
-        revision: 7,
+        provider: 'SMTP', scope: 'GLOBAL', enabled: true,
+        environment: 'SANDBOX', revision: 7,
       }),
     },
     globalCommunicationTemplate: {
@@ -60,10 +58,7 @@ function qaFixture(overrides: { slug?: string; email?: string } = {}) {
   const configuration = { resolveProvider: vi.fn().mockResolvedValue('SMTP') };
   const transports = { available: vi.fn().mockReturnValue(true) };
   const engine = new CommunicationEngine(
-    db as never,
-    new SecretVault(),
-    configuration as never,
-    transports as never,
+    db as never, new SecretVault(), configuration as never, transports as never,
   );
   return { engine, db, deliveries };
 }
@@ -72,9 +67,9 @@ const env = {
   EVOLUTION_WEBHOOK_BASE_URL: 'https://api-dev.kalend.tech',
   DATABASE_URL: 'postgresql://qa:unused@localhost:5432/kalend_dev',
   QA_COMMUNICATION_ENABLED: 'true',
-  QA_COMMUNICATION_COMPANY_ID: companyId,
-  QA_COMMUNICATION_USER_ID: userId,
-  QA_COMMUNICATION_ALLOWED_EMAIL: 'qa@example.test',
+  QA_COMMUNICATION_COMPANY_IDS: companyId,
+  QA_COMMUNICATION_EMAIL_ALLOWLIST: 'qa@example.test',
+  QA_COMMUNICATION_PHONE_ALLOWLIST: '+5512996015129',
 };
 
 beforeEach(() => {
@@ -83,13 +78,13 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 
-describe('QA communication outbox', () => {
+describe('QA communication intent', () => {
   it('creates one fixed QA intent and one delivery; repeating its key reuses both', async () => {
     const { engine, db, deliveries } = qaFixture();
     const input = { companyId, userId, channel: 'EMAIL', idempotencyKey };
     const first = await engine.createQaIntent(input, 'super-admin');
     const second = await engine.createQaIntent(input, 'super-admin');
-    expect(first.event).toBe('QA_COMMUNICATION_TEST');
+    expect(first.event).toBe(QA_COMMUNICATION_EVENT);
     expect(first.deliveries).toBe(1);
     expect(second.outboxId).toBe(first.outboxId);
     expect(deliveries).toHaveLength(1);
@@ -99,172 +94,83 @@ describe('QA communication outbox', () => {
     expect(JSON.stringify(first)).not.toContain('qa@example.test');
   });
 
-  it('rejects a non-QA tenant or a recipient outside the server allowlist', async () => {
-    const tenant = qaFixture({ slug: 'ordinary-company' });
-    await expect(
-      tenant.engine.createQaIntent(
-        { companyId, userId, channel: 'EMAIL', idempotencyKey },
-        'super-admin',
-      ),
-    ).rejects.toThrow('QA_COMMUNICATION_TENANT_INVALID');
-    const recipient = qaFixture({ email: 'other@example.test' });
-    await expect(
-      recipient.engine.createQaIntent(
-        { companyId, userId, channel: 'EMAIL', idempotencyKey },
-        'super-admin',
-      ),
-    ).rejects.toThrow('QA_RECIPIENT_NOT_ALLOWLISTED');
+  it('uses company IDs, not reserved slugs, and blocks a company outside the allowlist', async () => {
+    const arbitrarySlug = qaFixture({ slug: 'qa-kalend' });
+    await expect(arbitrarySlug.engine.createQaIntent(
+      { companyId, userId, channel: 'EMAIL', idempotencyKey }, 'admin',
+    )).resolves.toMatchObject({ event: QA_COMMUNICATION_EVENT });
+    const wrongCompany = qaFixture({ companyId: otherCompanyId });
+    await expect(wrongCompany.engine.createQaIntent(
+      { companyId: otherCompanyId, userId, channel: 'EMAIL', idempotencyKey }, 'admin',
+    )).rejects.toThrow('QA_COMMUNICATION_SCOPE_MISMATCH');
   });
 
-  it('rejects production even with QA flags and allowlists supplied', async () => {
-    vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api.kalend.tech');
-    vi.stubEnv('DATABASE_URL', 'postgresql://qa:unused@localhost:5432/kalend');
-    const { engine, db } = qaFixture();
-    await expect(
-      engine.createQaIntent(
-        { companyId, userId, channel: 'EMAIL', idempotencyKey },
-        'super-admin',
-      ),
-    ).rejects.toThrow('QA_COMMUNICATION_DISABLED');
+  it('blocks a recipient not present in the backend allowlist', async () => {
+    const { engine, db } = qaFixture({ email: 'other@example.test' });
+    await expect(engine.createQaIntent(
+      { companyId, userId, channel: 'EMAIL', idempotencyKey }, 'admin',
+    )).rejects.toThrow('QA_RECIPIENT_NOT_ALLOWLISTED');
     expect(db.globalCommunicationOutbox.create).not.toHaveBeenCalled();
   });
 
-  it('qa-only worker selects only the allowlisted QA event and processes at most one item', async () => {
-    const whereCalls: unknown[] = [];
-    const db = {
-      globalCommunicationDelivery: {
-        findMany: vi.fn(async ({ where }: { where: unknown }) => {
-          whereCalls.push(where);
-          return [{ id: 'qa-delivery' }];
-        }),
-      },
-    };
-    const engine = new CommunicationEngine(
-      db as never,
-      new SecretVault(),
-      {} as never,
-      {} as never,
-    );
-    const processOne = vi.spyOn(engine, 'processOne').mockResolvedValue(true);
-    const expand = vi.spyOn(engine, 'expand');
-    const temporal = vi.spyOn(engine, 'temporal');
-    await expect(engine.runQaOnly()).resolves.toEqual({
-      qaOnly: true,
-      eligible: 1,
-      processed: 1,
-    });
-    expect((whereCalls[0] as { outbox: { event: string } }).outbox.event).toBe(
-      'QA_COMMUNICATION_TEST',
-    );
-    expect(processOne).toHaveBeenCalledWith(true);
-    expect(expand).not.toHaveBeenCalled();
-    expect(temporal).not.toHaveBeenCalled();
-    processOne.mockRestore();
-    expand.mockRestore();
-    temporal.mockRestore();
+  it('rejects production before creating an outbox row', async () => {
+    vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api.kalend.tech');
+    vi.stubEnv('DATABASE_URL', 'postgresql://qa:unused@localhost:5432/kalend');
+    const { engine, db } = qaFixture();
+    await expect(engine.createQaIntent(
+      { companyId, userId, channel: 'EMAIL', idempotencyKey }, 'admin',
+    )).rejects.toThrow('QA_COMMUNICATION_DISABLED');
+    expect(db.globalCommunicationOutbox.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('QA commercial worker orchestration', () => {
+  it('scopes temporal, inbox, expansion and delivery claims to all authorized companies with bounded work', async () => {
+    const db = { globalCommunicationDelivery: { updateMany: vi.fn() } };
+    const engine = new CommunicationEngine(db as never, new SecretVault(), {} as never, {} as never);
+    vi.spyOn(engine, 'qaPreflight').mockResolvedValue({ safeToRun: true } as never);
+    const temporal = vi.spyOn(engine, 'temporal').mockResolvedValue({ inserted: 0 });
+    const expand = vi.spyOn(engine, 'expand').mockResolvedValue(2);
+    const processOne = vi.spyOn(engine, 'processOne')
+      .mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValue(false);
+    const ingest = vi.fn().mockResolvedValue({ processed: 2, created: 2 });
+    const result = await engine.runQaWorker(ingest);
+    expect(temporal).toHaveBeenCalledWith({ companyIds: [companyId], limit: 5 });
+    expect(ingest).toHaveBeenCalledWith({ companyIds: [companyId], limit: 5 });
+    expect(expand).toHaveBeenCalledWith(expect.objectContaining({ companyIds: [companyId], maxEvents: 5, qaMode: true }));
+    expect(processOne).toHaveBeenCalledWith({ qaMode: true });
+    expect(result).toMatchObject({ mode: 'QA', expanded: 2, processed: 2, limits: { events: 5, deliveries: 20 } });
   });
 
-  it.each([
-    ['QA allowlisted address', 'qa@example.test', 'ACCEPTED', true],
-    ['non-allowlisted address', 'other@example.test', 'SKIPPED', false],
-  ] as const)(
-    'revalidates %s immediately before provider send',
-    async (_label, recipient, expectedStatus, shouldSend) => {
-      const vault = new SecretVault();
-      const delivery = {
-        id: 'qa-delivery',
-        outboxId: 'qa-outbox',
-        userId,
-        channel: 'EMAIL',
-        provider: 'SMTP',
-        environment: 'SANDBOX',
-        configurationRevision: 7,
-        templateId: 'qa-template',
-        templateRevision: 1,
-        targetKey: 'USER',
-        status: 'PENDING',
-        attempts: 0,
-        payloadEncrypted: vault.encrypt(
-          JSON.stringify({ to: 'qa@example.test', text: 'Harmless QA test' }),
-          'communication:GLOBAL:delivery:qa-delivery',
-        ),
-      };
-      const db = {
-        globalCommunicationDelivery: {
-          findMany: vi.fn().mockResolvedValue([{ ...delivery }]),
-          updateMany: vi.fn(
-            async ({
-              where,
-              data,
-            }: {
-              where: Record<string, unknown>;
-              data: Record<string, unknown>;
-            }) => {
-              if (
-                where.status !== delivery.status ||
-                where.attempts !== delivery.attempts
-              )
-                return { count: 0 };
-              Object.assign(delivery, data, {
-                attempts:
-                  typeof data.attempts === 'object'
-                    ? delivery.attempts +
-                      (data.attempts as { increment: number }).increment
-                    : delivery.attempts,
-              });
-              return { count: 1 };
-            },
-          ),
-        },
-        globalCommunicationOutbox: {
-          findUniqueOrThrow: vi.fn().mockResolvedValue({
-            id: 'qa-outbox',
-            event: QA_COMMUNICATION_EVENT,
-            companyId,
-            userId,
-            businessKey: `${qaBusinessKeyPrefix(companyId)}${idempotencyKey}`,
-          }),
-        },
-        membership: {
-          findFirst: vi.fn().mockResolvedValue({
-            user: {
-              email: recipient,
-              phone: '+15551234567',
-              isSuperAdmin: false,
-            },
-            company: { slug: 'qa-communication-dev', isActive: true },
-          }),
-        },
-        globalCommunicationTemplate: {
-          findUnique: vi.fn().mockResolvedValue({
-            enabled: true,
-            event: QA_COMMUNICATION_EVENT,
-            revision: 1,
-          }),
-        },
-        globalCommunicationProvider: { updateMany: vi.fn() },
-        globalCommunicationLog: { create: vi.fn() },
-        $transaction: vi.fn(),
-      };
-      db.$transaction.mockImplementation(
-        (callback: (tx: typeof db) => unknown) => callback(db),
-      );
-      const send = vi.fn().mockResolvedValue('mock-accepted-id');
-      const context = vi.fn().mockResolvedValue({
-        row: { environment: 'SANDBOX', revision: 7 },
-        config: {},
-        secret: {},
-      });
-      const engine = new CommunicationEngine(
-        db as never,
-        vault,
-        { context } as never,
-        { get: () => ({ send }) } as never,
-      );
-      await engine.processOne(true);
-      expect(delivery.status).toBe(expectedStatus);
-      expect(send).toHaveBeenCalledTimes(shouldSend ? 1 : 0);
-      expect(context).toHaveBeenCalledTimes(shouldSend ? 1 : 0);
-    },
-  );
+  it('fails closed when preflight says the environment/company configuration is unsafe', async () => {
+    const engine = new CommunicationEngine({} as never, new SecretVault(), {} as never, {} as never);
+    vi.spyOn(engine, 'qaPreflight').mockResolvedValue({ safeToRun: false } as never);
+    const temporal = vi.spyOn(engine, 'temporal');
+    await expect(engine.runQaWorker(vi.fn())).rejects.toThrow('QA_WORKER_PREFLIGHT_BLOCKED');
+    expect(temporal).not.toHaveBeenCalled();
+  });
+
+  it('claims deliveries only from allowlisted companies; the normal worker still excludes QA test intents', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const engine = new CommunicationEngine(
+      { globalCommunicationDelivery: { findMany } } as never,
+      new SecretVault(), {} as never, {} as never,
+    );
+    await engine.processOne({ qaMode: true });
+    expect(findMany.mock.calls[0][0].where.outbox).toEqual({ companyId: { in: [companyId] } });
+    await engine.processOne();
+    expect(findMany.mock.calls[1][0].where.outbox).toEqual({ event: { not: QA_COMMUNICATION_EVENT } });
+  });
+
+  it('adds the allowlist to the SQL expansion claim before SKIP LOCKED', async () => {
+    const queryRaw = vi.fn().mockResolvedValue([]);
+    const db = { $transaction: vi.fn((callback: (tx: unknown) => unknown) => callback({ $queryRaw: queryRaw })) };
+    const engine = new CommunicationEngine(db as never, new SecretVault(), {} as never, {} as never);
+    await engine.expand({ companyIds: [companyId], maxEvents: 5, qaMode: true });
+    const query = queryRaw.mock.calls[0][0] as { sql: string; values: unknown[] };
+    expect(query.sql).toContain('"companyId" IN');
+    expect(query.sql).toContain('LIMIT');
+    expect(query.values).toContain(companyId);
+    expect(query.values).toContain(5);
+  });
 });

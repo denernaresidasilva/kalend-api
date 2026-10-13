@@ -165,6 +165,7 @@ describe('Evolution 2.3.7 client', () => {
     expect(evolutionQr('https://private.example/qr')).toBeNull();
     expect(evolutionPhone('+5511999999999')).toBe('5511999999999');
     expect(evolutionPhone('+55 (12) 99605-5129')).toBe('5512996055129');
+    expect(evolutionPhone('12 99601-5129')).toBe('5512996015129');
     expect(() => evolutionPhone('11999 test')).toThrow(EvolutionFailure);
   });
 });

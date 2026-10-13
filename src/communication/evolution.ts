@@ -19,6 +19,7 @@ import type {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SecretVault } from '../billing/secret-vault.js';
 import { uuid } from '../common/validation.js';
+import { normalizeBrazilianPhone } from './recipient.js';
 import {
   evolutionConfiguration,
   evolutionInstanceName,
@@ -897,7 +898,12 @@ export class EvolutionService implements OnModuleInit, OnModuleDestroy {
       throw new EvolutionFailure('INTEGRATION_STATE_UNAVAILABLE');
     }
   }
-  async sendGlobalTextMessage(userId: string, text: string, testNumber?: string) {
+  async sendGlobalTextMessage(
+    userId: string,
+    text: string,
+    testNumber?: string,
+    expectedRecipient?: string,
+  ) {
     const user = await this.recipient({
       id: userId,
       isActive: true,
@@ -915,9 +921,22 @@ export class EvolutionService implements OnModuleInit, OnModuleDestroy {
         },
       ],
     });
-    if (!user || (!user.phone && testNumber === undefined))
+    const storedRecipient = normalizeBrazilianPhone(user?.phone ?? undefined);
+    const authorizedRecipient = expectedRecipient
+      ? normalizeBrazilianPhone(expectedRecipient)
+      : storedRecipient;
+    if (
+      !user ||
+      (!user.phone && testNumber === undefined) ||
+      (expectedRecipient !== undefined &&
+        (!storedRecipient || storedRecipient !== authorizedRecipient))
+    )
       throw new EvolutionFailure('GLOBAL_RECIPIENT_UNAVAILABLE');
-    return this.send(GLOBAL_EVOLUTION, evolutionPhone(testNumber ?? user.phone), text);
+    return this.send(
+      GLOBAL_EVOLUTION,
+      evolutionPhone(testNumber ?? authorizedRecipient ?? user.phone),
+      text,
+    );
   }
   async sendTextMessage(companyId: string, number: string, text: string) {
     return this.send(uuid(companyId), evolutionPhone(number), text);

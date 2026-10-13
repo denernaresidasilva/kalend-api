@@ -26,19 +26,21 @@ import {
 import type { Message, Variables } from './contracts.js';
 import { resolveEffectiveTemplate } from './company-templates.js';
 import { boolean, object, uuid } from '../common/validation.js';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import {
   QA_COMMUNICATION_EVENT,
-  QA_COMPANY_SLUG,
   allowedRecipient,
-  allowlistedRecipient,
   assertQaScope,
+  isQaCompany,
   maskQaRecipient,
   normalizeQaDestination,
+  qaRuntimeEnvironment,
   qaBusinessKeyPrefix,
   requireQaCommunicationAllowlist,
   type QaChannel,
 } from './qa-policy.js';
+import { evolutionGlobalName } from './evolution-environment.js';
+import { normalizeBrazilianPhone } from './recipient.js';
 const payloadScope = (id: string) => `communication:GLOBAL:delivery:${id}`;
 @Injectable()
 export class CommunicationEngine {
@@ -105,6 +107,26 @@ export class CommunicationEngine {
       return result;
     });
   }
+  private async qaEvolutionIsSafe() {
+    const environment = qaRuntimeEnvironment();
+    if (environment !== 'DEV') return false;
+    const connection = await this.db.evolutionConnection.findUnique({
+      where: { globalKey: 'GLOBAL' },
+      select: {
+        environment: true,
+        instanceName: true,
+        status: true,
+        prepared: true,
+      },
+    });
+    return (
+      connection?.environment === 'DEV' &&
+      connection.instanceName === evolutionGlobalName('DEV') &&
+      connection.status === 'CONNECTED' &&
+      connection.prepared
+    );
+  }
+
   /** Creates one allowlisted QA intent; its payload is fixed and never supplied by the caller. */
   async createQaIntent(input: unknown, actorId: string) {
     const allowlist = requireQaCommunicationAllowlist();
@@ -123,7 +145,7 @@ export class CommunicationEngine {
     const channel = data.channel as QaChannel;
     const company = await this.db.company.findUnique({
       where: { id: companyId },
-      select: { id: true, slug: true, name: true, isActive: true },
+      select: { id: true, name: true, isActive: true },
     });
     const membership = await this.db.membership.findFirst({
       where: {
@@ -137,7 +159,7 @@ export class CommunicationEngine {
         user: { select: { id: true, name: true, email: true, phone: true } },
       },
     });
-    if (!company?.isActive || company.slug !== QA_COMPANY_SLUG || !membership)
+    if (!company?.isActive || !isQaCompany(companyId, allowlist) || !membership)
       throw new ForbiddenException('QA_COMMUNICATION_TENANT_INVALID');
 
     const provider = await this.configuration.resolveProvider(channel);
@@ -156,12 +178,11 @@ export class CommunicationEngine {
         throw new ForbiddenException('QA_RECIPIENT_NOT_ALLOWLISTED');
       recipient = membership.user.phone;
     } else {
-      const subscriptionId = allowlist.pushSubscriptionId;
-      if (!subscriptionId)
-        throw new ForbiddenException('QA_RECIPIENT_NOT_ALLOWLISTED');
       const subscription = await this.db.globalPushSubscription.findFirst({
         where: {
-          id: subscriptionId,
+          ...(allowlist.pushSubscriptionIds.length
+            ? { id: { in: allowlist.pushSubscriptionIds } }
+            : {}),
           userId,
           scope: 'GLOBAL',
           provider: 'WEB_PUSH',
@@ -186,8 +207,7 @@ export class CommunicationEngine {
       targetKey = subscription.id;
     }
     const normalized = normalizeQaDestination(channel, recipient);
-    const configured = allowlistedRecipient(channel, allowlist);
-    if (!normalized || normalized !== configured)
+    if (!normalized || !allowedRecipient(channel, normalized, targetKey, allowlist))
       throw new ForbiddenException('QA_RECIPIENT_NOT_ALLOWLISTED');
     recipient = normalized;
 
@@ -307,17 +327,41 @@ export class CommunicationEngine {
       deliveries: 1,
     };
   }
-  /** Expansion is atomic; a concurrent worker either sees all deliveries or none. */
-  async expand() {
+  /** Expansion is atomic; company filters are applied in SQL before rows are locked. */
+  async expand(options: {
+    companyIds?: string[];
+    maxEvents?: number;
+    qaMode?: boolean;
+    progress?: { deliveriesCreated: number };
+  } = {}) {
+    if (options.companyIds && !options.companyIds.length) return 0;
+    const qaAllowlist = options.qaMode
+      ? requireQaCommunicationAllowlist()
+      : undefined;
+    if (
+      qaAllowlist &&
+      options.companyIds?.some((id) => !isQaCompany(id, qaAllowlist))
+    )
+      throw new ForbiddenException('QA_COMMUNICATION_SCOPE_MISMATCH');
+    const limit = Math.max(1, Math.min(options.maxEvents ?? 20, 20));
+    const companyFilter = options.companyIds
+      ? Prisma.sql`AND "companyId" IN (${Prisma.join(options.companyIds)})`
+      : Prisma.empty;
     return this.db.$transaction(
       async (tx) => {
         const rows = await tx.$queryRaw<
           { id: string }[]
-        >`SELECT id FROM "GlobalCommunicationOutbox" WHERE event <> 'QA_COMMUNICATION_TEST' AND "expandedAt" IS NULL AND "notificationProcessedAt" IS NOT NULL ORDER BY "createdAt", id LIMIT 20 FOR UPDATE SKIP LOCKED`;
-        for (const { id } of rows) {
+        >(Prisma.sql`SELECT id FROM "GlobalCommunicationOutbox" WHERE event <> 'QA_COMMUNICATION_TEST' AND "expandedAt" IS NULL AND "notificationProcessedAt" IS NOT NULL ${companyFilter} ORDER BY "createdAt", id LIMIT ${limit} FOR UPDATE SKIP LOCKED`);
+        let qaDeliveriesCreated = 0;
+        eventLoop: for (const { id } of rows) {
           const event = await tx.globalCommunicationOutbox.findUniqueOrThrow({
             where: { id },
           });
+          if (
+            options.companyIds &&
+            !options.companyIds.includes(event.companyId ?? '')
+          )
+            continue;
           let name;
           try {
             name = eventName(event.event);
@@ -391,8 +435,13 @@ export class CommunicationEngine {
           // Security event has an explicit user, never any arbitrary tenant user.
           const unique = new Map(members.map((m) => [m.userId, m]));
           const blocked = new Map<string, string>();
-          for (const member of unique.values())
+          let deliveryLimitReached = false;
+          for (const member of unique.values()) {
             for (const t of templates) {
+              if (options.qaMode && qaDeliveriesCreated >= 20) {
+                deliveryLimitReached = true;
+                break;
+              }
               if (t.provider && channels[t.provider] !== t.channel) {
                 blocked.set(t.channel, 'TEMPLATE_PROVIDER_MISMATCH');
                 continue;
@@ -437,6 +486,19 @@ export class CommunicationEngine {
                 blocked.set(t.channel, 'PROVIDER_DISABLED');
                 continue;
               }
+              if (
+                options.qaMode &&
+                !isQaCompany(event.companyId, qaAllowlist!)
+              )
+                continue;
+              if (
+                options.qaMode &&
+                provider === 'EVOLUTION' &&
+                !(await this.qaEvolutionIsSafe())
+              ) {
+                blocked.set(t.channel, 'QA_EVOLUTION_ENVIRONMENT_UNSAFE');
+                continue;
+              }
               const targets =
                 t.channel === 'PUSH'
                   ? await tx.globalPushSubscription.findMany({
@@ -449,6 +511,10 @@ export class CommunicationEngine {
                             ? { companyId: event.companyId }
                             : {}),
                         }),
+                        ...(options.qaMode &&
+                        qaAllowlist!.pushSubscriptionIds.length
+                          ? { id: { in: qaAllowlist!.pushSubscriptionIds } }
+                          : {}),
                       },
                       select: { id: true },
                       take: 20,
@@ -457,22 +523,67 @@ export class CommunicationEngine {
               // Keep a visible non-sendable record when no device exists.
               if (!targets.length) targets.push({ id: 'NO_DEVICE' });
               for (const target of targets) {
+                if (options.qaMode && qaDeliveriesCreated >= 20) {
+                  deliveryLimitReached = true;
+                  break;
+                }
                 const deliveryId = randomUUID();
                 let payloadEncrypted: string | null = null,
                   recipientMasked = 'unavailable';
                 let status: 'PENDING' | 'UNSENDABLE' = 'PENDING';
                 let lastError: string | null = null;
                 let message: Message | undefined;
+                if (options.qaMode && target.id === 'NO_DEVICE') {
+                  status = 'UNSENDABLE';
+                  lastError = 'NO_QA_PUSH_SUBSCRIPTION';
+                } else if (
+                  options.qaMode &&
+                  (t.channel === 'EMAIL' || t.channel === 'WHATSAPP')
+                ) {
+                  const candidate =
+                    t.channel === 'EMAIL'
+                      ? normalizeQaDestination('EMAIL', member.user.email)
+                      : normalizeBrazilianPhone(member.user.phone ?? undefined);
+                  if (
+                    !candidate ||
+                    !allowedRecipient(
+                      t.channel,
+                      candidate,
+                      target.id,
+                      qaAllowlist!,
+                    )
+                  ) {
+                    status = 'UNSENDABLE';
+                    lastError = 'QA_RECIPIENT_NOT_ALLOWED';
+                  }
+                }
                 try {
+                  if (status === 'UNSENDABLE') throw new Error('QA_BLOCKED');
                   const to =
                     t.channel === 'EMAIL'
                       ? email(member.user.email)
                       : t.channel === 'WHATSAPP'
-                        ? phone(member.user.phone)
+                        ? options.qaMode
+                          ? normalizeBrazilianPhone(member.user.phone ?? undefined) ?? ''
+                          : phone(member.user.phone)
                         : target.id === 'NO_DEVICE'
                           ? ''
                           : target.id;
                   if (!to) throw new Error();
+                  if (
+                    options.qaMode &&
+                    t.channel === 'EMAIL' &&
+                    !allowedRecipient(
+                      'EMAIL',
+                      to,
+                      target.id,
+                      qaAllowlist!,
+                    )
+                  ) {
+                    status = 'UNSENDABLE';
+                    lastError = 'QA_RECIPIENT_NOT_ALLOWED';
+                    throw new Error('QA_BLOCKED');
+                  }
                   recipientMasked =
                     t.channel === 'PUSH'
                       ? 'device'
@@ -492,9 +603,9 @@ export class CommunicationEngine {
                   );
                   if (t.channel === 'PUSH') pushPayload(message);
                 } catch {
-                  status = 'UNSENDABLE';
+                  if (status !== 'UNSENDABLE') status = 'UNSENDABLE';
                   message = undefined;
-                  lastError = 'RECIPIENT_OR_TEMPLATE_INVALID';
+                  lastError ??= 'RECIPIENT_OR_TEMPLATE_INVALID';
                 }
                 // Vault failure rolls back expansion and can recover on the next worker invocation.
                 if (message)
@@ -502,7 +613,7 @@ export class CommunicationEngine {
                     JSON.stringify(message),
                     payloadScope(deliveryId),
                   );
-                await tx.globalCommunicationDelivery.createMany({
+                const created = await tx.globalCommunicationDelivery.createMany({
                   skipDuplicates: true,
                   data: [
                     {
@@ -524,8 +635,30 @@ export class CommunicationEngine {
                     },
                   ],
                 });
+                if (options.qaMode) {
+                  qaDeliveriesCreated += created.count;
+                  if (options.progress)
+                    options.progress.deliveriesCreated = qaDeliveriesCreated;
+                }
               }
+              if (deliveryLimitReached) break;
             }
+            if (deliveryLimitReached) break;
+          }
+          if (deliveryLimitReached) {
+            if (options.qaMode)
+              console.info(
+                JSON.stringify({
+                  mode: 'QA',
+                  phase: 'expand-deferred',
+                  companyId: event.companyId,
+                  eventId: event.id,
+                  event: event.event,
+                  createdDeliveries: qaDeliveriesCreated,
+                }),
+              );
+            break eventLoop;
+          }
           const failure = [...blocked.values()].sort().join(',') || null;
           await tx.globalCommunicationOutbox.update({
             where: { id },
@@ -533,6 +666,18 @@ export class CommunicationEngine {
               ? { lastError: failure }
               : { expandedAt: new Date(), lastError: null },
           });
+          if (options.qaMode)
+            console.info(
+              JSON.stringify({
+                mode: 'QA',
+                phase: 'event-expansion',
+                companyId: event.companyId,
+                eventId: event.id,
+                event: event.event,
+                result: failure ? 'BLOCKED' : 'EXPANDED',
+                code: failure,
+              }),
+            );
           if (failure) {
             if (event.lastError !== failure)
               for (const [channel, code] of blocked)
@@ -558,27 +703,24 @@ export class CommunicationEngine {
       { timeout: 15000 },
     );
   }
-  async processOne(qaOnly = false) {
-    const allowlist = qaOnly ? requireQaCommunicationAllowlist() : undefined;
+  async processOne(options: { qaMode?: boolean; companyIds?: string[] } = {}) {
+    const qaMode = options.qaMode === true;
+    const allowlist = qaMode ? requireQaCommunicationAllowlist() : undefined;
+    const companyIds = qaMode ? allowlist!.companyIds : options.companyIds;
+    if (qaMode && !companyIds?.length)
+      throw new ForbiddenException('QA_COMMUNICATION_SCOPE_NOT_CONFIGURED');
     const now = new Date();
     const candidates = await this.db.globalCommunicationDelivery.findMany({
       where: {
         status: { in: ['PENDING', 'RETRY'] },
         nextAttemptAt: { lte: now },
         attempts: { lt: 5 },
-        outbox: qaOnly
-          ? {
-              event: QA_COMMUNICATION_EVENT,
-              companyId: allowlist!.companyId,
-              userId: allowlist!.userId,
-              businessKey: {
-                startsWith: qaBusinessKeyPrefix(allowlist!.companyId),
-              },
-            }
+        outbox: qaMode
+          ? { companyId: { in: companyIds } }
           : { event: { not: QA_COMMUNICATION_EVENT } },
       },
       orderBy: [{ nextAttemptAt: 'asc' }, { id: 'asc' }],
-      take: qaOnly ? 1 : 10,
+      take: qaMode ? 20 : 10,
     });
     for (const row of candidates) {
       const claimed = await this.db.globalCommunicationDelivery.updateMany({
@@ -591,10 +733,19 @@ export class CommunicationEngine {
       let code: string | null = null;
       let providerMessageId: string | null = null;
       let nextAttemptAt = now;
+      let qaLogContext:
+        | { companyId: string | null; eventId: string; event: string }
+        | undefined;
       try {
         const event = await this.db.globalCommunicationOutbox.findUniqueOrThrow(
           { where: { id: row.outboxId } },
         );
+        if (qaMode)
+          qaLogContext = {
+            companyId: event.companyId,
+            eventId: event.id,
+            event: event.event,
+          };
         if (
           !event.companyId &&
           !(
@@ -613,7 +764,7 @@ export class CommunicationEngine {
           },
           include: {
             user: { select: { email: true, phone: true, isSuperAdmin: true } },
-            company: { select: { slug: true, isActive: true } },
+          company: { select: { isActive: true } },
           },
         });
         const t =
@@ -624,23 +775,17 @@ export class CommunicationEngine {
             : await this.db.globalCommunicationTemplate.findUnique({
                 where: { id: row.templateId },
               });
-        if (qaOnly) {
+        if (qaMode) {
           const channel = row.channel as QaChannel;
           const currentRecipient =
             channel === 'EMAIL'
               ? member?.user.email
               : channel === 'WHATSAPP'
-                ? (member?.user.phone ?? '')
+                ? (normalizeBrazilianPhone(member?.user.phone ?? undefined) ?? '')
                 : row.targetKey;
           if (
-            event.event !== QA_COMMUNICATION_EVENT ||
-            event.companyId !== allowlist!.companyId ||
-            event.userId !== allowlist!.userId ||
-            !event.businessKey.startsWith(
-              qaBusinessKeyPrefix(allowlist!.companyId),
-            ) ||
+            !isQaCompany(event.companyId, allowlist!) ||
             !member ||
-            member.company.slug !== QA_COMPANY_SLUG ||
             !member.company.isActive ||
             member.user.isSuperAdmin ||
             !allowedRecipient(
@@ -671,7 +816,6 @@ export class CommunicationEngine {
           if (
             !member ||
             !t?.enabled ||
-            (qaOnly && t.event !== QA_COMMUNICATION_EVENT) ||
             t.revision !== row.templateRevision ||
             c.row.environment !== row.environment ||
             c.row.revision !== row.configurationRevision
@@ -687,7 +831,9 @@ export class CommunicationEngine {
               row.channel === 'EMAIL'
                 ? email(member.user.email)
                 : row.channel === 'WHATSAPP'
-                  ? phone(member.user.phone)
+                  ? qaMode
+                    ? normalizeBrazilianPhone(member.user.phone ?? undefined) ?? ''
+                    : phone(member.user.phone)
                   : row.targetKey;
             const device =
               row.channel === 'PUSH'
@@ -707,28 +853,35 @@ export class CommunicationEngine {
                 : true;
             if (!device || current !== message.to) {
               status = 'SKIPPED';
-              code = 'RECIPIENT_CHANGED';
+              code = qaMode && row.channel === 'PUSH'
+                ? 'NO_QA_PUSH_SUBSCRIPTION'
+                : 'RECIPIENT_CHANGED';
             } else {
-              providerMessageId = await this.transports.get(row.provider).send(
-                c.config,
-                c.secret,
-                row.channel === 'PUSH'
-                  ? {
-                      ...message,
-                      pushRecipient: {
-                        userId: row.userId,
-                        environment: row.environment,
-                        audience: event.companyId ? 'COMPANY' : 'ACCOUNT',
-                        ...(event.companyId
-                          ? { companyId: event.companyId }
-                          : {}),
-                      },
-                    }
-                  : row.provider === 'EVOLUTION'
-                    ? { ...message, globalRecipientUserId: row.userId }
-                    : message,
-              );
-              status = 'ACCEPTED';
+              if (qaMode && row.provider === 'EVOLUTION' && !(await this.qaEvolutionIsSafe())) {
+                status = 'SKIPPED';
+                code = 'QA_EVOLUTION_ENVIRONMENT_UNSAFE';
+              } else {
+                providerMessageId = await this.transports.get(row.provider).send(
+                  c.config,
+                  c.secret,
+                  row.channel === 'PUSH'
+                    ? {
+                        ...message,
+                        pushRecipient: {
+                          userId: row.userId,
+                          environment: row.environment,
+                          audience: event.companyId ? 'COMPANY' : 'ACCOUNT',
+                          ...(event.companyId
+                            ? { companyId: event.companyId }
+                            : {}),
+                        },
+                      }
+                    : row.provider === 'EVOLUTION'
+                      ? { ...message, globalRecipientUserId: row.userId }
+                      : message,
+                );
+                status = 'ACCEPTED';
+              }
             }
           }
         }
@@ -760,7 +913,7 @@ export class CommunicationEngine {
           await tx.globalCommunicationLog.create({
             data: {
               deliveryId: row.id,
-              action: status,
+              action: qaMode ? `QA_${status}` : status,
               code,
               attempt: row.attempts + 1,
             },
@@ -772,8 +925,22 @@ export class CommunicationEngine {
               revision: row.configurationRevision,
             },
             data: { lastSentAt: new Date() },
-          });
+        });
       });
+      if (qaMode)
+        console.info(
+          JSON.stringify({
+            mode: 'QA',
+            phase: 'delivery-result',
+            companyId: qaLogContext?.companyId ?? null,
+            eventId: qaLogContext?.eventId ?? row.outboxId,
+            event: qaLogContext?.event ?? null,
+            deliveryId: row.id,
+            channel: row.channel,
+            status,
+            code,
+          }),
+        );
       return true;
     }
     return false;
@@ -795,28 +962,320 @@ export class CommunicationEngine {
     while (processed < 50 && (await this.processOne())) processed++;
     return { expanded, processed };
   }
-  /** Processes at most one already-created QA delivery and never reads commercial events. */
-  async runQaOnly() {
+  /** Preflight is read-only: it reports only identifiers, masked recipients and counts. */
+  async qaPreflight(workerEnabled = process.env.COMMUNICATION_WORKER_ENABLED === 'true') {
     const allowlist = requireQaCommunicationAllowlist();
-    const pending = await this.db.globalCommunicationDelivery.findMany({
+    const companies = await this.db.company.findMany({
+      where: { id: { in: allowlist.companyIds } },
+      select: { id: true, name: true, isActive: true },
+    });
+    const pendingEvents = await this.db.globalCommunicationOutbox.findMany({
+      where: {
+        companyId: { in: allowlist.companyIds },
+        OR: [{ expandedAt: null }, { notificationProcessedAt: null }],
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: 5,
+      select: {
+        id: true,
+        event: true,
+        companyId: true,
+        userId: true,
+        expandedAt: true,
+        notificationProcessedAt: true,
+      },
+    });
+    const nonQaUnexpandedEvents = await this.db.globalCommunicationOutbox.count({
+      where: {
+        expandedAt: null,
+        OR: [
+          { companyId: null },
+          { companyId: { notIn: allowlist.companyIds } },
+        ],
+      },
+    });
+    const deliveries = await this.db.globalCommunicationDelivery.findMany({
       where: {
         status: { in: ['PENDING', 'RETRY'] },
         nextAttemptAt: { lte: new Date() },
         attempts: { lt: 5 },
-        outbox: {
-          event: QA_COMMUNICATION_EVENT,
-          companyId: allowlist.companyId,
-          userId: allowlist.userId,
-          businessKey: { startsWith: qaBusinessKeyPrefix(allowlist.companyId) },
+        outbox: { companyId: { in: allowlist.companyIds } },
+      },
+      orderBy: [{ nextAttemptAt: 'asc' }, { id: 'asc' }],
+      take: 20,
+      select: {
+        id: true,
+        channel: true,
+        status: true,
+        recipientMasked: true,
+        outbox: { select: { id: true, event: true, companyId: true } },
+      },
+    });
+    const owners = await this.db.membership.findMany({
+      where: {
+        companyId: { in: allowlist.companyIds },
+        role: 'OWNER',
+        isActive: true,
+        company: { isActive: true },
+        user: { isActive: true, isSuperAdmin: false },
+      },
+      select: {
+        companyId: true,
+        userId: true,
+        user: { select: { email: true, phone: true } },
+      },
+    });
+    const pendingEventNames = [...new Set(pendingEvents.map((event) => event.event))];
+    const [templates, companyTemplates] = await Promise.all([
+      this.db.globalCommunicationTemplate.findMany({
+        where: { scope: 'GLOBAL', event: { in: pendingEventNames } },
+        select: { event: true, channel: true, enabled: true },
+      }),
+      this.db.companyCommunicationTemplate.findMany({
+        where: {
+          companyId: { in: allowlist.companyIds },
+          event: { in: pendingEventNames },
+        },
+        select: { companyId: true, event: true, channel: true, enabled: true },
+      }),
+    ]);
+    const providers = await this.db.globalCommunicationProvider.findMany({
+      where: { scope: 'GLOBAL' },
+      select: { provider: true, enabled: true, status: true, environment: true },
+    });
+    const evolution = await this.db.evolutionConnection.findUnique({
+      where: { globalKey: 'GLOBAL' },
+      select: { instanceName: true, environment: true, status: true, prepared: true },
+    });
+    const pushSubscriptions = await this.db.globalPushSubscription.count({
+      where: {
+        ...(allowlist.pushSubscriptionIds.length
+          ? { id: { in: allowlist.pushSubscriptionIds } }
+          : {}),
+        userId: { in: owners.map((owner) => owner.userId) },
+        scope: 'GLOBAL',
+        provider: 'WEB_PUSH',
+        environment:
+          providers.find((row) => row.provider === 'PUSH_PENDING')?.environment ??
+          undefined,
+        active: true,
+        revokedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        authorizations: {
+          some: {
+            companyId: { in: allowlist.companyIds },
+            active: true,
+            revokedAt: null,
+          },
         },
       },
-      take: 2,
-      select: { id: true },
     });
-    if (pending.length > 1)
-      throw new ConflictException('QA_PENDING_DELIVERY_LIMIT_EXCEEDED');
-    const processed = pending.length && (await this.processOne(true)) ? 1 : 0;
-    return { qaOnly: true, eligible: pending.length, processed };
+    const missingCompanies = allowlist.companyIds.filter(
+      (id) => !companies.some((company) => company.id === id && company.isActive),
+    );
+    const permittedEmailRecipients = owners
+      .map((owner) => normalizeQaDestination('EMAIL', owner.user.email))
+      .filter((recipient): recipient is string =>
+        !!recipient && allowedRecipient('EMAIL', recipient, 'USER', allowlist),
+      );
+    const permittedPhoneRecipients = owners
+      .map((owner) => normalizeBrazilianPhone(owner.user.phone ?? undefined))
+      .filter((recipient): recipient is string =>
+        !!recipient &&
+        allowedRecipient('WHATSAPP', recipient, 'USER', allowlist),
+      );
+    const possibleDeliveries = { EMAIL: 0, WHATSAPP: 0, PUSH: 0 };
+    const possibleRecipients: Record<string, Set<string>> = {
+      EMAIL: new Set(),
+      WHATSAPP: new Set(),
+      PUSH: new Set(),
+    };
+    const channels: QaChannel[] = ['EMAIL', 'WHATSAPP', 'PUSH'];
+    const pushProvider = providers.find((row) => row.provider === 'PUSH_PENDING' && row.enabled);
+    for (const event of pendingEvents) {
+      if (event.expandedAt || !event.companyId) continue;
+      const eventOwners = owners.filter(
+        (owner) =>
+          owner.companyId === event.companyId &&
+          (!event.userId || owner.userId === event.userId),
+      );
+      for (const channel of channels) {
+        const global = templates.find(
+          (template) => template.event === event.event && template.channel === channel,
+        );
+        const company = companyTemplates.find(
+          (template) =>
+            template.companyId === event.companyId &&
+            template.event === event.event &&
+            template.channel === channel,
+        );
+        if (!resolveEffectiveTemplate(global, company)?.enabled) continue;
+        if (channel === 'EMAIL') {
+          for (const owner of eventOwners) {
+            const recipient = normalizeQaDestination('EMAIL', owner.user.email);
+            if (recipient && allowedRecipient('EMAIL', recipient, 'USER', allowlist))
+              possibleRecipients.EMAIL.add(`${event.id}|${maskQaRecipient('EMAIL', recipient)}`);
+          }
+        } else if (channel === 'WHATSAPP') {
+          for (const owner of eventOwners) {
+            const recipient = normalizeBrazilianPhone(owner.user.phone ?? undefined);
+            if (recipient && allowedRecipient('WHATSAPP', recipient, 'USER', allowlist))
+              possibleRecipients.WHATSAPP.add(`${event.id}|${maskQaRecipient('WHATSAPP', recipient)}`);
+          }
+        } else if (pushProvider) {
+          for (const owner of eventOwners) {
+            const devices = await this.db.globalPushSubscription.findMany({
+              where: {
+                ...pushTargets({
+                  userId: owner.userId,
+                  environment: pushProvider.environment,
+                  audience: 'COMPANY',
+                  companyId: event.companyId,
+                }),
+                ...(allowlist.pushSubscriptionIds.length
+                  ? { id: { in: allowlist.pushSubscriptionIds } }
+                  : {}),
+              },
+              select: { id: true },
+              take: 20,
+            });
+            for (const device of devices)
+              possibleRecipients.PUSH.add(`${event.id}|${device.id}`);
+          }
+        }
+      }
+    }
+    possibleDeliveries.EMAIL = possibleRecipients.EMAIL.size;
+    possibleDeliveries.WHATSAPP = possibleRecipients.WHATSAPP.size;
+    possibleDeliveries.PUSH = possibleRecipients.PUSH.size;
+    const resolvedProvider = {
+      EMAIL: await this.configuration.resolveProvider('EMAIL'),
+      WHATSAPP: await this.configuration.resolveProvider('WHATSAPP'),
+      PUSH: await this.configuration.resolveProvider('PUSH'),
+    };
+    const channelProvider = Object.fromEntries(
+      Object.entries(resolvedProvider).map(([channel, provider]) => [
+        channel,
+        providers.find((row) => row.provider === provider),
+      ]),
+    ) as Record<string, (typeof providers)[number] | undefined>;
+    const safeToRun =
+      workerEnabled &&
+      missingCompanies.length === 0 &&
+      companies.length === allowlist.companyIds.length &&
+      ['DEV', 'STAGING'].includes(allowlist.environment);
+    return {
+      mode: 'QA',
+      environment: allowlist.environment,
+      qaCompanies: companies.map(({ id, name, isActive }) => ({ id, name, isActive })),
+      missingOrInactiveCompanyCount: missingCompanies.length,
+      qaEventsPending: pendingEvents.map((event) => ({
+        eventId: event.id,
+        event: event.event,
+        companyId: event.companyId,
+        expanded: !!event.expandedAt,
+        notificationProcessed: !!event.notificationProcessedAt,
+      })),
+      nonQaEventsSelected: 0,
+      nonQaUnexpandedEventsNotSelected: nonQaUnexpandedEvents,
+      pendingDeliveries: deliveries.map((delivery) => ({
+        deliveryId: delivery.id,
+        eventId: delivery.outbox.id,
+        event: delivery.outbox.event,
+        companyId: delivery.outbox.companyId,
+        channel: delivery.channel,
+        status: delivery.status,
+        recipient: delivery.recipientMasked,
+      })),
+      activeOwnerCount: owners.length,
+      emailRecipients: {
+        allowed: permittedEmailRecipients.length,
+        masked: permittedEmailRecipients.map((recipient) => maskQaRecipient('EMAIL', recipient)),
+      },
+      whatsappRecipients: {
+        allowed: permittedPhoneRecipients.length,
+        masked: permittedPhoneRecipients.map((recipient) => maskQaRecipient('WHATSAPP', recipient)),
+      },
+      pushSubscriptions,
+      possibleDeliveries,
+      possibleRecipients: Object.fromEntries(
+        Object.entries(possibleRecipients).map(([channel, recipients]) => [
+          channel,
+          [...recipients].map((value) =>
+            channel === 'PUSH'
+              ? 'QA device'
+              : value.slice(value.indexOf('|') + 1),
+          ),
+        ]),
+      ),
+      providers: Object.fromEntries(
+        Object.entries(channelProvider).map(([channel, row]) => [
+          channel,
+          row
+            ? {
+                configured: true,
+                resolvedProvider: row.provider,
+                status: row.status,
+                environment: row.environment,
+              }
+            : { configured: false },
+        ]),
+      ),
+      evolution: evolution
+        ? {
+            instanceName: evolution.instanceName,
+            environment: evolution.environment,
+            status: evolution.status,
+            safeForQa: await this.qaEvolutionIsSafe(),
+          }
+        : { configured: false, safeForQa: false },
+      limits: { events: 5, deliveries: 20 },
+      workerEnabled,
+      safeToRun,
+    };
+  }
+
+  /** Same commercial engine with SQL-scoped claims, ingestion, and recipient guardrails. */
+  async runQaWorker(
+    ingest: (options: { companyIds: string[]; limit: number }) => Promise<unknown>,
+  ) {
+    const allowlist = requireQaCommunicationAllowlist();
+    const preflight = await this.qaPreflight();
+    if (!preflight.safeToRun)
+      throw new ForbiddenException('QA_WORKER_PREFLIGHT_BLOCKED');
+    await this.db.globalCommunicationDelivery.updateMany({
+      where: {
+        status: 'SENDING',
+        startedAt: { lt: new Date(Date.now() - 300000) },
+        outbox: { companyId: { in: allowlist.companyIds } },
+      },
+      data: { status: 'UNCERTAIN', lastError: 'WORKER_INTERRUPTED', payloadEncrypted: null },
+    });
+    const temporal = await this.temporal({ companyIds: allowlist.companyIds, limit: 5 });
+    const inbox = await ingest({ companyIds: allowlist.companyIds, limit: 5 });
+    const progress = { deliveriesCreated: 0 };
+    const expanded = await this.expand({
+      companyIds: allowlist.companyIds,
+      maxEvents: 5,
+      qaMode: true,
+      progress,
+    });
+    let processed = 0;
+    while (
+      processed + progress.deliveriesCreated < 20 &&
+      (await this.processOne({ qaMode: true }))
+    )
+      processed++;
+    return {
+      mode: 'QA',
+      companies: allowlist.companyIds.length,
+      temporal,
+      inbox,
+      expanded,
+      processed,
+      deliveriesCreated: progress.deliveriesCreated,
+      limits: { events: 5, deliveries: 20 },
+    };
   }
   async reprocess(id: string, actorId: string) {
     return this.db.$transaction(async (tx) => {
@@ -838,7 +1297,12 @@ export class CommunicationEngine {
     });
   }
   /** A temporal fact is based on a persisted trial deadline; no guessed payment due date. */
-  async temporal() {
+  async temporal(options: { companyIds?: string[]; limit?: number } = {}) {
+    if (options.companyIds && !options.companyIds.length) return { inserted: 0 };
+    const companyFilter = options.companyIds
+      ? Prisma.sql`AND s."companyId" IN (${Prisma.join(options.companyIds)})`
+      : Prisma.empty;
+    const limit = Math.max(1, Math.min(options.limit ?? 100, 100));
     const now = new Date(),
       horizon = new Date(now.getTime() + 3 * 86400000);
     const inserted = await this.db.$executeRaw`
@@ -848,8 +1312,9 @@ export class CommunicationEngine {
         s."companyId", jsonb_build_object('plano',p.name,'dias_trial',ceil(extract(epoch from (s."trialEndsAt" - ${now}::timestamp))/86400)::text,'vencimento',s."trialEndsAt"::text), ${now}
       FROM "Subscription" s JOIN "Plan" p ON p.id=s."planId"
       WHERE s.status='TRIALING' AND s."trialEndsAt">${now} AND s."trialEndsAt"<=${horizon}
+      ${companyFilter}
       AND NOT EXISTS (SELECT 1 FROM "GlobalCommunicationOutbox" o WHERE o."businessKey"='TRIAL_EXPIRING:' || s.id::text || ':' || s."trialEndsAt"::text)
-      ORDER BY s."trialEndsAt",s.id LIMIT 100
+      ORDER BY s."trialEndsAt",s.id LIMIT ${limit}
       ON CONFLICT ("businessKey") DO NOTHING`;
     return { inserted };
   }

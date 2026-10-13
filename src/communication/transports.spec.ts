@@ -172,7 +172,12 @@ describe('provider contracts using no external network', () => {
       ),
     ).toBe('message-123');
     expect(get).toHaveBeenCalledWith({ scope: 'GLOBAL' });
-    expect(sendGlobalTextMessage).toHaveBeenCalledWith('owner', 'hello');
+    expect(sendGlobalTextMessage).toHaveBeenCalledWith(
+      'owner',
+      'hello',
+      undefined,
+      '+5511888888888',
+    );
     await expect(
       adapter.send({}, {}, { to: '+5511888888888', text: 'x' }),
     ).rejects.toMatchObject({ kind: 'PERMANENT' });

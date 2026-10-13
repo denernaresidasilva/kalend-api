@@ -1,17 +1,16 @@
 import { ForbiddenException } from '@nestjs/common';
+import { normalizeBrazilianPhone } from './recipient.js';
 
 export const QA_COMMUNICATION_EVENT = 'QA_COMMUNICATION_TEST' as const;
-export const QA_COMPANY_SLUG = 'qa-communication-dev';
 export type QaChannel = 'EMAIL' | 'WHATSAPP' | 'PUSH';
 export type QaEnvironment = 'DEV' | 'STAGING';
 
 export type QaCommunicationAllowlist = {
   environment: QaEnvironment;
-  companyId: string;
-  userId: string;
-  whatsapp?: string;
-  email?: string;
-  pushSubscriptionId?: string;
+  companyIds: string[];
+  emails: string[];
+  phones: string[];
+  pushSubscriptionIds: string[];
 };
 
 const uuidPattern =
@@ -64,6 +63,22 @@ export function qaCommunicationEnabled(env: NodeJS.ProcessEnv = process.env) {
   );
 }
 
+function values(...items: (string | undefined)[]) {
+  return [...new Set(items.flatMap((item) => item?.split(',') ?? []).map((s) => s.trim()).filter(Boolean))];
+}
+
+function normalizeEmail(value?: string) {
+  const normalized = value?.trim().toLowerCase();
+  return normalized && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)
+    ? normalized
+    : undefined;
+}
+
+function normalizeSubscription(value?: string) {
+  const normalized = value?.trim();
+  return normalized && uuidPattern.test(normalized) ? normalized : undefined;
+}
+
 export function requireQaCommunicationAllowlist(
   env: NodeJS.ProcessEnv = process.env,
 ): QaCommunicationAllowlist {
@@ -74,23 +89,41 @@ export function requireQaCommunicationAllowlist(
   )
     throw new ForbiddenException('QA_COMMUNICATION_DISABLED');
 
-  const companyId = env.QA_COMMUNICATION_COMPANY_ID ?? '';
-  const userId = env.QA_COMMUNICATION_USER_ID ?? '';
-  if (!uuidPattern.test(companyId) || !uuidPattern.test(userId))
+  const companyIds = values(
+    env.QA_COMMUNICATION_COMPANY_IDS,
+    env.QA_COMMUNICATION_COMPANY_ID,
+  );
+  if (!companyIds.length || companyIds.some((id) => !uuidPattern.test(id)))
     throw new ForbiddenException('QA_COMMUNICATION_SCOPE_NOT_CONFIGURED');
 
-  const whatsapp = normalizeQaPhone(env.QA_COMMUNICATION_ALLOWED_WHATSAPP);
-  const email = normalizeQaEmail(env.QA_COMMUNICATION_ALLOWED_EMAIL);
-  const pushSubscriptionId = normalizeQaSubscription(
+  const rawEmails = values(
+    env.QA_COMMUNICATION_EMAIL_ALLOWLIST,
+    env.QA_COMMUNICATION_ALLOWED_EMAIL,
+  );
+  const rawPhones = values(
+    env.QA_COMMUNICATION_PHONE_ALLOWLIST,
+    env.QA_COMMUNICATION_ALLOWED_WHATSAPP,
+  );
+  const rawPushIds = values(
+    env.QA_COMMUNICATION_PUSH_SUBSCRIPTION_IDS,
     env.QA_COMMUNICATION_ALLOWED_PUSH_SUBSCRIPTION_ID,
   );
+  const emails = rawEmails.map(normalizeEmail);
+  const phones = rawPhones.map(normalizeBrazilianPhone);
+  const pushSubscriptionIds = rawPushIds.map(normalizeSubscription);
+  if (
+    emails.some((email) => !email) ||
+    phones.some((phone) => !phone) ||
+    pushSubscriptionIds.some((id) => !id)
+  )
+    throw new ForbiddenException('QA_COMMUNICATION_ALLOWLIST_INVALID');
+
   return {
     environment,
-    companyId,
-    userId,
-    ...(whatsapp ? { whatsapp } : {}),
-    ...(email ? { email } : {}),
-    ...(pushSubscriptionId ? { pushSubscriptionId } : {}),
+    companyIds: [...new Set(companyIds)],
+    emails: emails as string[],
+    phones: phones as string[],
+    pushSubscriptionIds: pushSubscriptionIds as string[],
   };
 }
 
@@ -100,16 +133,13 @@ export function allowedRecipient(
   targetKey: string,
   allowlist: QaCommunicationAllowlist,
 ) {
+  if (channel === 'EMAIL') return allowlist.emails.includes(recipient.trim().toLowerCase());
   if (channel === 'WHATSAPP')
-    return (
-      !!allowlist.whatsapp && normalizeQaPhone(recipient) === allowlist.whatsapp
-    );
-  if (channel === 'EMAIL')
-    return !!allowlist.email && normalizeQaEmail(recipient) === allowlist.email;
+    return allowlist.phones.includes(normalizeBrazilianPhone(recipient) ?? '');
   return (
-    !!allowlist.pushSubscriptionId &&
-    targetKey === allowlist.pushSubscriptionId &&
-    recipient === allowlist.pushSubscriptionId
+    targetKey === recipient &&
+    (!allowlist.pushSubscriptionIds.length ||
+      allowlist.pushSubscriptionIds.includes(targetKey))
   );
 }
 
@@ -117,25 +147,32 @@ export function allowlistedRecipient(
   channel: QaChannel,
   allowlist: QaCommunicationAllowlist,
 ) {
-  if (channel === 'WHATSAPP') return allowlist.whatsapp ?? null;
-  if (channel === 'EMAIL') return allowlist.email ?? null;
-  return allowlist.pushSubscriptionId ?? null;
+  if (channel === 'WHATSAPP') return allowlist.phones[0] ?? null;
+  if (channel === 'EMAIL') return allowlist.emails[0] ?? null;
+  return allowlist.pushSubscriptionIds[0] ?? null;
+}
+
+export function isQaCompany(
+  companyId: string | null | undefined,
+  allowlist: QaCommunicationAllowlist,
+) {
+  return !!companyId && allowlist.companyIds.includes(companyId);
 }
 
 export function assertQaScope(
   companyId: string,
-  userId: string,
+  _userId: string,
   allowlist: QaCommunicationAllowlist,
 ) {
-  if (companyId !== allowlist.companyId || userId !== allowlist.userId)
+  if (!isQaCompany(companyId, allowlist))
     throw new ForbiddenException('QA_COMMUNICATION_SCOPE_MISMATCH');
 }
 
 export function normalizeQaDestination(channel: QaChannel, value: unknown) {
   if (typeof value !== 'string') return undefined;
-  if (channel === 'WHATSAPP') return normalizeQaPhone(value);
-  if (channel === 'EMAIL') return normalizeQaEmail(value);
-  return normalizeQaSubscription(value);
+  if (channel === 'WHATSAPP') return normalizeBrazilianPhone(value);
+  if (channel === 'EMAIL') return normalizeEmail(value);
+  return normalizeSubscription(value);
 }
 
 export function qaBusinessKeyPrefix(companyId: string) {
@@ -149,22 +186,4 @@ export function maskQaRecipient(channel: QaChannel, recipient: string) {
     return `${local.slice(0, 1)}***@${domain}`;
   }
   return `***${recipient.slice(-4)}`;
-}
-
-function normalizeQaPhone(value?: string) {
-  if (!value) return undefined;
-  const normalized = value.trim().replace(/[ ()-]/g, '');
-  return /^\+[1-9]\d{7,14}$/.test(normalized) ? normalized : undefined;
-}
-
-function normalizeQaEmail(value?: string) {
-  if (!value) return undefined;
-  const normalized = value.trim().toLowerCase();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : undefined;
-}
-
-function normalizeQaSubscription(value?: string) {
-  if (!value) return undefined;
-  const normalized = value.trim();
-  return uuidPattern.test(normalized) ? normalized : undefined;
 }

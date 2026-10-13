@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { secureRequest } from './secure-http.js';
 import { TransportFailure } from './contracts.js';
+import { normalizeBrazilianPhone } from './recipient.js';
 
 export class EvolutionFailure extends Error {
   constructor(
@@ -57,10 +58,9 @@ export function evolutionQr(value: unknown): string | null {
 export function evolutionPhone(value: unknown): string {
   if (typeof value !== 'string' || value.length > 32)
     throw new EvolutionFailure('INVALID_PHONE');
-  const normalized = value.replace(/\D/g, '');
-  if (!/^[1-9]\d{7,14}$/.test(normalized))
-    throw new EvolutionFailure('INVALID_PHONE');
-  return normalized;
+  const normalized = normalizeBrazilianPhone(value);
+  if (!normalized) throw new EvolutionFailure('INVALID_PHONE');
+  return normalized.replace(/\D/g, '');
 }
 /** Evolution 2.3.7 contracts. Fixed origin; no caller-controlled URL or credentials. */
 @Injectable()

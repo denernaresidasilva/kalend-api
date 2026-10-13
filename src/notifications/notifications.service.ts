@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import type { AuthIdentity } from '../auth/auth.types.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { object, boolean } from '../common/validation.js';
@@ -265,12 +265,18 @@ export class NotificationsService {
     return { inSystemEnabled: result.inSystemEnabled };
   }
   /** Separate outbox cursor: inbox creation does not require any enabled delivery channel. */
-  async ingest() {
+  async ingest(options: { companyIds?: string[]; limit?: number } = {}) {
+    if (options.companyIds && !options.companyIds.length)
+      return { processed: 0, created: 0 };
+    const limit = Math.max(1, Math.min(options.limit ?? 100, 100));
+    const companyFilter = options.companyIds
+      ? Prisma.sql`AND "companyId" IN (${Prisma.join(options.companyIds)})`
+      : Prisma.empty;
     return this.db.$transaction(async (tx) => {
       const now = await this.now(tx);
       const rows = await tx.$queryRaw<
         { id: string; recent: boolean }[]
-      >`SELECT id, ("createdAt" > LOCALTIMESTAMP - INTERVAL '168 hours') AS recent FROM "GlobalCommunicationOutbox" WHERE "notificationProcessedAt" IS NULL ORDER BY "createdAt", id LIMIT 100 FOR UPDATE SKIP LOCKED`;
+      >(Prisma.sql`SELECT id, ("createdAt" > LOCALTIMESTAMP - INTERVAL '168 hours') AS recent FROM "GlobalCommunicationOutbox" WHERE "notificationProcessedAt" IS NULL ${companyFilter} ORDER BY "createdAt", id LIMIT ${limit} FOR UPDATE SKIP LOCKED`);
       let created = 0;
       for (const { id, recent } of rows) {
         const event = await tx.globalCommunicationOutbox.findUniqueOrThrow({

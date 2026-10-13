@@ -174,11 +174,18 @@ export class EvolutionTransport implements Transport {
     return this.run(
       async () =>
         (
-          await this.evolution!.sendGlobalTextMessage(
-            m.globalRecipientUserId!,
-            m.text,
-            ...(m.globalTestNumber !== undefined ? [m.globalTestNumber] : []),
-          )
+          await (m.globalTestNumber !== undefined
+            ? this.evolution!.sendGlobalTextMessage(
+                m.globalRecipientUserId!,
+                m.text,
+                m.globalTestNumber,
+              )
+            : this.evolution!.sendGlobalTextMessage(
+                m.globalRecipientUserId!,
+                m.text,
+                undefined,
+                m.to,
+              ))
         ).messageId,
       true,
     );
