@@ -1,4 +1,4 @@
-import { Query } from '@nestjs/common';
+import { Body, Delete, Patch, Query } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
 import { UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { AdminGuard } from '../common/admin.guard.js';
@@ -32,5 +32,21 @@ export class UsersController {
     }
 
     return user;
+  }
+
+  @Patch(':id')
+  async update(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.usersService.update(id, body);
+  }
+
+  @Delete(':id')
+  async remove(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.usersService.remove(id, body);
   }
 }

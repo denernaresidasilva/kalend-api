@@ -51,6 +51,35 @@ export class AuthService {
     @Inject(AuthTokens) private readonly tokens: AuthTokens,
     @Inject(AuthRateLimit) private readonly limiter: AuthRateLimit,
   ) {}
+  private noActiveCompany() {
+    return new ForbiddenException({
+      code: 'NO_ACTIVE_COMPANY',
+      message: 'Esta conta não possui uma empresa vinculada.',
+    });
+  }
+  // Authentication eligibility is not commercial entitlement: an OWNER with
+  // an active membership can enter recovery even when the company is irregular.
+  private async hasAuthenticationMembership(
+    userId: string,
+    client: Pick<PrismaService, 'membership'> = this.prisma,
+  ) {
+    const memberships = await client.membership.findMany({
+      where: { userId, isActive: true },
+      select: {
+        role: true,
+        company: { select: { status: true, isActive: true } },
+      },
+    });
+    return memberships.some(
+      (membership) =>
+        membership.role === 'OWNER' ||
+        ((membership.company.status === 'ACTIVE' ||
+          membership.company.status === 'TRIAL') &&
+          membership.company.isActive) ||
+        membership.company.status === 'SUSPENDED' ||
+        membership.company.status === 'CANCELED',
+    );
+  }
   async login(input: unknown, ip: string) {
     const data = parseLoginDto(input);
     const email = data.email;
@@ -65,7 +94,11 @@ export class AuthService {
       data.password,
       user?.passwordHash ?? dummy,
     );
-    if (!user || !correct || !user.isActive)
+    if (!user || !correct)
+      throw new UnauthorizedException('E-mail ou senha inválidos.');
+    if (!user.isSuperAdmin && !(await this.hasAuthenticationMembership(user.id)))
+      throw this.noActiveCompany();
+    if (!user.isActive)
       throw new UnauthorizedException('E-mail ou senha inválidos.');
     const now = new Date();
     const expiresAt = new Date(now.getTime() + SESSION_SECONDS * 1000);
@@ -79,6 +112,11 @@ export class AuthService {
       });
       if (!current)
         throw new UnauthorizedException('E-mail ou senha inválidos.');
+      if (
+        !user.isSuperAdmin &&
+        !(await this.hasAuthenticationMembership(user.id, tx))
+      )
+        throw this.noActiveCompany();
       return tx.authSession.create({
         data: {
           userId: user.id,
@@ -121,20 +159,37 @@ export class AuthService {
       throw new UnauthorizedException('Sessão inválida ou expirada.');
     const now = new Date();
     const refresh = newRefresh();
-    const session = await this.prisma.$transaction(
+    const result = await this.prisma.$transaction(
       async (tx) => {
         const token = await tx.authRefreshToken.findUnique({
           where: { tokenHash: refreshHash(raw) },
           include: {
             session: {
               include: {
-                user: { select: { isActive: true, passwordHash: true } },
+                user: {
+                  select: {
+                    id: true,
+                    isActive: true,
+                    isSuperAdmin: true,
+                    passwordHash: true,
+                  },
+                },
               },
             },
           },
         });
         if (!token) return null;
         const s = token.session;
+        if (
+          !s.user.isSuperAdmin &&
+          !(await this.hasAuthenticationMembership(s.user.id, tx))
+        ) {
+          await tx.authSession.updateMany({
+            where: { userId: s.user.id, revokedAt: null },
+            data: { revokedAt: now },
+          });
+          return { blocked: true as const };
+        }
         if (
           token.usedAt ||
           s.revokedAt ||
@@ -149,6 +204,16 @@ export class AuthService {
             data: { revokedAt: now },
           });
           return null; // Commit revocation before returning 401; never throw inside this branch.
+        }
+        if (
+          !s.user.isSuperAdmin &&
+          !(await this.hasAuthenticationMembership(s.user.id, tx))
+        ) {
+          await tx.authSession.updateMany({
+            where: { userId: s.user.id, revokedAt: null },
+            data: { revokedAt: now },
+          });
+          return { blocked: true as const };
         }
         const claimed = await tx.authRefreshToken.updateMany({
           where: { id: token.id, usedAt: null },
@@ -179,13 +244,18 @@ export class AuthService {
             expiresAt: refreshExpiresAt,
           },
         });
-        return { ...s, refreshExpiresAt };
+        return { blocked: false as const, session: { ...s, refreshExpiresAt } };
       },
       { isolationLevel: 'ReadCommitted' },
     );
-    if (!session)
+    if (result?.blocked) throw this.noActiveCompany();
+    if (!result)
       throw new UnauthorizedException('Sessão inválida ou expirada.');
-    return this.issue(session.userId, session, refresh);
+    return this.issue(
+      result.session.userId,
+      result.session,
+      refresh,
+    );
   }
   async authenticate(raw: string | undefined): Promise<AuthIdentity> {
     if (!raw) throw new UnauthorizedException('Autenticação necessária.');
@@ -195,9 +265,19 @@ export class AuthService {
       include: { user: { select: { ...identitySelect, passwordHash: true } } },
     });
     const now = new Date();
+    if (!session || session.userId !== claim.userId)
+      throw new UnauthorizedException('Sessão inválida ou expirada.');
     if (
-      !session ||
-      session.userId !== claim.userId ||
+      !session.user.isSuperAdmin &&
+      !(await this.hasAuthenticationMembership(session.user.id))
+    ) {
+      await this.prisma.authSession.updateMany({
+        where: { userId: session.user.id, revokedAt: null },
+        data: { revokedAt: now },
+      });
+      throw this.noActiveCompany();
+    }
+    if (
       session.revokedAt ||
       session.expiresAt <= now ||
       session.refreshExpiresAt <= now ||
@@ -246,6 +326,16 @@ export class AuthService {
     });
   }
   async me(identity: AuthIdentity) {
+    if (
+      !identity.user.isSuperAdmin &&
+      !(await this.hasAuthenticationMembership(identity.user.id))
+    ) {
+      await this.prisma.authSession.updateMany({
+        where: { userId: identity.user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      throw this.noActiveCompany();
+    }
     const memberships = await this.prisma.membership.findMany({
       where: { userId: identity.user.id, isActive: true },
       select: membershipSelect,
@@ -253,6 +343,7 @@ export class AuthService {
     });
     const available = memberships.filter(
       (m) =>
+        m.role === 'OWNER' ||
         (['ACTIVE', 'TRIAL'].includes(m.company.status) &&
           m.company.isActive) ||
         ['SUSPENDED', 'CANCELED'].includes(m.company.status),
@@ -296,7 +387,8 @@ export class AuthService {
           !['ACTIVE', 'TRIAL'].includes(membership.company.status))) ||
       (recovery &&
         !membership.company.isActive &&
-        !['SUSPENDED', 'CANCELED'].includes(membership.company.status))
+        !['SUSPENDED', 'CANCELED'].includes(membership.company.status) &&
+        membership.role !== 'OWNER')
     )
       throw new ForbiddenException('Acesso à empresa não permitido.');
     if (!recovery) {

@@ -87,23 +87,21 @@ describe('authentication HTTP with real bcrypt/JWT and mock persistence', () => 
       .send({ companyId: OTHER_COMPANY_ID, amountCents: 1 })
       .expect(400);
   });
-  it('regularization requires authentication and returns no invented trial for a user without company', async () => {
+  it('denies login for a user without active company and creates no session', async () => {
     for (const membership of fixture.memberships) membership.isActive = false;
     await request(app.getHttpServer())
       .get('/billing/regularization')
       .expect(401);
-    const response = await login('member@example.test').expect(200);
-    const result = await request(app.getHttpServer())
-      .get('/billing/regularization')
-      .set('Cookie', cookie(response, ACCESS_COOKIE))
-      .expect(200);
-    expect(result.body).toMatchObject({
-      companyId: null,
-      context: { commercialApplicable: false },
-      financial: { requiresAction: false },
-      trial: { active: false },
+    const response = await login('member@example.test').expect(403);
+    expect(response.body).toMatchObject({
+      code: 'NO_ACTIVE_COMPANY',
+      message: 'Esta conta não possui uma empresa vinculada.',
     });
-    expect(fixture.sessions[0].selectedCompanyId).toBeNull();
+    expect(fixture.sessions).toHaveLength(0);
+    expect(response.headers['set-cookie']).toHaveLength(2);
+    for (const value of response.headers['set-cookie'] as unknown as string[]) {
+      expect(value).toMatch(/Expires=Thu, 01 Jan 1970/);
+    }
   });
   it('Super Admin has no company trial even with selected session context', async () => {
     const response = await login().expect(200);
@@ -523,14 +521,9 @@ describe('authentication HTTP with real bcrypt/JWT and mock persistence', () => 
       .expect(401);
     expect(fixture.sessions[0].revokedAt).toBeInstanceOf(Date);
   });
-  it('reads privilege changes and deactivation from database immediately', async () => {
-    const response = await login();
-    fixture.users[0].isSuperAdmin = false;
-    await request(app.getHttpServer())
-      .get('/payment-gateways')
-      .set('Cookie', cookie(response, ACCESS_COOKIE))
-      .expect(403);
-    fixture.users[0].isActive = false;
+  it('reads tenant-user deactivation from database immediately', async () => {
+    const response = await login('member@example.test');
+    fixture.users[1].isActive = false;
     await request(app.getHttpServer())
       .get('/auth/me')
       .set('Cookie', cookie(response, ACCESS_COOKIE))

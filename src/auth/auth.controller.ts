@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  ForbiddenException,
   Inject,
   Post,
   Req,
@@ -30,7 +31,17 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const previousRefresh = readCookie(request, REFRESH_COOKIE);
-    const tokens = await this.service.login(body, request.ip ?? 'unknown');
+    let tokens;
+    try {
+      tokens = await this.service.login(body, request.ip ?? 'unknown');
+    } catch (error) {
+      if (
+        error instanceof ForbiddenException &&
+        (error.getResponse() as { code?: string }).code === 'NO_ACTIVE_COMPANY'
+      )
+        clearAuthCookies(response);
+      throw error;
+    }
     // Logging in replaces this browser's current session, without affecting other devices.
     await this.service.logout(previousRefresh);
     setAuthCookies(response, tokens);
@@ -61,7 +72,13 @@ export class AuthController {
         refreshExpiresAt: tokens.refreshExpiresAt,
       };
     } catch (error) {
-      if (error instanceof UnauthorizedException) clearAuthCookies(response);
+      if (
+        error instanceof UnauthorizedException ||
+        (error instanceof ForbiddenException &&
+          (error.getResponse() as { code?: string }).code ===
+            'NO_ACTIVE_COMPANY')
+      )
+        clearAuthCookies(response);
       throw error;
     }
   }

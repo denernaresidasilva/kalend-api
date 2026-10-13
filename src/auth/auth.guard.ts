@@ -1,12 +1,18 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Inject,
   Injectable,
 } from '@nestjs/common';
 import { AuthService } from './auth.service.js';
 import { ACCESS_COOKIE, AuthConfig } from './auth.config.js';
-import { noStore, readCookie, requireOrigin } from './auth.http.js';
+import {
+  clearAuthCookies,
+  noStore,
+  readCookie,
+  requireOrigin,
+} from './auth.http.js';
 import type { AuthRequest } from './auth.types.js';
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -17,9 +23,18 @@ export class AuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<AuthRequest>();
     noStore(context.switchToHttp().getResponse());
-    request.auth = await this.auth.authenticate(
-      readCookie(request, ACCESS_COOKIE),
-    );
+    try {
+      request.auth = await this.auth.authenticate(
+        readCookie(request, ACCESS_COOKIE),
+      );
+    } catch (error) {
+      if (
+        error instanceof ForbiddenException &&
+        (error.getResponse() as { code?: string }).code === 'NO_ACTIVE_COMPANY'
+      )
+        clearAuthCookies(context.switchToHttp().getResponse());
+      throw error;
+    }
     if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method))
       requireOrigin(request, this.config);
     return true;

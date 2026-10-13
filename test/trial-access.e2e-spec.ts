@@ -140,6 +140,87 @@ describe('authoritative trial access without scheduler (HTTP, simulated persiste
       }
     },
   );
+  it('OWNER can enter recovery for an existing commercially inactive company without product access', async () => {
+    vi.setSystemTime(deadline.getTime() + 3600000);
+    fixture.memberships[0].company.isActive = false;
+
+    const cookie = await login();
+    const profile = await request(app.getHttpServer())
+      .get('/auth/me')
+      .set('Cookie', cookie)
+      .expect(200);
+    expect(profile.body.memberships).toHaveLength(2);
+    expect(profile.body.memberships[0].role).toBe('OWNER');
+
+    await select(cookie);
+    await request(app.getHttpServer())
+      .get('/auth/tenant')
+      .set('Cookie', cookie)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get('/company/communication/evolution/status')
+      .set('Cookie', cookie)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get('/billing/regularization')
+      .set('Cookie', cookie)
+      .expect(200);
+    await request(app.getHttpServer())
+      .post('/billing/checkout')
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({})
+      .expect(201);
+    expect(checkout).toHaveBeenCalledWith(COMPANY_ID, {});
+  });
+  it.each(['EXPIRED', 'PAST_DUE', 'PENDING'])(
+    'OWNER can log in and regularize when billing state is %s',
+    async (status) => {
+      vi.setSystemTime(deadline.getTime() + 3600000);
+      const lastSubscription = {
+        id: 'irregular-subscription',
+        companyId: COMPANY_ID,
+        planId: 'fixture-plan',
+        plan: { name: 'Plano de homologação' },
+        status,
+        trialStartedAt: null,
+        trialEndsAt: null,
+        currentPeriodEnd: new Date(deadline.getTime() - 86400000),
+        graceEndsAt: new Date(deadline.getTime() - 86400000),
+        billingInterval: 'MONTHLY',
+        cancelAtPeriodEnd: false,
+      };
+      fixture.db.subscription.findFirst.mockImplementation((async ({ where }: {
+        where: { OR?: unknown; status?: { not?: string } };
+      }) => {
+        if (where.OR) return null;
+        return status === 'PENDING' ? null : lastSubscription;
+      }) as never);
+      fixture.db.payment.findFirst.mockImplementation((async ({ where }: {
+        where: { status?: string };
+      }) => status === 'PENDING' && where.status === 'PENDING'
+        ? { id: 'pending-payment', planId: 'fixture-plan', gateway: 'STRIPE', billingInterval: 'MONTHLY', checkoutUrl: 'https://checkout.example.test', creationState: 'CREATED' }
+        : null) as never);
+
+      const cookie = await login();
+      await select(cookie);
+      const regularization = await request(app.getHttpServer())
+        .get('/billing/regularization')
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(regularization.body.accessAllowed).toBe(false);
+      await request(app.getHttpServer())
+        .get('/auth/tenant')
+        .set('Cookie', cookie)
+        .expect(403);
+      await request(app.getHttpServer())
+        .post('/billing/checkout')
+        .set('Origin', origin)
+        .set('Cookie', cookie)
+        .send({})
+        .expect(201);
+    },
+  );
   it('an existing session loses product access immediately, even after constructing a fresh AuthService', async () => {
     vi.setSystemTime(deadline.getTime() - 1000);
     const cookie = await login();
