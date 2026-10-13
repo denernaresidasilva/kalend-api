@@ -34,16 +34,27 @@ function setup(existing = false) {
       create: vi
         .fn()
         .mockImplementation(({ data }) => ({ ...data, id: 'company' })),
+      update: vi.fn().mockResolvedValue({ id: 'company' }),
+      delete: vi.fn().mockResolvedValue({ id: 'company' }),
       findMany: vi.fn(),
     },
     membership: {
       create: vi.fn().mockResolvedValue({ id: 'membership', role: 'OWNER' }),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      upsert: vi.fn().mockResolvedValue({ id: 'membership', role: 'OWNER' }),
     },
     subscription: {
       create: vi
         .fn()
         .mockImplementation(({ data }) => ({ ...data, id: 'sub', plan })),
+      findFirst: vi.fn().mockResolvedValue({ id: 'sub', status: 'TRIALING' }),
+      update: vi.fn().mockResolvedValue({ id: 'sub' }),
     },
+    webhookEvent: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    globalCommunicationOutbox: { findMany: vi.fn().mockResolvedValue([]), deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    globalCommunicationDelivery: { findMany: vi.fn().mockResolvedValue([]), deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    globalCommunicationLog: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    evolutionConnection: { findUnique: vi.fn().mockResolvedValue({ companyId: 'company', globalKey: null, prepared: false, status: 'PENDING' }) },
     $transaction: vi.fn(),
   };
   db.$transaction.mockImplementation((fn) => fn(db));
@@ -123,6 +134,163 @@ describe('manual company', () => {
       db.company.findUnique.mock.calls[0][0].include.memberships.include.user,
     ).toEqual({ select: safeUserSelect });
     expect(safeUserSelect).not.toHaveProperty('passwordHash');
+  });
+  it('updates company fields, owner membership and the current plan transactionally', async () => {
+    const { service, db } = setup();
+    db.company.findUnique.mockResolvedValue({ id: 'company' });
+    db.user.findUnique.mockResolvedValue({
+      id: 'new-owner',
+      isActive: true,
+      isSuperAdmin: false,
+    });
+    const result = await service.update('company', {
+      name: 'Nome atualizado',
+      slug: 'novo-slug',
+      timezone: 'UTC',
+      status: 'ACTIVE',
+      ownerEmail: 'new@example.test',
+      planId,
+    });
+    expect(db.$transaction).toHaveBeenCalledOnce();
+    expect(db.company.update).toHaveBeenCalledWith({
+      where: { id: 'company' },
+      data: {
+        name: 'Nome atualizado',
+        slug: 'novo-slug',
+        timezone: 'UTC',
+        status: 'ACTIVE',
+        isActive: true,
+      },
+    });
+    expect(db.membership.updateMany).toHaveBeenCalledWith({
+      where: { companyId: 'company', role: 'OWNER', userId: { not: 'new-owner' } },
+      data: { role: 'ADMIN' },
+    });
+    expect(db.membership.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId_companyId: { userId: 'new-owner', companyId: 'company' } },
+      update: { role: 'OWNER', isActive: true },
+    }));
+    expect(db.subscription.update).toHaveBeenCalledWith({
+      where: { id: 'sub' },
+      data: { planId },
+    });
+    expect(result).toBeDefined();
+  });
+  it('rejects a Super Admin as company owner and rolls the transaction back', async () => {
+    const { service, db } = setup();
+    db.company.findUnique.mockResolvedValue({ id: 'company' });
+    db.user.findUnique.mockResolvedValue({
+      id: 'admin',
+      isActive: true,
+      isSuperAdmin: true,
+    });
+    await expect(service.update('company', { ownerEmail: 'admin@example.test' }))
+      .rejects.toThrow('não seja Super Admin');
+    expect(db.$transaction).toHaveBeenCalledOnce();
+    expect(db.membership.updateMany).not.toHaveBeenCalled();
+  });
+  it('requires an existing company before editing', async () => {
+    const { service, db } = setup();
+    await expect(service.update('missing', { name: 'Atualizada' }))
+      .rejects.toThrow('Empresa não encontrada');
+    expect(db.company.update).not.toHaveBeenCalled();
+  });
+  it('does not change a paid subscription plan from the company editor', async () => {
+    const { service, db } = setup();
+    db.company.findUnique.mockResolvedValue({ id: 'company' });
+    db.subscription.findFirst.mockResolvedValue({ id: 'sub', status: 'ACTIVE' });
+    await expect(service.update('company', { planId }))
+      .rejects.toThrow('gestão de assinaturas');
+    expect(db.subscription.update).not.toHaveBeenCalled();
+  });
+  it('requires an exact company-name confirmation and never deletes before it matches', async () => {
+    const { service, db } = setup();
+    db.company.findUnique.mockResolvedValue({ id: 'company', name: 'QA Empresa', evolutionConnection: null });
+    await expect(service.remove('company', { confirmationName: 'qa empresa' }))
+      .rejects.toThrow('não corresponde');
+    expect(db.$transaction).not.toHaveBeenCalled();
+    expect(db.company.delete).not.toHaveBeenCalled();
+  });
+  it('deletes only company-scoped communication and webhook data in one transaction, preserving user rows', async () => {
+    const { service, db } = setup();
+    db.company.findUnique.mockResolvedValue({ id: 'company', name: 'QA Empresa', evolutionConnection: null });
+    db.globalCommunicationOutbox.findMany.mockResolvedValue([{ id: 'outbox-a' }]);
+    db.globalCommunicationDelivery.findMany.mockResolvedValue([{ id: 'delivery-a' }]);
+    await expect(service.remove('company', { confirmationName: 'QA Empresa' }))
+      .resolves.toEqual({ deleted: true, companyId: 'company' });
+    expect(db.globalCommunicationLog.deleteMany).toHaveBeenCalledWith({
+      where: { OR: [{ outboxId: { in: ['outbox-a'] } }, { deliveryId: { in: ['delivery-a'] } }] },
+    });
+    expect(db.globalCommunicationDelivery.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['delivery-a'] } } });
+    expect(db.globalCommunicationOutbox.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['outbox-a'] }, companyId: 'company' } });
+    expect(db.webhookEvent.deleteMany).toHaveBeenCalledWith({ where: { companyId: 'company' } });
+    expect(db.company.delete).toHaveBeenCalledWith({ where: { id: 'company' } });
+    expect(db.user).not.toHaveProperty('delete');
+  });
+  it('keeps a company intact if Evolution cleanup fails', async () => {
+    const { db } = setup();
+    db.company.findUnique.mockResolvedValue({
+      id: 'company', name: 'QA Empresa',
+      evolutionConnection: { companyId: 'company', globalKey: null, provisionRequested: true, prepared: true, status: 'CONNECTED' },
+    });
+    const service = new CompaniesService(db as unknown as PrismaService, {
+      remove: vi.fn().mockRejectedValue(new Error('provider failed')),
+    } as unknown as EvolutionService);
+    await expect(service.remove('company', { confirmationName: 'QA Empresa' })).rejects.toThrow('provider failed');
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+  it('refuses a GLOBAL Evolution link and never calls the global connection cleanup', async () => {
+    const { db } = setup();
+    db.company.findUnique.mockResolvedValue({
+      id: 'company', name: 'QA Empresa',
+      evolutionConnection: { companyId: null, globalKey: 'GLOBAL', provisionRequested: true, prepared: true, status: 'CONNECTED' },
+    });
+    const remove = vi.fn();
+    const service = new CompaniesService(db as unknown as PrismaService, {
+      remove,
+    } as unknown as EvolutionService);
+    await expect(service.remove('company', { confirmationName: 'QA Empresa' }))
+      .rejects.toThrow('não corresponde');
+    expect(remove).not.toHaveBeenCalled();
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+  it('does not delete the Company if remote Evolution removal is not confirmed', async () => {
+    const { db } = setup();
+    db.company.findUnique.mockResolvedValue({
+      id: 'company', name: 'QA Empresa',
+      evolutionConnection: { companyId: 'company', globalKey: null, provisionRequested: true, prepared: true, status: 'CONNECTED' },
+    });
+    const service = new CompaniesService(db as unknown as PrismaService, {
+      remove: vi.fn().mockResolvedValue({ status: 'DELETING', prepared: true }),
+    } as unknown as EvolutionService);
+    await expect(service.remove('company', { confirmationName: 'QA Empresa' }))
+      .rejects.toThrow('confirmar a remoção segura');
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+  it('removes only the matching COMPANY Evolution connection before deleting its tenant', async () => {
+    const { db } = setup();
+    db.company.findUnique.mockResolvedValue({
+      id: 'company', name: 'QA Empresa',
+      evolutionConnection: { companyId: 'company', globalKey: null, provisionRequested: true, prepared: true, status: 'CONNECTED' },
+    });
+    const remove = vi.fn().mockResolvedValue({ status: 'PENDING' });
+    const service = new CompaniesService(db as unknown as PrismaService, {
+      remove,
+    } as unknown as EvolutionService);
+    await expect(service.remove('company', { confirmationName: 'QA Empresa' }))
+      .resolves.toMatchObject({ deleted: true, companyId: 'company' });
+    expect(remove).toHaveBeenCalledWith('company');
+    expect(db.evolutionConnection.findUnique).toHaveBeenCalledWith({
+      where: { companyId: 'company' },
+      select: { companyId: true, globalKey: true, prepared: true, status: true },
+    });
+  });
+  it('runs the destructive database cleanup inside a transaction so failures cannot commit partial state', async () => {
+    const { service, db } = setup();
+    db.company.findUnique.mockResolvedValue({ id: 'company', name: 'QA Empresa', evolutionConnection: null });
+    db.company.delete.mockRejectedValue(new Error('database failure'));
+    await expect(service.remove('company', { confirmationName: 'QA Empresa' })).rejects.toThrow('database failure');
+    expect(db.$transaction).toHaveBeenCalledOnce();
   });
   it.each([
     { startWithTrial: 'false' },

@@ -5,9 +5,11 @@ import { AdminGuard } from '../common/admin.guard.js';
 import {
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
+  Patch,
   Post,
 } from '@nestjs/common';
 
@@ -56,5 +58,21 @@ export class CompaniesController {
     }
 
     return company;
+  }
+
+  @Patch(':id')
+  async update(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.companiesService.update(id, body);
+  }
+
+  @Delete(':id')
+  async remove(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.companiesService.remove(id, body);
   }
 }
