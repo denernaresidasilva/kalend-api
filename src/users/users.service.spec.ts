@@ -113,10 +113,11 @@ describe('Super Admin user management', () => {
   it('updates supported profile fields without allowing email or privilege mass assignment', async () => {
     const { service, db, user } = setup();
     await expect(service.update(user.id, { name: 'Nome atualizado', phone: '11999999999' }))
-      .resolves.toMatchObject({ name: 'Nome atualizado', phone: '11999999999' });
+      .resolves.toMatchObject({ name: 'Nome atualizado', phone: '+5511999999999' });
     expect(db.user.update).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: user.id }, data: { name: 'Nome atualizado', phone: '11999999999' },
+      where: { id: user.id }, data: { name: 'Nome atualizado', phone: '+5511999999999' },
     }));
+    await expect(service.update(user.id, { phone: 'invalid' })).rejects.toThrow('Telefone inválido.');
     await expect(service.update(user.id, { email: 'attacker@example.test' })).rejects.toThrow('Campo não permitido');
     await expect(service.update(user.id, { isSuperAdmin: true })).rejects.toThrow('Campo não permitido');
   });

@@ -3,6 +3,7 @@ import {
   EvolutionService,
   evolutionInstanceName,
 } from '../communication/evolution.js';
+import { normalizeBrazilianPhone } from '../communication/recipient.js';
 import { adminList, listStatus } from '../common/admin-list.js';
 import { Inject } from '@nestjs/common';
 import { nextPeriod } from '../common/period.js';
@@ -94,7 +95,12 @@ export class CompaniesService {
     const ownerName = input.ownerName?.trim();
     const ownerEmail = input.ownerEmail?.trim().toLowerCase();
 
-    const ownerPhone = input.ownerPhone?.trim() || null;
+    const rawOwnerPhone = input.ownerPhone?.trim();
+    const ownerPhone = rawOwnerPhone
+      ? normalizeBrazilianPhone(rawOwnerPhone)
+      : null;
+    if (rawOwnerPhone && !ownerPhone)
+      throw new BadRequestException('Telefone inválido.');
 
     const timezone = input.timezone?.trim() || 'America/Sao_Paulo';
 

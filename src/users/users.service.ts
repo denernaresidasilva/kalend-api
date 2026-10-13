@@ -10,6 +10,7 @@ import { CompanyStatus, MembershipRole, Prisma } from '@prisma/client';
 import { adminList, listStatus } from '../common/admin-list.js';
 import { boolean, object, string, uuid } from '../common/validation.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { normalizeBrazilianPhone } from '../communication/recipient.js';
 
 const ROLES = new Set<string>(Object.values(MembershipRole));
 const ACCESSIBLE_COMPANY_STATUSES = new Set([
@@ -289,8 +290,9 @@ export class UsersService {
     if (data.phone !== undefined) {
       if (data.phone !== null && typeof data.phone !== 'string')
         throw new BadRequestException('Telefone inválido.');
-      phone = typeof data.phone === 'string' ? data.phone.trim() || null : null;
-      if (phone && phone.length > 32)
+      const rawPhone = typeof data.phone === 'string' ? data.phone.trim() : '';
+      phone = rawPhone ? normalizeBrazilianPhone(rawPhone) ?? null : null;
+      if (rawPhone && !phone)
         throw new BadRequestException('Telefone inválido.');
     }
     boolean(data.isActive, 'isActive');

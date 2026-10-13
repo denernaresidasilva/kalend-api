@@ -105,7 +105,7 @@ function fixture() {
     config as never,
     transports as never,
   );
-  return { engine, db, delivery, send, config, transports };
+  return { engine, db, delivery, send, config, transports, vault };
 }
 beforeEach(() =>
   vi.stubEnv('GATEWAY_ENCRYPTION_KEY', randomBytes(32).toString('hex')),
@@ -363,6 +363,169 @@ describe('outbox delivery and retries', () => {
     expect(additions.globalCommunicationTemplate.findMany).toHaveBeenCalledWith(
       { where: { event: 'PAYMENT_APPROVED', scope: 'GLOBAL' } },
     );
+  });
+
+  it.each([
+    ['OWNER_WELCOME', '12996015129'],
+    ['OWNER_WELCOME', '5512996015129'],
+    ['OWNER_WELCOME', '+5512996015129'],
+    ['OWNER_WELCOME', '(12) 99601-5129'],
+    ['TRIAL_STARTED', '12996015129'],
+    ['TRIAL_STARTED', '5512996015129'],
+    ['TRIAL_STARTED', '+5512996015129'],
+    ['TRIAL_STARTED', '(12) 99601-5129'],
+  ] as const)('%s expands a legacy Brazilian phone (%s) for commercial WhatsApp', async (eventName, rawPhone) => {
+    const f = fixture();
+    const outboxId = `outbox-${eventName}`;
+    const createMany = vi.fn().mockResolvedValue({ count: 1 });
+    Object.assign(f.db, {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: outboxId }]),
+      globalCommunicationOutbox: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          id: outboxId,
+          companyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          userId: eventName === 'OWNER_WELCOME' ? 'owner' : null,
+          event: eventName,
+          variables: {},
+        }),
+        update: vi.fn(),
+      },
+      globalCommunicationTemplate: {
+        findMany: vi.fn().mockResolvedValue([{
+          id: `template-${eventName}`,
+          revision: 1,
+          enabled: true,
+          provider: 'EVOLUTION',
+          channel: 'WHATSAPP',
+          content: { text: 'Olá, {{nome}} da {{empresa}}' },
+        }]),
+      },
+      companyCommunicationTemplate: { findMany: vi.fn().mockResolvedValue([]) },
+      membership: {
+        findMany: vi.fn().mockResolvedValue([{
+          userId: 'owner',
+          user: { name: 'Owner QA', email: 'owner@example.test', phone: rawPhone },
+          company: { name: 'QA' },
+        }]),
+      },
+      globalCommunicationProvider: {
+        findUnique: vi.fn().mockResolvedValue({
+          enabled: true, scope: 'GLOBAL', environment: 'PRODUCTION', revision: 1,
+        }),
+      },
+    });
+    Object.assign(f.db.globalCommunicationDelivery, { createMany });
+    f.config.resolveProvider.mockResolvedValue('EVOLUTION');
+
+    await f.engine.expand();
+
+    expect(createMany).toHaveBeenCalledTimes(1);
+    const row = createMany.mock.calls[0][0].data[0];
+    expect(row).toMatchObject({
+      channel: 'WHATSAPP',
+      status: 'PENDING',
+      recipientMasked: '***5129',
+      lastError: null,
+    });
+    expect(JSON.parse(f.vault.decrypt(
+      row.payloadEncrypted,
+      `communication:GLOBAL:delivery:${row.id}`,
+    ))).toMatchObject({ to: '+5512996015129' });
+  });
+
+  it.each([[''], ['invalid'], ['+55+55 12 99601-5129']])(
+    'keeps empty or invalid commercial WhatsApp recipient unsendable (%s)',
+    async (rawPhone) => {
+      const f = fixture();
+      const createMany = vi.fn().mockResolvedValue({ count: 1 });
+      Object.assign(f.db, {
+        $queryRaw: vi.fn().mockResolvedValue([{ id: 'bad-phone-event' }]),
+        globalCommunicationOutbox: {
+          findUniqueOrThrow: vi.fn().mockResolvedValue({
+            id: 'bad-phone-event', companyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            event: 'OWNER_WELCOME', variables: {},
+          }),
+          update: vi.fn(),
+        },
+        globalCommunicationTemplate: {
+          findMany: vi.fn().mockResolvedValue([{
+            id: 'valid-template', revision: 1, enabled: true, provider: 'EVOLUTION',
+            channel: 'WHATSAPP', content: { text: 'Olá, {{nome}}' },
+          }]),
+        },
+        companyCommunicationTemplate: { findMany: vi.fn().mockResolvedValue([]) },
+        membership: {
+          findMany: vi.fn().mockResolvedValue([{
+            userId: 'owner', user: { name: 'Owner', email: 'owner@example.test', phone: rawPhone },
+            company: { name: 'QA' },
+          }]),
+        },
+        globalCommunicationProvider: {
+          findUnique: vi.fn().mockResolvedValue({ enabled: true, scope: 'GLOBAL', revision: 1 }),
+        },
+      });
+      Object.assign(f.db.globalCommunicationDelivery, { createMany });
+      f.config.resolveProvider.mockResolvedValue('EVOLUTION');
+
+      await f.engine.expand();
+
+      expect(createMany.mock.calls[0][0].data[0]).toMatchObject({
+        status: 'UNSENDABLE', recipientMasked: 'unavailable',
+        lastError: 'RECIPIENT_OR_TEMPLATE_INVALID', payloadEncrypted: null,
+      });
+    },
+  );
+
+  it('does not create a WhatsApp delivery when neither COMPANY nor GLOBAL template exists', async () => {
+    const f = fixture();
+    const createMany = vi.fn();
+    Object.assign(f.db, {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: 'missing-template-event' }]),
+      globalCommunicationOutbox: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          id: 'missing-template-event', companyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          event: 'OWNER_WELCOME', variables: {},
+        }),
+        update: vi.fn(),
+      },
+      globalCommunicationTemplate: { findMany: vi.fn().mockResolvedValue([]) },
+      companyCommunicationTemplate: { findMany: vi.fn().mockResolvedValue([]) },
+      membership: { findMany: vi.fn().mockResolvedValue([{
+        userId: 'owner', user: { name: 'Owner', email: 'owner@example.test', phone: '12996015129' },
+        company: { name: 'QA' },
+      }]) },
+      globalCommunicationDelivery: { createMany: createMany },
+    });
+
+    await f.engine.expand();
+
+    expect(createMany).not.toHaveBeenCalled();
+    expect(f.config.resolveProvider).not.toHaveBeenCalled();
+  });
+
+  it('revalidates a legacy commercial phone with the central normalizer before sending', async () => {
+    const f = fixture();
+    f.delivery.channel = 'WHATSAPP';
+    f.delivery.provider = 'EVOLUTION';
+    f.delivery.payloadEncrypted = f.vault.encrypt(
+      JSON.stringify({ to: '+5512996015129', text: 'Olá' }),
+      'communication:GLOBAL:delivery:delivery',
+    );
+    f.db.globalCommunicationOutbox.findUniqueOrThrow.mockResolvedValue({
+      id: 'event', companyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', event: 'TRIAL_STARTED',
+    });
+    f.db.membership.findFirst.mockResolvedValue({
+      user: { email: 'owner@example.test', phone: '12 99601-5129', isSuperAdmin: false },
+      company: { isActive: true },
+    });
+
+    await expect(f.engine.processOne()).resolves.toBe(true);
+
+    expect(f.send).toHaveBeenCalledTimes(1);
+    expect(f.send.mock.calls[0][2]).toMatchObject({
+      to: '+5512996015129', globalRecipientUserId: 'owner',
+    });
+    expect(f.delivery.status).toBe('ACCEPTED');
   });
 
   it.each([

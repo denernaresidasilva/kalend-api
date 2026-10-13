@@ -98,6 +98,22 @@ describe('manual company', () => {
     expect(db.$transaction).toHaveBeenCalledOnce();
     expect(JSON.stringify(result)).not.toContain('passwordHash');
   });
+  it.each([
+    '12996015129',
+    '5512996015129',
+    '+5512996015129',
+    '(12) 99601-5129',
+  ])('normalizes owner phone on company registration (%s)', async (ownerPhone) => {
+    const { service, db } = setup();
+    await service.createManual({ ...input, ownerPhone });
+    expect(db.user.upsert.mock.calls[0][0].create.phone).toBe('+5512996015129');
+  });
+  it('rejects an invalid owner phone on company registration', async () => {
+    const { service, db } = setup();
+    await expect(service.createManual({ ...input, ownerPhone: 'not-a-phone' }))
+      .rejects.toThrow('Telefone inválido.');
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
   it('commits a pending deterministic connection and returns even while Evolution is unavailable', async () => {
     const { db } = setup();
     const prepareAfterCompanyCreated = vi.fn().mockResolvedValue(undefined);

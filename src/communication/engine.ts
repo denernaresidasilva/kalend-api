@@ -17,7 +17,6 @@ import {
   channels,
   email,
   eventName,
-  phone,
   render,
   retry,
   templateContent,
@@ -563,9 +562,7 @@ export class CommunicationEngine {
                     t.channel === 'EMAIL'
                       ? email(member.user.email)
                       : t.channel === 'WHATSAPP'
-                        ? options.qaMode
-                          ? normalizeBrazilianPhone(member.user.phone ?? undefined) ?? ''
-                          : phone(member.user.phone)
+                        ? normalizeBrazilianPhone(member.user.phone ?? undefined) ?? ''
                         : target.id === 'NO_DEVICE'
                           ? ''
                           : target.id;
@@ -835,9 +832,7 @@ export class CommunicationEngine {
               row.channel === 'EMAIL'
                 ? email(member.user.email)
                 : row.channel === 'WHATSAPP'
-                  ? qaMode
-                    ? normalizeBrazilianPhone(member.user.phone ?? undefined) ?? ''
-                    : phone(member.user.phone)
+                  ? normalizeBrazilianPhone(member.user.phone ?? undefined) ?? ''
                   : row.targetKey;
             const device =
               row.channel === 'PUSH'
