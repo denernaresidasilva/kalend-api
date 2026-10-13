@@ -79,6 +79,22 @@ describe('Super Admin user management', () => {
     });
   });
 
+  it('lists active accounts by default and supports explicit inactive/all views', async () => {
+    const { service, db } = setup();
+    await service.findAll();
+    expect(db.user.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: { isActive: true },
+    }));
+    await service.findAll({ status: 'INACTIVE' });
+    expect(db.user.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: { isActive: false },
+    }));
+    await service.findAll({ status: 'ALL' });
+    expect(db.user.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: {},
+    }));
+  });
+
   it('shows OWNER linked to an irregular existing company as authenticated, separately from commercial access', async () => {
     const { service, user, companyA } = setup();
     companyA.isActive = false;
@@ -165,6 +181,12 @@ describe('Super Admin user management', () => {
       where: { userId: user.id, revokedAt: null },
     }));
     expect(db.user).not.toHaveProperty('delete');
+  });
+
+  it('accepts email confirmation case-insensitively like login', async () => {
+    const { service, user } = setup();
+    await expect(service.remove(user.id, { confirmationEmail: user.email.toUpperCase() }))
+      .resolves.toEqual({ deactivated: true, userId: user.id });
   });
 
   it('never allows deleting or deactivating a Super Admin', async () => {

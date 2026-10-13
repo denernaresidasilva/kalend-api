@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CompanyStatus, MembershipRole, Prisma } from '@prisma/client';
-import { adminList } from '../common/admin-list.js';
+import { adminList, listStatus } from '../common/admin-list.js';
 import { boolean, object, string, uuid } from '../common/validation.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -167,17 +167,23 @@ export class UsersService {
   }
 
   async findAll(query: unknown = {}) {
-    const page = adminList(query, ['q']);
+    const page = adminList(query, ['q', 'status']);
+    const status = listStatus(page.status, ['ACTIVE', 'INACTIVE', 'ALL'] as const) ?? 'ACTIVE';
+    const accountFilter: Prisma.UserWhereInput =
+      status === 'ALL' ? {} : { isActive: status === 'ACTIVE' };
     const users = await this.prisma.user.findMany({
       take: page.take,
       skip: page.skip,
-      where: page.q
-        ? {
+      where: {
+        ...accountFilter,
+        ...(page.q
+          ? {
             OR: ['name', 'email'].map((field) => ({
               [field]: { contains: page.q, mode: 'insensitive' as const },
             })),
           }
-        : {},
+          : {}),
+      },
       omit: { passwordHash: true },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
@@ -393,7 +399,7 @@ export class UsersService {
         if (!user) throw new NotFoundException('Usuário não encontrado.');
         if (user.isSuperAdmin)
           throw new ForbiddenException('Super Admin não pode ser excluído por esta tela.');
-        if (confirmationEmail !== user.email)
+        if (confirmationEmail.toLowerCase() !== user.email.toLowerCase())
           throw new BadRequestException('O e-mail de confirmação não corresponde.');
         const changed = await tx.user.updateMany({
           where: { id, isSuperAdmin: false },
