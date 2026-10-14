@@ -40,6 +40,10 @@ import {
 } from './qa-policy.js';
 import { evolutionGlobalName } from './evolution-environment.js';
 import { normalizeBrazilianPhone } from './recipient.js';
+import {
+  isDevEmailAllowed,
+  isLegacyDevDeliveryEnvironment,
+} from './dev-smtp-policy.js';
 const payloadScope = (id: string) => `communication:GLOBAL:delivery:${id}`;
 @Injectable()
 export class CommunicationEngine {
@@ -555,6 +559,12 @@ export class CommunicationEngine {
                     status = 'UNSENDABLE';
                     lastError = 'QA_RECIPIENT_NOT_ALLOWED';
                   }
+                } else if (
+                  t.channel === 'EMAIL' &&
+                  !isDevEmailAllowed(member.user.email)
+                ) {
+                  status = 'UNSENDABLE';
+                  lastError = 'DEV_EMAIL_RECIPIENT_NOT_ALLOWED';
                 }
                 try {
                   if (status === 'UNSENDABLE') throw new Error('QA_BLOCKED');
@@ -620,7 +630,13 @@ export class CommunicationEngine {
                       targetKey: target.id,
                       channel: t.channel,
                       provider,
-                      environment: cfg.environment,
+                      environment:
+                        t.channel === 'PUSH'
+                          ? cfg.environment
+                          : await this.configuration.deliveryEnvironment(
+                              provider,
+                              cfg,
+                            ),
                       configurationRevision: cfg.revision,
                       templateId: t.id,
                       templateRevision: t.revision,
@@ -818,7 +834,8 @@ export class CommunicationEngine {
             !member ||
             !t?.enabled ||
             t.revision !== row.templateRevision ||
-            c.row.environment !== row.environment ||
+            (c.deliveryEnvironment !== row.environment &&
+              !isLegacyDevDeliveryEnvironment(row.provider, row.environment)) ||
             c.row.revision !== row.configurationRevision
           ) {
             status = 'SKIPPED';
@@ -855,6 +872,12 @@ export class CommunicationEngine {
               code = qaMode && row.channel === 'PUSH'
                 ? 'NO_QA_PUSH_SUBSCRIPTION'
                 : 'RECIPIENT_CHANGED';
+            } else if (
+              row.channel === 'EMAIL' &&
+              !isDevEmailAllowed(current)
+            ) {
+              status = 'SKIPPED';
+              code = 'DEV_EMAIL_RECIPIENT_NOT_ALLOWED';
             } else {
               if (qaMode && row.provider === 'EVOLUTION' && !(await this.qaEvolutionIsSafe())) {
                 status = 'SKIPPED';

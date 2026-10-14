@@ -93,9 +93,11 @@ function fixture() {
     ),
     context: vi.fn().mockResolvedValue({
       row: { environment: 'SANDBOX', revision: 1 },
+      deliveryEnvironment: 'SANDBOX',
       config: {},
       secret: { password: 'SECRET' },
     }),
+    deliveryEnvironment: vi.fn(async (_provider: string, row: { environment: string }) => row.environment),
   };
   const send = vi.fn().mockResolvedValue('message-id');
   const transports = { get: () => ({ send }), available: () => true };
@@ -119,7 +121,7 @@ describe('outbox delivery and retries', () => {
     vi.spyOn(engine, 'processOne').mockImplementation(async (options) => {
       const outcomes = ['ACCEPTED', 'RETRY', 'FAILED'] as const;
       if (call >= outcomes.length) return false;
-      options.onResult?.(outcomes[call++]);
+      options?.onResult?.(outcomes[call++]);
       return true;
     });
 
@@ -431,6 +433,87 @@ describe('outbox delivery and retries', () => {
       row.payloadEncrypted,
       `communication:GLOBAL:delivery:${row.id}`,
     ))).toMatchObject({ to: '+5512996015129' });
+  });
+
+  it('persists new DEV commercial deliveries as SANDBOX', async () => {
+    vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api-dev.kalend.tech');
+    vi.stubEnv('DATABASE_URL', 'postgresql://test:unused@localhost/kalend_dev');
+    vi.stubEnv('COMMUNICATION_DEV_SMTP_SANDBOX_ENABLED', 'true');
+    vi.stubEnv('QA_COMMUNICATION_EMAIL_ALLOWLIST', 'owner@example.test');
+    const f = fixture();
+    const createMany = vi.fn().mockResolvedValue({ count: 1 });
+    Object.assign(f.db, {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: 'dev-mail-event' }]),
+      globalCommunicationOutbox: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          id: 'dev-mail-event', companyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          event: 'OWNER_WELCOME', variables: {},
+        }),
+        update: vi.fn(),
+      },
+      globalCommunicationTemplate: {
+        findMany: vi.fn().mockResolvedValue([{
+          id: 'mail-template', revision: 1, enabled: true, provider: 'SMTP',
+          channel: 'EMAIL', content: { subject: 'Olá {{nome}}', text: 'Bem-vindo {{nome}}' },
+        }]),
+      },
+      companyCommunicationTemplate: { findMany: vi.fn().mockResolvedValue([]) },
+      membership: {
+        findMany: vi.fn().mockResolvedValue([{
+          userId: 'owner', user: { name: 'Owner', email: 'owner@example.test', phone: null },
+          company: { name: 'QA' },
+        }]),
+      },
+      globalCommunicationProvider: {
+        findUnique: vi.fn().mockResolvedValue({
+          enabled: true, scope: 'GLOBAL', environment: 'PRODUCTION', revision: 1,
+        }),
+      },
+    });
+    Object.assign(f.db.globalCommunicationDelivery, { createMany });
+    f.config.resolveProvider.mockResolvedValue('SMTP');
+    f.config.deliveryEnvironment.mockResolvedValue('SANDBOX');
+
+    await f.engine.expand();
+
+    expect(createMany.mock.calls[0][0].data[0]).toMatchObject({
+      provider: 'SMTP', environment: 'SANDBOX', status: 'PENDING',
+    });
+    expect(f.config.deliveryEnvironment).toHaveBeenCalledWith(
+      'SMTP', expect.objectContaining({ environment: 'PRODUCTION' }),
+    );
+  });
+
+  it('allows a legacy PRODUCTION-labelled DEV email retry only to the QA allowlist', async () => {
+    vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api-dev.kalend.tech');
+    vi.stubEnv('DATABASE_URL', 'postgresql://test:unused@localhost/kalend_dev');
+    vi.stubEnv('COMMUNICATION_DEV_SMTP_SANDBOX_ENABLED', 'true');
+    vi.stubEnv('QA_COMMUNICATION_EMAIL_ALLOWLIST', 'owner@example.test');
+    const f = fixture();
+    f.delivery.environment = 'PRODUCTION';
+    f.config.context.mockResolvedValue({
+      row: { environment: 'PRODUCTION', revision: 1 },
+      deliveryEnvironment: 'SANDBOX', config: {}, secret: {},
+    });
+    await f.engine.processOne();
+    expect(f.send).toHaveBeenCalledTimes(1);
+    expect(f.delivery.status).toBe('ACCEPTED');
+  });
+
+  it('blocks a legacy DEV email retry outside the QA allowlist', async () => {
+    vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api-dev.kalend.tech');
+    vi.stubEnv('DATABASE_URL', 'postgresql://test:unused@localhost/kalend_dev');
+    vi.stubEnv('COMMUNICATION_DEV_SMTP_SANDBOX_ENABLED', 'true');
+    vi.stubEnv('QA_COMMUNICATION_EMAIL_ALLOWLIST', 'another@example.test');
+    const f = fixture();
+    f.delivery.environment = 'PRODUCTION';
+    f.config.context.mockResolvedValue({
+      row: { environment: 'PRODUCTION', revision: 1 },
+      deliveryEnvironment: 'SANDBOX', config: {}, secret: {},
+    });
+    await f.engine.processOne();
+    expect(f.send).not.toHaveBeenCalled();
+    expect(f.delivery.status).toBe('SKIPPED');
   });
 
   it.each([[''], ['invalid'], ['+55+55 12 99601-5129']])(

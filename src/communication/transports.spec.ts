@@ -134,6 +134,81 @@ describe('provider contracts using no external network', () => {
       }),
     );
   });
+  it('DEV SMTP is pinned to the local sandbox and rejects recipients outside QA', async () => {
+    vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api-dev.kalend.tech');
+    vi.stubEnv(
+      'DATABASE_URL',
+      'postgresql://test:unused@localhost:5432/kalend_dev',
+    );
+    vi.stubEnv('COMMUNICATION_DEV_SMTP_SANDBOX_ENABLED', 'true');
+    vi.stubEnv('QA_COMMUNICATION_EMAIL_ALLOWLIST', 'qa@example.test');
+    const sendMail = vi.fn().mockResolvedValue({
+      accepted: ['qa@example.test'],
+      messageId: 'mailpit-message',
+    });
+    vi.mocked(nodemailer.createTransport).mockReturnValue({
+      sendMail,
+      close: vi.fn(),
+    } as never);
+    const adapter = new SmtpTransport();
+    await expect(
+      adapter.send(
+        c,
+        {},
+        { to: 'other@example.test', subject: 'test', text: 'x' },
+      ),
+    ).rejects.toMatchObject({ code: 'DEV_EMAIL_RECIPIENT_NOT_ALLOWED' });
+    expect(nodemailer.createTransport).not.toHaveBeenCalled();
+
+    await adapter.send(
+      c,
+      { password: 'ignored-secret' },
+      {
+        to: 'QA@example.test',
+        subject: 'test',
+        text: 'x',
+      },
+    );
+    expect(resolvePublic).not.toHaveBeenCalled();
+    expect(nodemailer.createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: '127.0.0.1',
+        port: 1025,
+        secure: false,
+        requireTLS: false,
+        disableFileAccess: true,
+        disableUrlAccess: true,
+      }),
+    );
+    expect(sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'qa@example.test',
+        from: { name: 'Kalend DEV', address: 'no-reply@kalend.dev' },
+      }),
+    );
+  });
+
+  it('DEV SMTP fails closed when the sandbox is not enabled', async () => {
+    vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api-dev.kalend.tech');
+    vi.stubEnv(
+      'DATABASE_URL',
+      'postgresql://test:unused@localhost:5432/kalend_dev',
+    );
+    vi.stubEnv('COMMUNICATION_DEV_SMTP_SANDBOX_ENABLED', 'false');
+    vi.stubEnv('QA_COMMUNICATION_EMAIL_ALLOWLIST', 'qa@example.test');
+    await expect(
+      new SmtpTransport().send(
+        c,
+        {},
+        {
+          to: 'qa@example.test',
+          subject: 'test',
+          text: 'x',
+        },
+      ),
+    ).rejects.toMatchObject({ code: 'DEV_SMTP_SANDBOX_REQUIRED' });
+    expect(nodemailer.createTransport).not.toHaveBeenCalled();
+  });
   it('SMTP real send closes a hung mail transaction within the hard deadline', async () => {
     vi.useFakeTimers();
     vi.mocked(resolvePublic).mockResolvedValue('8.8.8.8');

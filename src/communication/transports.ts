@@ -9,10 +9,20 @@ import { HttpException, Inject, Injectable } from '@nestjs/common';
 import { allowedHost, resolvePublic } from './network.js';
 import { email, TransportFailure } from './contracts.js';
 import type { Message, Provider, Transport, Variables } from './contracts.js';
+import {
+  DEV_SMTP_SANDBOX,
+  devSmtpSandboxReady,
+  isDevEmailAllowed,
+} from './dev-smtp-policy.js';
+import { qaRuntimeEnvironment } from './qa-policy.js';
 export class SmtpTransport implements Transport {
   async connection(c: Variables, s: Variables) {
-    allowedHost(c.host, 'COMMUNICATION_SMTP_HOSTS');
-    const address = await resolvePublic(c.host);
+    const devSandbox = qaRuntimeEnvironment() === 'DEV';
+    if (devSandbox && !devSmtpSandboxReady())
+      throw new TransportFailure('CONFIGURATION', 'DEV_SMTP_SANDBOX_REQUIRED');
+    const config = devSandbox ? DEV_SMTP_SANDBOX : c;
+    if (!devSandbox) allowedHost(config.host, 'COMMUNICATION_SMTP_HOSTS');
+    const address = devSandbox ? '127.0.0.1' : await resolvePublic(config.host);
     let socket: Socket | undefined;
     const transport = nodemailer.createTransport({
       getSocket: (_options, callback) => {
@@ -22,7 +32,7 @@ export class SmtpTransport implements Transport {
           done = true;
           callback(error, error ? undefined : { connection: socket! });
         };
-        socket = connect({ host: address, port: Number(c.port) });
+        socket = connect({ host: address, port: Number(config.port) });
         const dialTimer = setTimeout(
           () => socket?.destroy(new Error('SMTP_CONNECTION_TIMEOUT')),
           10000,
@@ -35,16 +45,20 @@ export class SmtpTransport implements Transport {
         socket.once('error', () => finish(new Error('SMTP_CONNECTION_FAILED')));
       },
       host: address,
-      port: Number(c.port),
-      secure: c.secure === 'true',
-      requireTLS: true,
+      port: Number(config.port),
+      secure: config.secure === 'true',
+      requireTLS: !devSandbox,
       opportunisticTLS: false,
-      tls: {
-        servername: c.host,
-        rejectUnauthorized: true,
-        minVersion: 'TLSv1.2',
-      },
-      auth: { user: c.username, pass: s.password },
+      ...(devSandbox
+        ? {}
+        : {
+            tls: {
+              servername: config.host,
+              rejectUnauthorized: true,
+              minVersion: 'TLSv1.2' as const,
+            },
+            auth: { user: config.username, pass: s.password },
+          }),
       connectionTimeout: 10000,
       greetingTimeout: 10000,
       socketTimeout: 15000,
@@ -100,10 +114,19 @@ export class SmtpTransport implements Transport {
     await this.run(c, s, (t) => t.verify());
   }
   async send(c: Variables, s: Variables, m: Message) {
-    return this.run(c, s, async (t) => {
+    const devSandbox = qaRuntimeEnvironment() === 'DEV';
+    if (devSandbox && !devSmtpSandboxReady())
+      throw new TransportFailure('CONFIGURATION', 'DEV_SMTP_SANDBOX_REQUIRED');
+    if (devSandbox && !isDevEmailAllowed(m.to))
+      throw new TransportFailure(
+        'RECIPIENT',
+        'DEV_EMAIL_RECIPIENT_NOT_ALLOWED',
+      );
+    const config = devSandbox ? DEV_SMTP_SANDBOX : c;
+    return this.run(config, devSandbox ? {} : s, async (t) => {
       const result = await t.sendMail({
-        from: { name: c.fromName, address: email(c.fromEmail) },
-        replyTo: c.replyTo ? email(c.replyTo) : undefined,
+        from: { name: config.fromName, address: email(config.fromEmail) },
+        replyTo: !devSandbox && c.replyTo ? email(c.replyTo) : undefined,
         to: email(m.to),
         subject: m.subject,
         text: m.text,

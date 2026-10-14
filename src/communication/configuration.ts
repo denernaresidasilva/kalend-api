@@ -23,6 +23,13 @@ import {
 import type { Provider, Variables } from './contracts.js';
 import { allowedHost } from './network.js';
 import { CommunicationTransports } from './transports.js';
+import {
+  DEV_SMTP_SANDBOX,
+  deliveryEnvironment as resolveDeliveryEnvironment,
+  devSmtpSandboxReady,
+} from './dev-smtp-policy.js';
+import { qaRuntimeEnvironment } from './qa-policy.js';
+import { evolutionGlobalName } from './evolution-environment.js';
 const fields: Record<Provider, string[]> = {
   SMTP: [
     'host',
@@ -141,6 +148,19 @@ export class CommunicationConfiguration {
     db: Pick<PrismaService, 'globalCommunicationProvider'> = this.db,
     requireActive = true,
   ): Promise<Provider | null> {
+    if (channel === 'EMAIL' && qaRuntimeEnvironment() === 'DEV') {
+      // DEV must never fall through to Gmail or a configured live SMTP host.
+      const smtp = await db.globalCommunicationProvider.findUnique({
+        where: { provider: 'SMTP' },
+      });
+      if (!requireActive) return 'SMTP';
+      return smtp?.scope === 'GLOBAL' &&
+        smtp.enabled &&
+        devSmtpSandboxReady() &&
+        this.transports.available('SMTP')
+        ? 'SMTP'
+        : null;
+    }
     const candidates: Provider[] =
       channel === 'EMAIL'
         ? ['SMTP', 'GMAIL']
@@ -165,6 +185,8 @@ export class CommunicationConfiguration {
     const rows = await this.db.globalCommunicationProvider.findMany({
       where: { scope: 'GLOBAL' },
     });
+    const runtime = qaRuntimeEnvironment();
+    const dev = runtime === 'DEV';
     const global = rows.some((row) => row.provider === 'EVOLUTION')
       ? await this.db.evolutionConnection.findUnique({
           where: { globalKey: 'GLOBAL' },
@@ -173,33 +195,53 @@ export class CommunicationConfiguration {
     return rows.map((r) => ({
       provider: r.provider,
       scope: r.scope,
-      environment: r.provider === 'EVOLUTION' ? 'PRODUCTION' : r.environment,
+      environment:
+        r.provider === 'EVOLUTION'
+          ? (global?.environment ?? r.environment)
+          : r.provider === 'SMTP' && dev
+            ? 'SANDBOX'
+            : r.environment,
       enabled:
         r.provider === 'SMTP'
-          ? r.enabled && r.lastTestStatus === 'SUCCESS'
+          ? dev
+            ? r.enabled && devSmtpSandboxReady()
+            : r.enabled && r.lastTestStatus === 'SUCCESS'
           : r.enabled,
-      config: r.provider === 'EVOLUTION' ? {} : r.config,
+      config:
+        r.provider === 'EVOLUTION'
+          ? {}
+          : r.provider === 'SMTP' && dev
+            ? { ...DEV_SMTP_SANDBOX }
+            : r.config,
       configured:
         r.provider === 'EVOLUTION'
           ? !!process.env.EVOLUTION_API_KEY && !!global?.prepared
-          : !!r.credentialsEncrypted,
+          : r.provider === 'SMTP' && dev
+            ? devSmtpSandboxReady()
+            : !!r.credentialsEncrypted,
       status:
-        r.provider === 'SMTP' && r.credentialsEncrypted
-          ? r.lastTestStatus === 'SUCCESS'
-            ? 'CONNECTED'
-            : r.lastTestStatus === 'ERROR'
-              ? 'FAILED'
-              : 'PENDING_VALIDATION'
-          : r.provider === 'EVOLUTION'
-            ? global?.status === 'CONNECTED'
+        r.provider === 'SMTP' && dev
+          ? devSmtpSandboxReady()
+            ? 'DEV_SANDBOX_CONFIGURED'
+            : 'DEV_SANDBOX_BLOCKED'
+          : r.provider === 'SMTP' && r.credentialsEncrypted
+            ? r.lastTestStatus === 'SUCCESS'
               ? 'CONNECTED'
-              : global?.status === 'ERROR'
+              : r.lastTestStatus === 'ERROR'
                 ? 'FAILED'
                 : 'PENDING_VALIDATION'
-            : r.status,
+            : r.provider === 'EVOLUTION'
+              ? global?.status === 'CONNECTED'
+                ? 'CONNECTED'
+                : global?.status === 'ERROR'
+                  ? 'FAILED'
+                  : 'PENDING_VALIDATION'
+              : r.status,
       revision: r.revision,
       lastVerifiedAt:
-        r.provider === 'SMTP' && !r.lastTestStatus ? null : r.lastVerifiedAt,
+        r.provider === 'SMTP' && (dev || !r.lastTestStatus)
+          ? null
+          : r.lastVerifiedAt,
       lastSentAt: r.lastSentAt,
       lastError: r.lastError,
       adapterAvailable: this.transports.available(r.provider),
@@ -223,6 +265,10 @@ export class CommunicationConfiguration {
         d.enabled === true
           ? await this.evolution.get(GLOBAL_EVOLUTION)
           : await this.evolution.globalConnection();
+      const globalConnection =
+        'environment' in connection
+          ? connection
+          : await this.evolution.globalConnection();
       if (d.enabled === true && connection.status !== 'CONNECTED')
         throw new BadRequestException({
           errorCode: 'CONNECTION_NOT_OPEN',
@@ -233,7 +279,8 @@ export class CommunicationConfiguration {
         where: { provider: 'EVOLUTION' },
         data: {
           enabled: d.enabled as boolean | undefined,
-          environment: 'PRODUCTION',
+          environment:
+            globalConnection.environment === 'DEV' ? 'SANDBOX' : 'PRODUCTION',
           revision: { increment: 1 },
         },
       });
@@ -388,6 +435,9 @@ export class CommunicationConfiguration {
     return (await this.list()).find((r) => r.provider === p);
   }
   async context(p: Provider, requireEnabled = true) {
+    const dev = qaRuntimeEnvironment() === 'DEV';
+    if (dev && p === 'GMAIL')
+      throw new ServiceUnavailableException('DEV_EMAIL_PROVIDER_BLOCKED');
     const row = await this.db.globalCommunicationProvider.findUnique({
       where: { provider: p },
     });
@@ -395,10 +445,13 @@ export class CommunicationConfiguration {
       !row ||
       (p === 'EVOLUTION'
         ? !process.env.EVOLUTION_API_KEY
-        : !row.credentialsEncrypted) ||
+        : p === 'SMTP' && dev
+          ? false
+          : !row.credentialsEncrypted) ||
       row.scope !== 'GLOBAL' ||
       (requireEnabled &&
-        (!row.enabled || (p === 'SMTP' && row.lastTestStatus !== 'SUCCESS'))) ||
+        (!row.enabled ||
+          (p === 'SMTP' && !dev && row.lastTestStatus !== 'SUCCESS'))) ||
       !this.transports.available(p)
     )
       throw new ServiceUnavailableException(
@@ -409,11 +462,16 @@ export class CommunicationConfiguration {
     if (
       p === 'EVOLUTION' &&
       (!connection?.prepared ||
+        (dev &&
+          (connection.environment !== 'DEV' ||
+            connection.instanceName !== evolutionGlobalName('DEV'))) ||
         (requireEnabled && connection.status !== 'CONNECTED'))
     )
       throw new ServiceUnavailableException(
         'COMMUNICATION_PROVIDER_UNAVAILABLE',
       );
+    if (p === 'SMTP' && dev && !devSmtpSandboxReady())
+      throw new ServiceUnavailableException('DEV_SMTP_SANDBOX_REQUIRED');
     const config =
       p === 'EVOLUTION'
         ? {
@@ -421,9 +479,11 @@ export class CommunicationConfiguration {
             baseUrl: 'https://evolution-api.kalend.tech',
             version: '2.3.7',
           }
-        : validateConfig(p, row.config);
+        : p === 'SMTP' && dev
+          ? { ...DEV_SMTP_SANDBOX }
+          : validateConfig(p, row.config);
     const secret =
-      p === 'EVOLUTION'
+      p === 'EVOLUTION' || (p === 'SMTP' && dev)
         ? {}
         : (JSON.parse(
             this.vault.decrypt(
@@ -434,10 +494,34 @@ export class CommunicationConfiguration {
     if (
       !secrets[p]
         .filter((k) => p !== 'META' || k === 'accessToken')
+        .filter(() => !(p === 'SMTP' && dev))
         .every((k) => secret[k])
     )
       throw new ServiceUnavailableException('COMMUNICATION_SECRETS_REQUIRED');
-    return { row, config, secret };
+    return {
+      row,
+      config,
+      secret,
+      deliveryEnvironment: resolveDeliveryEnvironment(p, row.environment),
+    };
+  }
+  async deliveryEnvironment(
+    provider: Provider,
+    row?: { environment: 'SANDBOX' | 'PRODUCTION' },
+  ) {
+    if (provider === 'EVOLUTION' && qaRuntimeEnvironment() === 'DEV') {
+      const connection = await this.evolution?.globalConnection();
+      if (
+        connection?.environment !== 'DEV' ||
+        connection.instanceName !== evolutionGlobalName('DEV')
+      )
+        throw new ServiceUnavailableException(
+          'DEV_EVOLUTION_CONNECTION_UNSAFE',
+        );
+    }
+    const providerEnvironment =
+      row?.environment ?? (provider === 'EVOLUTION' ? 'SANDBOX' : 'SANDBOX');
+    return resolveDeliveryEnvironment(provider, providerEnvironment);
   }
   async pairEvolution(actorId: string) {
     if (!this.evolution)
@@ -551,21 +635,19 @@ export class CommunicationConfiguration {
             },
           });
       } else
-        await this.transports
-          .get(p)
-          .send(
-            ctx.config,
-            ctx.secret,
-            p === 'EVOLUTION'
-              ? {
-                  ...message,
-                  globalRecipientUserId: actorId,
-                  ...(d.number !== undefined
-                    ? { globalTestNumber: evolutionPhone(d.number) }
-                    : {}),
-                }
-              : message,
-          );
+        await this.transports.get(p).send(
+          ctx.config,
+          ctx.secret,
+          p === 'EVOLUTION'
+            ? {
+                ...message,
+                globalRecipientUserId: actorId,
+                ...(d.number !== undefined
+                  ? { globalTestNumber: evolutionPhone(d.number) }
+                  : {}),
+              }
+            : message,
+        );
       await this.db.$transaction(async (tx) => {
         const updated = await tx.globalCommunicationProvider.updateMany({
           where: { provider: p, revision: ctx.row.revision },

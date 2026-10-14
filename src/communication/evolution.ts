@@ -656,12 +656,15 @@ export class EvolutionService implements OnModuleInit, OnModuleDestroy {
       create: {
         provider: 'EVOLUTION',
         scope: 'GLOBAL',
-        environment: 'PRODUCTION',
+        environment: row.environment === 'DEV' ? 'SANDBOX' : 'PRODUCTION',
         config: {},
         enabled: false,
         status,
       },
-      update: { environment: 'PRODUCTION', status },
+      update: {
+        environment: row.environment === 'DEV' ? 'SANDBOX' : 'PRODUCTION',
+        status,
+      },
     });
   }
   async globalConnection() {

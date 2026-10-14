@@ -51,6 +51,110 @@ describe('central GLOBAL provider resolution', () => {
     expect(await f.service.resolveProvider('WHATSAPP')).toBeNull();
     expect(await f.service.resolveProvider('PUSH')).toBeNull();
   });
+
+  it('uses only the DEV SMTP sandbox and never falls through to Gmail', async () => {
+    vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api-dev.kalend.tech');
+    vi.stubEnv('DATABASE_URL', 'postgresql://test:unused@localhost/kalend_dev');
+    vi.stubEnv('COMMUNICATION_DEV_SMTP_SANDBOX_ENABLED', 'true');
+    vi.stubEnv('QA_COMMUNICATION_EMAIL_ALLOWLIST', 'qa@example.test');
+    const rows = [
+      {
+        provider: 'SMTP',
+        scope: 'GLOBAL',
+        enabled: true,
+        lastTestStatus: null,
+      },
+      { provider: 'GMAIL', scope: 'GLOBAL', enabled: true },
+    ];
+    const f = fixture(rows);
+    expect(await f.service.resolveProvider('EMAIL')).toBe('SMTP');
+    expect(await f.service.resolveProvider('EMAIL', undefined, false)).toBe(
+      'SMTP',
+    );
+    vi.stubEnv('COMMUNICATION_DEV_SMTP_SANDBOX_ENABLED', 'false');
+    expect(await f.service.resolveProvider('EMAIL')).toBeNull();
+    expect(await f.service.resolveProvider('EMAIL', undefined, false)).toBe(
+      'SMTP',
+    );
+  });
+
+  it('uses fixed Mailpit settings in DEV without decrypting stored SMTP credentials', async () => {
+    vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api-dev.kalend.tech');
+    vi.stubEnv('DATABASE_URL', 'postgresql://test:unused@localhost/kalend_dev');
+    vi.stubEnv('COMMUNICATION_DEV_SMTP_SANDBOX_ENABLED', 'true');
+    vi.stubEnv('QA_COMMUNICATION_EMAIL_ALLOWLIST', 'qa@example.test');
+    const row = {
+      provider: 'SMTP', scope: 'GLOBAL', enabled: true, environment: 'PRODUCTION',
+      config: { host: 'smtp.gmail.com', port: '587', secure: 'false' },
+      credentialsEncrypted: 'legacy-ciphertext', revision: 4, lastTestStatus: 'ERROR',
+    };
+    const db = {
+      globalCommunicationProvider: { findUnique: vi.fn(async () => row) },
+    };
+    const vault = { decrypt: vi.fn(() => { throw new Error('must not decrypt SMTP secret in DEV'); }) };
+    const service = new CommunicationConfiguration(
+      db as never,
+      vault as never,
+      { available: () => true } as never,
+    );
+
+    const context = await service.context('SMTP');
+
+    expect(context.config).toMatchObject({ host: '127.0.0.1', port: '1025', secure: 'false' });
+    expect(context.secret).toEqual({});
+    expect(context.deliveryEnvironment).toBe('SANDBOX');
+    expect(vault.decrypt).not.toHaveBeenCalled();
+  });
+
+  it('reports the actual DEV Evolution connection metadata and rejects the production instance', async () => {
+    vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api-dev.kalend.tech');
+    vi.stubEnv('DATABASE_URL', 'postgresql://test:unused@localhost/kalend_dev');
+    vi.stubEnv('EVOLUTION_API_KEY', 'test-only');
+    const row = {
+      provider: 'EVOLUTION',
+      scope: 'GLOBAL',
+      enabled: true,
+      environment: 'PRODUCTION',
+      config: {},
+      credentialsEncrypted: null,
+    };
+    let instanceName = 'kalend_dev_global';
+    const db = {
+      globalCommunicationProvider: {
+        findUnique: vi.fn(async () => row),
+        findMany: vi.fn(async () => [row]),
+      },
+      evolutionConnection: {
+        findUnique: vi.fn(async () => ({
+          environment: 'DEV',
+          instanceName,
+          prepared: true,
+          status: 'CONNECTED',
+        })),
+      },
+    };
+    const evolution = {
+      globalConnection: vi.fn(async () => ({
+        environment: 'DEV',
+        instanceName,
+        prepared: true,
+        status: 'CONNECTED',
+      })),
+    };
+    const service = new CommunicationConfiguration(
+      db as never,
+      {} as never,
+      { available: () => true } as never,
+      evolution as never,
+    );
+    expect((await service.list())[0]).toMatchObject({ environment: 'DEV' });
+    expect((await service.context('EVOLUTION')).config.instance).toBe(
+      'kalend_dev_global',
+    );
+    instanceName = 'kalend_global';
+    await expect(service.context('EVOLUTION')).rejects.toThrow();
+    vi.unstubAllEnvs();
+  });
 });
 
 describe('GLOBAL WhatsApp test and enable path', () => {
