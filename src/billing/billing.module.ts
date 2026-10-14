@@ -34,7 +34,18 @@ import { GatewaysService } from './gateways.service.js';
 import { GatewayRegistry } from './gateway.provider.js';
 import { SecretVault } from './secret-vault.js';
 import { PaymentsService } from './payments.service.js';
+import { QaSimulationService } from './qa-simulation.service.js';
 import { WebhookProcessor } from './webhook-processor.service.js';
+@Controller('billing/qa-simulation')
+@UseGuards(AdminGuard)
+export class QaSimulationController {
+  constructor(
+    @Inject(QaSimulationService) private readonly service: QaSimulationService,
+  ) {}
+  @Post() simulate(@Body() body: unknown, @Req() req: AuthRequest) {
+    return this.service.simulate(body, req.auth.user);
+  }
+}
 @Controller('payment-gateways')
 @UseGuards(AdminGuard)
 export class GatewaysController {
@@ -180,6 +191,7 @@ export class CommercialStateController {
 }
 @Module({
   controllers: [
+    QaSimulationController,
     CommercialStateController,
     CommercialController,
     LifecycleController,
@@ -189,6 +201,7 @@ export class CommercialStateController {
   ],
   exports: [EntitlementsService, ProductAccessGuard],
   providers: [
+    QaSimulationService,
     AuthRateLimit,
     EntitlementsService,
     ProductAccessGuard,

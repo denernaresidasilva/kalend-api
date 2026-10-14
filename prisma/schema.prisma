@@ -51,6 +51,7 @@ enum PaymentGateway {
   STRIPE
   PAGBANK
   ASAAS
+  QA_SIMULATION
 }
 
 enum PaymentCreationState {

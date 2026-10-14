@@ -347,6 +347,9 @@ export class CommunicationEngine {
     )
       throw new ForbiddenException('QA_COMMUNICATION_SCOPE_MISMATCH');
     const limit = Math.max(1, Math.min(options.maxEvents ?? 20, 20));
+    const simulationFilter = options.qaMode
+      ? Prisma.empty
+      : Prisma.sql`AND "businessKey" NOT LIKE 'QA_SIMULATION:%'`;
     const companyFilter = options.companyIds
       ? Prisma.sql`AND "companyId" IN (${Prisma.join(options.companyIds)})`
       : Prisma.empty;
@@ -354,7 +357,7 @@ export class CommunicationEngine {
       async (tx) => {
         const rows = await tx.$queryRaw<
           { id: string }[]
-        >(Prisma.sql`SELECT id FROM "GlobalCommunicationOutbox" WHERE event <> 'QA_COMMUNICATION_TEST' AND "expandedAt" IS NULL AND "notificationProcessedAt" IS NOT NULL ${companyFilter} ORDER BY "createdAt", id LIMIT ${limit} FOR UPDATE SKIP LOCKED`);
+        >(Prisma.sql`SELECT id FROM "GlobalCommunicationOutbox" WHERE event <> 'QA_COMMUNICATION_TEST' AND "expandedAt" IS NULL AND "notificationProcessedAt" IS NOT NULL ${simulationFilter} ${companyFilter} ORDER BY "createdAt", id LIMIT ${limit} FOR UPDATE SKIP LOCKED`);
         let qaDeliveriesCreated = 0;
         eventLoop: for (const { id } of rows) {
           const event = await tx.globalCommunicationOutbox.findUniqueOrThrow({
@@ -734,7 +737,10 @@ export class CommunicationEngine {
         attempts: { lt: 5 },
         outbox: qaMode
           ? { companyId: { in: companyIds } }
-          : { event: { not: QA_COMMUNICATION_EVENT } },
+          : {
+              event: { not: QA_COMMUNICATION_EVENT },
+              businessKey: { not: { startsWith: 'QA_SIMULATION:' } },
+            },
       },
       orderBy: [{ nextAttemptAt: 'asc' }, { id: 'asc' }],
       take: qaMode ? 20 : 10,
@@ -757,6 +763,11 @@ export class CommunicationEngine {
         const event = await this.db.globalCommunicationOutbox.findUniqueOrThrow(
           { where: { id: row.outboxId } },
         );
+        if (
+          (event.businessKey ?? '').startsWith('QA_SIMULATION:') &&
+          (!qaMode || qaRuntimeEnvironment() !== 'DEV' ||
+            process.env.COMMERCIAL_QA_SIMULATION_ENABLED !== 'true')
+        ) throw new TransportFailure('PERMANENT');
         if (qaMode)
           qaLogContext = {
             companyId: event.companyId,

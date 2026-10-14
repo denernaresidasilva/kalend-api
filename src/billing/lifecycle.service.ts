@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { GatewayRegistry, gatewayName } from './gateway.provider.js';
 import { GatewaysService } from './gateways.service.js';
 import { WebhookProcessor } from './webhook-processor.service.js';
-import { graceEnd, suspendIfUnentitled } from './commercial-policy.js';
+import { BillingDomain } from './billing-domain.js';
 @Injectable()
 export class LifecycleService {
   constructor(
@@ -18,7 +18,7 @@ export class LifecycleService {
     // Bounded sweep with oldest checked first; updatedAt rotates records without dropping failures.
     const payments = await this.prisma.payment.findMany({
       where: {
-        gateway: { not: 'MANUAL' },
+        gateway: { notIn: ['MANUAL', 'QA_SIMULATION'] },
         environment: { not: null },
         OR: [
           { status: { in: ['PENDING', 'OVERDUE', 'FAILED'] } },
@@ -61,6 +61,7 @@ export class LifecycleService {
       async (tx) => {
         const elapsed = await tx.subscription.findMany({
           where: {
+            gateway: { not: 'QA_SIMULATION' },
             OR: [
               { status: 'TRIALING', trialEndsAt: { lte: now } },
               { status: 'ACTIVE', currentPeriodEnd: { lte: now } },
@@ -72,27 +73,7 @@ export class LifecycleService {
           },
         });
         for (const sub of elapsed) {
-          const grace =
-            sub.status === 'ACTIVE'
-              ? graceEnd(sub.currentPeriodEnd!)
-              : sub.graceEndsAt;
-          const status =
-            sub.status === 'TRIALING'
-              ? 'EXPIRED'
-              : sub.cancelAtPeriodEnd
-                ? 'CANCELED'
-                : grace && grace > now
-                  ? 'PAST_DUE'
-                  : 'SUSPENDED';
-          await tx.subscription.update({
-            where: { id: sub.id },
-            data: {
-              status,
-              graceEndsAt: grace,
-              endedAt: status === 'PAST_DUE' ? undefined : now,
-            },
-          });
-          await suspendIfUnentitled(tx, sub.companyId, now);
+          await new BillingDomain().elapsed(tx, sub, now);
         }
         return { expired: elapsed.length, reconciledAt: now };
       },

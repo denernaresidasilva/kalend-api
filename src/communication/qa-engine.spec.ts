@@ -197,7 +197,7 @@ describe('QA commercial worker orchestration', () => {
     await engine.processOne({ qaMode: true });
     expect(findMany.mock.calls[0][0].where.outbox).toEqual({ companyId: { in: [companyId] } });
     await engine.processOne();
-    expect(findMany.mock.calls[1][0].where.outbox).toEqual({ event: { not: QA_COMMUNICATION_EVENT } });
+    expect(findMany.mock.calls[1][0].where.outbox).toEqual({ event: { not: QA_COMMUNICATION_EVENT }, businessKey: { not: { startsWith: 'QA_SIMULATION:' } } });
   });
 
   it('adds the allowlist to the SQL expansion claim before SKIP LOCKED', async () => {

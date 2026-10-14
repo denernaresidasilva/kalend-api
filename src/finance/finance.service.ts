@@ -80,12 +80,14 @@ export class FinanceService {
         const [groups, monthly] = await Promise.all([
           tx.payment.groupBy({
             by: ['status'],
+            where: { gateway: { not: 'QA_SIMULATION' } },
             _count: { _all: true },
             _sum: { amountCents: true, refundedAmountCents: true },
           }),
           tx.payment.aggregate({
             where: {
               status: 'APPROVED',
+              gateway: { not: 'QA_SIMULATION' },
               paidAt: { gte: monthStart, lte: now },
             },
             _sum: { amountCents: true, refundedAmountCents: true },

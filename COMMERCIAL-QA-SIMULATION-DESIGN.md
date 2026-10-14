@@ -1,0 +1,98 @@
+# Simulação comercial DEV/QA — implementação local
+
+Data: 2026-10-14. Repositório: kalend-api. Branch: develop.
+
+Este documento registra a etapa de implementação local e sua validação. Nessa etapa, não houve commit, push ou deploy, e a migration foi executada exclusivamente em banco PGlite efêmero de teste. A aplicação no kalend_dev remoto e o deploy DEV são uma etapa posterior, sujeita à autorização explícita. Nenhum dado da QA Kalend 4 foi alterado durante a implementação.
+
+## Schema e migration
+
+Enum exato: PaymentGateway. Novo valor: QA_SIMULATION.
+
+Migration: prisma/migrations/20261014120000_commercial_qa_simulation/migration.sql.
+
+```sql
+ALTER TYPE "PaymentGateway" ADD VALUE 'QA_SIMULATION';
+```
+
+É a única alteração estrutural. Nenhum model, coluna, índice ou trigger foi alterado. Subscription, Payment, WebhookEvent e GatewayConfiguration compartilham PaymentGateway e passam a aceitar o valor pelo enum existente; nenhum registro GatewayConfiguration(QA_SIMULATION) é criado.
+
+QA_SIMULATION é uma origem interna. Não há adapter, credenciais, URL de checkout ou webhook externo. GatewayRegistry, gatewayName(), catálogo de gateways e checkout continuam limitados aos providers reais. POST /billing/checkout rejeita QA_SIMULATION, inclusive em DEV. O processador de webhooks externos e seu reprocessamento também rejeitam essa origem.
+
+## Endpoint e contrato
+
+POST /billing/qa-simulation. Sem UI pública. Usa AdminGuard real, sessão autenticada e validação de Origin existente. O serviço revalida as proteções antes e dentro da transação:
+
+- qaRuntimeEnvironment() deve resultar exatamente em DEV. PROD, STAGING e UNKNOWN bloqueiam mesmo com a flag true. O classificador existente usa identidade configurada da API e do banco; NODE_ENV isolado não concede autorização.
+- COMMERCIAL_QA_SIMULATION_ENABLED deve ser exatamente true; ausência bloqueia.
+- Usuário autenticado deve ser Super Admin.
+- QA_COMMUNICATION_COMPANY_IDS deve conter uma lista válida de UUIDs e incluir companyId. Lista ausente, vazia ou com entrada inválida bloqueia.
+- Empresa deve existir, ter isActive=true e status ACTIVE ou TRIAL.
+
+Criação de tentativa:
+
+```json
+{
+  "companyId": "<UUID da empresa QA autorizada>",
+  "action": "PAYMENT_PENDING",
+  "planId": "<UUID de plano ativo no catálogo DEV>",
+  "billingInterval": "MONTHLY",
+  "idempotencyKey": "cenario-qa-001"
+}
+```
+
+billingInterval aceita MONTHLY ou YEARLY, com preço positivo resolvido exclusivamente do catálogo. Cria uma assinatura própria QA PENDING e um Payment vinculado à mesma empresa/plano, ambos QA_SIMULATION/SANDBOX. A assinatura própria evita transformar uma assinatura real em simulação. A chave de criação é um hash com namespace QA e companyId; repetição retorna os mesmos IDs.
+
+Transição da mesma tentativa:
+
+```json
+{
+  "companyId": "<UUID da mesma empresa QA>",
+  "paymentId": "<paymentId retornado na criação>",
+  "action": "PAYMENT_APPROVED"
+}
+```
+
+Ações: PAYMENT_PENDING, PAYMENT_APPROVED, PAYMENT_FAILED, PAYMENT_OVERDUE, SUBSCRIPTION_GRACE_PERIOD, SUBSCRIPTION_SUSPENDED, SUBSCRIPTION_REACTIVATED e SUBSCRIPTION_CANCELLED.
+
+Resposta: source=QA_SIMULATION, paymentId, subscriptionId, action e duplicate. Repetir PENDING por paymentId é aceito. Outros estados exigem paymentId. Não recebe subscriptionId, valor, gateway, destinatários ou secrets. Campos desconhecidos bloqueiam. IDs de outra empresa, pagamentos reais e vínculos incompatíveis entre Payment/Subscription/Plan bloqueiam.
+
+## Domínio comercial e eventos
+
+BillingDomain contém as transições extraídas de WebhookProcessor e a política temporal extraída de LifecycleService. Webhooks reais continuam validando assinatura e normalizando a entrada antes de chamar o mesmo domínio. O simulador chama esse domínio diretamente, sem contextos, configuração ou adapters financeiros.
+
+PENDING não concede período pago. APPROVED altera o mesmo Payment e usa a ativação paga real, incluindo períodos, regra de concorrência de planos e estado da empresa. Para a origem QA, a ativação preserva todas as outras assinaturas, inclusive trials reais da mesma empresa; o comportamento dos providers reais é preservado. FAILED e OVERDUE aplicam a política real de inadimplência. GRACE fornece um fim de período controlado somente à assinatura QA e usa a mesma política temporal do lifecycle. REACTIVATED exige Payment APPROVED, período pago ainda válido e assinatura PAST_DUE ou SUSPENDED; reutiliza a mesma ativação paga. CANCELLED e SUSPENDED passam pelas transições existentes de assinatura.
+
+Os produtores reais de eventos são os triggers de kalend_global_communication_capture(), instalados pela migration 20260929120000_global_communication. Eles continuam produzindo fatos duráveis na mesma transação. Não foi adicionado um produtor paralelo nem alterado qualquer trigger.
+
+Antes do commit, o serviço prefixa as businessKeys dos fatos capturados do Payment e da Subscription vinculados com QA_SIMULATION:. Nenhum evento de outra assinatura/empresa é reidentificado. Isso diferencia a origem na outbox sem nova coluna e impede corrida com o worker: o registro só fica visível com a identificação QA. A repetição não muda novamente o estado nem captura outro evento.
+
+NotificationsService.ingest(), CommunicationEngine.expand(), templates e o índice único de deliveries são reutilizados. O worker normal exclui os fatos QA tanto da expansão quanto do envio. O processamento em modo QA conserva as proteções de empresa/destinatário existentes; para comunicações comerciais QA, o envio também bloqueia fora de DEV ou sem COMMERCIAL_QA_SIMULATION_ENABLED=true. Nenhum worker CLI ou transport real foi executado nesta implementação.
+
+EntitlementsService consulta o banco; não há cache comercial nesses serviços. Os testes verificam a decisão antes/depois da aprovação e após suspensão usando a mesma instância. RegularizationService continua fornecendo a decisão comercial autoritativa e exclui tentativas QA de pendingCheckout público. Não foi criado cache ou invalidação fictícia.
+
+## Limites sem contornar regras reais
+
+- BILLING_GRACE_DAYS deve ser positivo para o cenário GRACE. Sem grace configurado, esse cenário falha com conflito e rollback; não inventa tolerância comercial.
+- Uma tentativa aprovada não pode ser rebaixada para PENDING/FAILED/OVERDUE. Use outra chave para um cenário incompatível.
+- Cancelamento não é desfeito pelo simulador.
+- Cada ação é aplicada uma vez por Payment. Repetição retorna duplicate=true enquanto as proteções continuam satisfeitas.
+- Suspensão/cancelamento podem tornar a empresa isActive=false pela regra real. Nesse caso, qualquer nova chamada, inclusive repetição e reativação, retorna 403, sem duplicar dados. Não há bypass de empresa inativa. Reativação foi homologada após GRACE e após SUSPENDED com outra assinatura QA válida mantendo a empresa ativa.
+- Para ciclos adicionais, use nova tentativa QA. Não há edição arbitrária de datas ou mudança de relógio global.
+
+## Auditoria, finanças e isolamento
+
+Payment, Subscription e WebhookEvent persistem gateway=QA_SIMULATION e environment=SANDBOX. WebhookEvent registra source=QA_SIMULATION, actorId e ação normalizada. Logs registram origem, ator, empresa e IDs; não incluem secrets. description é apenas uma indicação adicional, nunca a identificação exclusiva.
+
+FinanceService e DashboardService excluem QA_SIMULATION das somas de receita, receita mensal e agregações de pagamentos. A listagem financeira administrativa mantém o gateway explícito. O teste com um Payment real aprovado como controle comprova que a receita real continua contabilizada enquanto QA é excluído.
+
+LifecycleService exclui QA tanto da reconciliação por provider quanto da varredura automática de expiração. As transições QA são explícitas e controladas, evitando capturas posteriores sem identificação QA. Não há adapter QA e nenhum registro de configuração financeira é necessário.
+
+Transações Serializable, chave única da tentativa e chave única do journal de ação garantem idempotência. Há retry limitado para P2002/P2034. Os E2E verificam duas requisições concorrentes no banco efêmero; o socket PGlite usa pool de uma conexão, portanto essa prova não substitui um teste de concorrência entre múltiplas conexões PostgreSQL.
+
+## Verificação local
+
+Node usado: 24.21.0, já instalado. O Node padrão 18 não é compatível com o CLI Prisma instalado. Prisma validate/generate receberam URL fictícia local explícita e não conectaram a banco remoto.
+
+Testes usam mocks de sessão com AdminGuard/Origin reais e migrations completas no PGlite efêmero. Incluem bloqueios de ambiente/flag/company/usuário, checkout HTTP, as oito ações, repetição, concorrência, tenant isolation/IDOR, preservação de assinaturas reais e usuários, acesso autoritativo, captura de eventos, notificações/templates/deliveries, reconciliação e exclusão financeira. Métodos dos quatro adapters e fetch foram mockados com falha caso chamados; chamadas externas do simulador: zero. Transports são mocks; envios reais: zero.
+
+Resultados finais: npm test — 824 testes aprovados em 50 arquivos; npm run test:e2e — 152 testes aprovados em 9 arquivos; npm run lint — passou sem avisos; npm run build — passou; npx prisma validate — passou; npx prisma generate — passou; git diff --check — passou. Nenhum comando de migration deploy/dev foi executado contra banco remoto. Na etapa de implementação descrita, não houve commit, push, deploy ou alteração de PROD/main.

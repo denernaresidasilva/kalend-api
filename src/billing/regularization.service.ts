@@ -103,7 +103,7 @@ export class RegularizationService {
     );
     const pending = managesBilling
       ? await this.prisma.payment.findFirst({
-          where: { companyId, status: 'PENDING' },
+          where: { companyId, status: 'PENDING', gateway: { not: 'QA_SIMULATION' } },
           select: {
             id: true,
             planId: true,

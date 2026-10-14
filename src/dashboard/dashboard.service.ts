@@ -29,6 +29,7 @@ export class DashboardService {
           tx.subscription.groupBy({ by: ['status'], _count: { _all: true } }),
           tx.payment.groupBy({
             by: ['status'],
+            where: { gateway: { not: 'QA_SIMULATION' } },
             _count: { _all: true },
             _sum: { amountCents: true, refundedAmountCents: true },
           }),
@@ -43,6 +44,7 @@ export class DashboardService {
           tx.payment.aggregate({
             where: {
               status: 'APPROVED',
+              gateway: { not: 'QA_SIMULATION' },
               paidAt: { gte: monthStart, lte: now },
             },
             _sum: { amountCents: true, refundedAmountCents: true },
