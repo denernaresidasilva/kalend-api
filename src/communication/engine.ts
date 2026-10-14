@@ -1077,10 +1077,13 @@ export class CommunicationEngine {
         select: { companyId: true, event: true, channel: true, enabled: true },
       }),
     ]);
-    const providers = await this.db.globalCommunicationProvider.findMany({
-      where: { scope: 'GLOBAL' },
-      select: { provider: true, enabled: true, status: true, environment: true },
-    });
+    // Report the same effective DEV metadata as the provider configuration UI.
+    // Raw rows can retain historical PRODUCTION labels even when the runtime
+    // is safely pinned to Mailpit or the DEV Evolution connection.
+    const providers = await this.configuration.list();
+    const pushProvider = providers.find((row) => row.provider === 'PUSH_PENDING');
+    const pushEnvironment: 'SANDBOX' | 'PRODUCTION' =
+      pushProvider?.environment === 'PRODUCTION' ? 'PRODUCTION' : 'SANDBOX';
     const evolution = await this.db.evolutionConnection.findUnique({
       where: { globalKey: 'GLOBAL' },
       select: { instanceName: true, environment: true, status: true, prepared: true },
@@ -1093,9 +1096,7 @@ export class CommunicationEngine {
         userId: { in: owners.map((owner) => owner.userId) },
         scope: 'GLOBAL',
         provider: 'WEB_PUSH',
-        environment:
-          providers.find((row) => row.provider === 'PUSH_PENDING')?.environment ??
-          undefined,
+        environment: pushProvider ? pushEnvironment : undefined,
         active: true,
         revokedAt: null,
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
@@ -1129,7 +1130,7 @@ export class CommunicationEngine {
       PUSH: new Set(),
     };
     const channels: QaChannel[] = ['EMAIL', 'WHATSAPP', 'PUSH'];
-    const pushProvider = providers.find((row) => row.provider === 'PUSH_PENDING' && row.enabled);
+    const enabledPushProvider = pushProvider?.enabled ? pushProvider : undefined;
     for (const event of pendingEvents) {
       if (event.expandedAt || !event.companyId) continue;
       const eventOwners = owners.filter(
@@ -1160,13 +1161,13 @@ export class CommunicationEngine {
             if (recipient && allowedRecipient('WHATSAPP', recipient, 'USER', allowlist))
               possibleRecipients.WHATSAPP.add(`${event.id}|${maskQaRecipient('WHATSAPP', recipient)}`);
           }
-        } else if (pushProvider) {
+        } else if (enabledPushProvider) {
           for (const owner of eventOwners) {
             const devices = await this.db.globalPushSubscription.findMany({
               where: {
                 ...pushTargets({
                   userId: owner.userId,
-                  environment: pushProvider.environment,
+                  environment: pushEnvironment,
                   audience: 'COMPANY',
                   companyId: event.companyId,
                 }),

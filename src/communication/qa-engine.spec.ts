@@ -125,6 +125,44 @@ describe('QA communication intent', () => {
 });
 
 describe('QA commercial worker orchestration', () => {
+  it('reports effective provider environments instead of raw historical labels', async () => {
+    const configuration = {
+      list: vi.fn().mockResolvedValue([
+        { provider: 'SMTP', enabled: true, status: 'DEV_SANDBOX_CONFIGURED', environment: 'SANDBOX' },
+        { provider: 'EVOLUTION', enabled: true, status: 'CONNECTED', environment: 'DEV' },
+        { provider: 'PUSH_PENDING', enabled: true, status: 'CONNECTED', environment: 'SANDBOX' },
+      ]),
+      resolveProvider: vi.fn(async (channel: string) =>
+        channel === 'EMAIL'
+          ? 'SMTP'
+          : channel === 'WHATSAPP'
+            ? 'EVOLUTION'
+            : 'PUSH_PENDING',
+      ),
+    };
+    const db = {
+      company: { findMany: vi.fn().mockResolvedValue([{ id: companyId, name: 'QA', isActive: true }]) },
+      globalCommunicationOutbox: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
+      globalCommunicationDelivery: { findMany: vi.fn().mockResolvedValue([]) },
+      membership: { findMany: vi.fn().mockResolvedValue([]) },
+      globalCommunicationTemplate: { findMany: vi.fn().mockResolvedValue([]) },
+      companyCommunicationTemplate: { findMany: vi.fn().mockResolvedValue([]) },
+      evolutionConnection: { findUnique: vi.fn().mockResolvedValue({ instanceName: 'kalend_dev_global', environment: 'DEV', status: 'CONNECTED', prepared: true }) },
+      globalPushSubscription: { count: vi.fn().mockResolvedValue(0) },
+    };
+    const engine = new CommunicationEngine(db as never, new SecretVault(), configuration as never, {} as never);
+
+    const result = await engine.qaPreflight(true);
+
+    expect(configuration.list).toHaveBeenCalledOnce();
+    expect(result.providers).toMatchObject({
+      EMAIL: { environment: 'SANDBOX', status: 'DEV_SANDBOX_CONFIGURED' },
+      WHATSAPP: { environment: 'DEV', status: 'CONNECTED' },
+      PUSH: { environment: 'SANDBOX', status: 'CONNECTED' },
+    });
+    expect(result.evolution).toMatchObject({ instanceName: 'kalend_dev_global', environment: 'DEV', safeForQa: true });
+  });
+
   it('scopes temporal, inbox, expansion and delivery claims to all authorized companies with bounded work', async () => {
     const db = { globalCommunicationDelivery: { updateMany: vi.fn() } };
     const engine = new CommunicationEngine(db as never, new SecretVault(), {} as never, {} as never);
