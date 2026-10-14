@@ -735,8 +735,8 @@ describe('commercial QA HTTP and persisted domain (ephemeral local database)', (
         },
       });
     const notifications = new NotificationsService(prisma as never);
-    await notifications.ingest({ companyIds: [companyId] });
-    await notifications.ingest({ companyIds: [companyId] });
+    await notifications.ingest({ companyIds: [companyId], qaMode: true });
+    await notifications.ingest({ companyIds: [companyId], qaMode: true });
     expect(
       await prisma.notification.count({
         where: { companyId, type: 'pagamento' },

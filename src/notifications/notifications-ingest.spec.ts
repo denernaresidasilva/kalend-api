@@ -21,6 +21,23 @@ describe('notification outbox ingestion scope', () => {
     expect(selection.sql).toContain('LIMIT');
     expect(selection.values).toContain(companyId);
     expect(selection.values).toContain(5);
+    expect(selection.values).toContain('QA_SIMULATION%');
+    expect(selection.sql).toContain('"businessKey" NOT LIKE');
+  });
+
+  it('requires explicit QA mode and rejects unauthorized companies before querying', async () => {
+    vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api-dev.kalend.tech');
+    vi.stubEnv('DATABASE_URL', 'postgresql://test:unused@localhost/kalend_dev');
+    vi.stubEnv('BILLING_PUBLIC_API_URL', 'https://api-dev.kalend.tech');
+    vi.stubEnv('QA_COMMUNICATION_ENABLED', 'true');
+    vi.stubEnv('QA_COMMUNICATION_COMPANY_IDS', companyId);
+    const transaction = vi.fn();
+    try {
+      await expect(new NotificationsService({ $transaction: transaction } as never)
+        .ingest({ qaMode: true, companyIds: ['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'] }))
+        .rejects.toThrow('QA_COMMUNICATION_SCOPE_MISMATCH');
+      expect(transaction).not.toHaveBeenCalled();
+    } finally { vi.unstubAllEnvs(); }
   });
 
   it('does no query when the QA company allowlist is empty', async () => {

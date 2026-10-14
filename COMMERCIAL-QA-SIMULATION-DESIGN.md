@@ -93,6 +93,16 @@ Auditoria CLI: source=QA_SIMULATION, execution=CLI, operator e operatorUid obtid
 
 ## Worker QA manual
 
+### Correção de isolamento da ingestão (2026-10-14)
+
+A homologação PENDING revelou que `NotificationsService.ingest()` selecionava todos os fatos com `notificationProcessedAt IS NULL`. Tanto `communication:worker` quanto o scheduler chamam essa função; por isso a notificação interna QA era ingerida automaticamente, embora a expansão/envio comercial já excluíssem o namespace do simulador. A recuperação de deliveries SENDING também não filtrava a origem. A seleção QA por empresa, isoladamente, podia incluir fatos comerciais da mesma empresa.
+
+`communicationEventScope()` centraliza a seleção SQL/Prisma por origem e modo. A identificação durável é a businessKey `QA_SIMULATION:` gravada na mesma transação do Payment/Subscription; também reconhece o evento/namespace `QA_COMMUNICATION_TEST` e metadata explícita `variables.source=QA_SIMULATION`. Não usa nome, slug ou contatos da empresa. Namespaces QA malformados são excluídos do processamento comercial e não têm fallback comercial.
+
+O modo comercial exclui QA antes da ingestão, expansão, claim de PENDING/RETRY e recuperação de SENDING. O modo QA exige policy/allowlist, inclui somente fatos QA autorizados e revalida o escopo no claim. Simulações comerciais só são selecionadas em DEV com a flag explícita. `runQaWorker()` passa `qaMode=true` à mesma ingestão central; o preflight usa a mesma seleção. Fatos comerciais dentro de empresa allowlisted continuam pertencendo ao modo comercial.
+
+A geração temporal comercial exclui Subscription.gateway=QA_SIMULATION. O modo QA não gera transições temporais implícitas: essas entradas permanecem ações explícitas do simulador. Não há engine duplicado, migration, timer QA nem reescrita da evidência PENDING já processada. Os E2E usam PostgreSQL efêmero, mocks de transport/rede e validam evento QA novo intocado pelo normal, processamento QA manual, idempotência, tenant isolation, origem ambígua, retry/backoff, recuperação, flags/PROD e continuidade do fluxo comercial.
+
 O timer comercial permanece inalterado, executando `communication:worker` e ignorando a outbox QA. O CLI não dispara comunicações. Após uma criação explicitamente autorizada, a homologação deve usar:
 
 ```sh

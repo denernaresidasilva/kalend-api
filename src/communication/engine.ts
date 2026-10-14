@@ -26,6 +26,7 @@ import type { Message, Variables } from './contracts.js';
 import { resolveEffectiveTemplate } from './company-templates.js';
 import { boolean, object, uuid } from '../common/validation.js';
 import { Prisma } from '@prisma/client';
+import { communicationEventScope } from './event-scope.js';
 import {
   QA_COMMUNICATION_EVENT,
   allowedRecipient,
@@ -347,17 +348,12 @@ export class CommunicationEngine {
     )
       throw new ForbiddenException('QA_COMMUNICATION_SCOPE_MISMATCH');
     const limit = Math.max(1, Math.min(options.maxEvents ?? 20, 20));
-    const simulationFilter = options.qaMode
-      ? Prisma.empty
-      : Prisma.sql`AND "businessKey" NOT LIKE 'QA_SIMULATION:%'`;
-    const companyFilter = options.companyIds
-      ? Prisma.sql`AND "companyId" IN (${Prisma.join(options.companyIds)})`
-      : Prisma.empty;
+    const scope = communicationEventScope(options.qaMode === true, options.companyIds);
     return this.db.$transaction(
       async (tx) => {
         const rows = await tx.$queryRaw<
           { id: string }[]
-        >(Prisma.sql`SELECT id FROM "GlobalCommunicationOutbox" WHERE event <> 'QA_COMMUNICATION_TEST' AND "expandedAt" IS NULL AND "notificationProcessedAt" IS NOT NULL ${simulationFilter} ${companyFilter} ORDER BY "createdAt", id LIMIT ${limit} FOR UPDATE SKIP LOCKED`);
+        >(Prisma.sql`SELECT id FROM "GlobalCommunicationOutbox" WHERE event <> 'QA_COMMUNICATION_TEST' AND "expandedAt" IS NULL AND "notificationProcessedAt" IS NOT NULL ${scope.sql} ORDER BY "createdAt", id LIMIT ${limit} FOR UPDATE SKIP LOCKED`);
         let qaDeliveriesCreated = 0;
         eventLoop: for (const { id } of rows) {
           const event = await tx.globalCommunicationOutbox.findUniqueOrThrow({
@@ -730,24 +726,20 @@ export class CommunicationEngine {
     if (qaMode && !companyIds?.length)
       throw new ForbiddenException('QA_COMMUNICATION_SCOPE_NOT_CONFIGURED');
     const now = new Date();
+    const scope = communicationEventScope(qaMode, options.companyIds);
     const candidates = await this.db.globalCommunicationDelivery.findMany({
       where: {
         status: { in: ['PENDING', 'RETRY'] },
         nextAttemptAt: { lte: now },
         attempts: { lt: 5 },
-        outbox: qaMode
-          ? { companyId: { in: companyIds } }
-          : {
-              event: { not: QA_COMMUNICATION_EVENT },
-              businessKey: { not: { startsWith: 'QA_SIMULATION:' } },
-            },
+        outbox: scope.where,
       },
       orderBy: [{ nextAttemptAt: 'asc' }, { id: 'asc' }],
       take: qaMode ? 20 : 10,
     });
     for (const row of candidates) {
       const claimed = await this.db.globalCommunicationDelivery.updateMany({
-        where: { id: row.id, status: row.status, attempts: row.attempts },
+        where: { id: row.id, status: row.status, attempts: row.attempts, outbox: scope.where },
         data: { status: 'SENDING', startedAt: now, attempts: { increment: 1 } },
       });
       if (!claimed.count) continue;
@@ -987,6 +979,7 @@ export class CommunicationEngine {
       where: {
         status: 'SENDING',
         startedAt: { lt: new Date(Date.now() - 300000) },
+        outbox: communicationEventScope().where,
       },
       data: {
         status: 'UNCERTAIN',
@@ -1021,6 +1014,7 @@ export class CommunicationEngine {
     const pendingEvents = await this.db.globalCommunicationOutbox.findMany({
       where: {
         companyId: { in: allowlist.companyIds },
+        AND: [communicationEventScope(true).where],
         OR: [{ expandedAt: null }, { notificationProcessedAt: null }],
       },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -1048,7 +1042,7 @@ export class CommunicationEngine {
         status: { in: ['PENDING', 'RETRY'] },
         nextAttemptAt: { lte: new Date() },
         attempts: { lt: 5 },
-        outbox: { companyId: { in: allowlist.companyIds } },
+        outbox: communicationEventScope(true).where,
       },
       orderBy: [{ nextAttemptAt: 'asc' }, { id: 'asc' }],
       take: 20,
@@ -1287,7 +1281,7 @@ export class CommunicationEngine {
 
   /** Same commercial engine with SQL-scoped claims, ingestion, and recipient guardrails. */
   async runQaWorker(
-    ingest: (options: { companyIds: string[]; limit: number }) => Promise<unknown>,
+    ingest: (options: { companyIds: string[]; limit: number; qaMode: true }) => Promise<unknown>,
   ) {
     const allowlist = requireQaCommunicationAllowlist();
     const preflight = await this.qaPreflight();
@@ -1297,12 +1291,12 @@ export class CommunicationEngine {
       where: {
         status: 'SENDING',
         startedAt: { lt: new Date(Date.now() - 300000) },
-        outbox: { companyId: { in: allowlist.companyIds } },
+        outbox: communicationEventScope(true).where,
       },
       data: { status: 'UNCERTAIN', lastError: 'WORKER_INTERRUPTED', payloadEncrypted: null },
     });
-    const temporal = await this.temporal({ companyIds: allowlist.companyIds, limit: 5 });
-    const inbox = await ingest({ companyIds: allowlist.companyIds, limit: 5 });
+    const temporal = await this.temporal({ companyIds: allowlist.companyIds, limit: 5, qaMode: true });
+    const inbox = await ingest({ companyIds: allowlist.companyIds, limit: 5, qaMode: true });
     const progress = { deliveriesCreated: 0 };
     const expanded = await this.expand({
       companyIds: allowlist.companyIds,
@@ -1347,7 +1341,9 @@ export class CommunicationEngine {
     });
   }
   /** A temporal fact is based on a persisted trial deadline; no guessed payment due date. */
-  async temporal(options: { companyIds?: string[]; limit?: number } = {}) {
+  async temporal(options: { companyIds?: string[]; limit?: number; qaMode?: boolean } = {}) {
+    // QA facts are explicit simulator inputs, never automatic trial transitions.
+    if (options.qaMode) { communicationEventScope(true, options.companyIds); return { inserted: 0 }; }
     if (options.companyIds && !options.companyIds.length) return { inserted: 0 };
     const companyFilter = options.companyIds
       ? Prisma.sql`AND s."companyId" IN (${Prisma.join(options.companyIds)})`
@@ -1361,7 +1357,7 @@ export class CommunicationEngine {
         'TRIAL_EXPIRING:' || s.id::text || ':' || s."trialEndsAt"::text,
         s."companyId", jsonb_build_object('plano',p.name,'dias_trial',ceil(extract(epoch from (s."trialEndsAt" - ${now}::timestamp))/86400)::text,'vencimento',s."trialEndsAt"::text), ${now}
       FROM "Subscription" s JOIN "Plan" p ON p.id=s."planId"
-      WHERE s.status='TRIALING' AND s."trialEndsAt">${now} AND s."trialEndsAt"<=${horizon}
+      WHERE s.gateway <> 'QA_SIMULATION' AND s.status='TRIALING' AND s."trialEndsAt">${now} AND s."trialEndsAt"<=${horizon}
       ${companyFilter}
       AND NOT EXISTS (SELECT 1 FROM "GlobalCommunicationOutbox" o WHERE o."businessKey"='TRIAL_EXPIRING:' || s.id::text || ':' || s."trialEndsAt"::text)
       ORDER BY s."trialEndsAt",s.id LIMIT ${limit}

@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { SecretVault } from '../billing/secret-vault.js';
 import { CommunicationEngine } from './engine.js';
 import { QA_COMMUNICATION_EVENT } from './qa-policy.js';
+import { communicationEventScope } from './event-scope.js';
 
 const companyId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const otherCompanyId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
@@ -173,8 +174,8 @@ describe('QA commercial worker orchestration', () => {
       .mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValue(false);
     const ingest = vi.fn().mockResolvedValue({ processed: 2, created: 2 });
     const result = await engine.runQaWorker(ingest);
-    expect(temporal).toHaveBeenCalledWith({ companyIds: [companyId], limit: 5 });
-    expect(ingest).toHaveBeenCalledWith({ companyIds: [companyId], limit: 5 });
+    expect(temporal).toHaveBeenCalledWith({ companyIds: [companyId], limit: 5, qaMode: true });
+    expect(ingest).toHaveBeenCalledWith({ companyIds: [companyId], limit: 5, qaMode: true });
     expect(expand).toHaveBeenCalledWith(expect.objectContaining({ companyIds: [companyId], maxEvents: 5, qaMode: true }));
     expect(processOne).toHaveBeenCalledWith({ qaMode: true });
     expect(result).toMatchObject({ mode: 'QA', expanded: 2, processed: 2, limits: { events: 5, deliveries: 20 } });
@@ -195,9 +196,9 @@ describe('QA commercial worker orchestration', () => {
       new SecretVault(), {} as never, {} as never,
     );
     await engine.processOne({ qaMode: true });
-    expect(findMany.mock.calls[0][0].where.outbox).toEqual({ companyId: { in: [companyId] } });
+    expect(findMany.mock.calls[0][0].where.outbox).toEqual(communicationEventScope(true).where);
     await engine.processOne();
-    expect(findMany.mock.calls[1][0].where.outbox).toEqual({ event: { not: QA_COMMUNICATION_EVENT }, businessKey: { not: { startsWith: 'QA_SIMULATION:' } } });
+    expect(findMany.mock.calls[1][0].where.outbox).toEqual(communicationEventScope().where);
   });
 
   it('adds the allowlist to the SQL expansion claim before SKIP LOCKED', async () => {
