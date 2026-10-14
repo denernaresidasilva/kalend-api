@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+import { userInfo } from 'node:os';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { object, string, uuid } from '../common/validation.js';
@@ -24,11 +25,7 @@ export const QA_TRANSITIONS = [
   'SUBSCRIPTION_REACTIVATED',
   'SUBSCRIPTION_CANCELLED',
 ] as const;
-export function assertCommercialQa(
-  companyId: string,
-  superAdmin: boolean,
-  env = process.env,
-) {
+export function assertCommercialQaScope(companyId: string, env = process.env) {
   const ids = (env.QA_COMMUNICATION_COMPANY_IDS ?? '')
     .split(',')
     .map((id) => id.trim())
@@ -36,7 +33,6 @@ export function assertCommercialQa(
   if (
     qaRuntimeEnvironment(env) !== 'DEV' ||
     env.COMMERCIAL_QA_SIMULATION_ENABLED !== 'true' ||
-    !superAdmin ||
     !ids.length ||
     ids.some(
       (id) =>
@@ -48,11 +44,83 @@ export function assertCommercialQa(
   )
     throw new ForbiddenException('COMMERCIAL_QA_SIMULATION_BLOCKED');
 }
+export function assertCommercialQa(
+  companyId: string,
+  superAdmin: boolean,
+  env = process.env,
+) {
+  assertCommercialQaScope(companyId, env);
+  if (superAdmin !== true)
+    throw new ForbiddenException('COMMERCIAL_QA_SIMULATION_BLOCKED');
+}
+type QaActor =
+  | { execution: 'HTTP'; id: string; isSuperAdmin: boolean }
+  | { execution: 'CLI'; operator: string; operatorUid: number };
 
 @Injectable()
 export class QaSimulationService {
   constructor(@Inject(PrismaService) private readonly db: PrismaService) {}
   async simulate(input: unknown, actor: { id: string; isSuperAdmin: boolean }) {
+    return this.apply(input, {
+      execution: 'HTTP',
+      id: actor.id,
+      isSuperAdmin: actor.isSuperAdmin,
+    });
+  }
+  /** Operational entry, authorized by DEV policy and access to the private host. No HTTP identity is forged. */
+  async simulateFromCli(input: unknown) {
+    const operator = userInfo();
+    return this.apply(input, {
+      execution: 'CLI',
+      operator: operator.username,
+      operatorUid: operator.uid,
+    });
+  }
+  private async requireActiveCompany(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+  ) {
+    const company = await tx.company.findFirst({
+      where: {
+        id: companyId,
+        isActive: true,
+        status: { in: ['ACTIVE', 'TRIAL'] },
+      },
+    });
+    if (!company) throw new ForbiddenException('QA_COMPANY_NOT_ACTIVE');
+  }
+  /** Read-only operator preflight; never applies a transition, publishes an event or starts a worker. */
+  async preflightFromCli(company: unknown) {
+    const companyId = uuid(company);
+    assertCommercialQaScope(companyId);
+    return this.db.$transaction(
+      async (tx) => {
+        await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY');
+        assertCommercialQaScope(companyId);
+        await this.requireActiveCompany(tx, companyId);
+        const values = await tx.$queryRaw<{ enumlabel: string }[]>`
+        SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid
+        WHERE t.typname='PaymentGateway' AND e.enumlabel='QA_SIMULATION'
+      `;
+        if (!values.length)
+          throw new ConflictException('QA_SIMULATION_SCHEMA_NOT_AVAILABLE');
+        return {
+          source: 'QA_SIMULATION',
+          execution: 'CLI',
+          environment: 'DEV',
+          companyId,
+          flagEnabled: true,
+          qaCompanyAuthorized: true,
+          companyActive: true,
+          enumAvailable: true,
+          readOnly: true,
+          safeToSimulate: true,
+        };
+      },
+      { isolationLevel: 'RepeatableRead' },
+    );
+  }
+  private async apply(input: unknown, actor: QaActor) {
     const d = object(input, [
       'companyId',
       'action',
@@ -62,7 +130,20 @@ export class QaSimulationService {
       'idempotencyKey',
     ]);
     const companyId = uuid(d.companyId);
-    assertCommercialQa(companyId, actor.isSuperAdmin);
+    const assertAccess = () => {
+      if (actor.execution === 'HTTP')
+        assertCommercialQa(companyId, actor.isSuperAdmin);
+      else assertCommercialQaScope(companyId);
+    };
+    assertAccess();
+    const audit =
+      actor.execution === 'HTTP'
+        ? { execution: 'HTTP', actorId: actor.id }
+        : {
+            execution: 'CLI',
+            operator: actor.operator,
+            operatorUid: actor.operatorUid,
+          };
     const action = string(d.action, 'action');
     if (!QA_TRANSITIONS.includes(action as (typeof QA_TRANSITIONS)[number]))
       throw new BadRequestException('QA_TRANSITION_INVALID');
@@ -89,15 +170,8 @@ export class QaSimulationService {
         const result = await this.db.$transaction(
           async (tx) => {
             // Rechecked inside the transaction, before any mutation.
-            assertCommercialQa(companyId, actor.isSuperAdmin);
-            const company = await tx.company.findFirst({
-              where: {
-                id: companyId,
-                isActive: true,
-                status: { in: ['ACTIVE', 'TRIAL'] },
-              },
-            });
-            if (!company) throw new ForbiddenException('QA_COMPANY_NOT_ACTIVE');
+            assertAccess();
+            await this.requireActiveCompany(tx, companyId);
             let payment = paymentId
               ? await tx.payment.findFirst({
                   where: {
@@ -256,7 +330,7 @@ export class QaSimulationService {
                 paymentId: payment.id,
                 status: 'PROCESSED',
                 processedAt: new Date(),
-                payload: { source: 'QA_SIMULATION', actorId: actor.id, action },
+                payload: { source: 'QA_SIMULATION', ...audit, action },
               },
             });
             return {
@@ -270,7 +344,7 @@ export class QaSimulationService {
           { isolationLevel: 'Serializable' },
         );
         new Logger('CommercialQaSimulation').log({
-          actorId: actor.id,
+          ...audit,
           companyId,
           ...result,
         });

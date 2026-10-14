@@ -12,6 +12,7 @@ import {
   CommercialController,
 } from '../src/billing/billing.module.js';
 import { QaSimulationService } from '../src/billing/qa-simulation.service.js';
+import { runQaCli } from '../src/billing/qa-simulation-cli.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { AuthService } from '../src/auth/auth.service.js';
 import { PaymentsService } from '../src/billing/payments.service.js';
@@ -209,6 +210,165 @@ describe('commercial QA HTTP and persisted domain (ephemeral local database)', (
   async function transition(paymentId: string, action: string) {
     return (await post({ companyId, paymentId, action }).expect(201)).body;
   }
+  async function cli(args: string[]) {
+    const output = vi.fn();
+    const close = vi.fn();
+    await runQaCli(
+      args,
+      async () => ({ service: app.get(QaSimulationService), close }),
+      output,
+    );
+    expect(close).toHaveBeenCalledTimes(1);
+    return output.mock.calls[0][0];
+  }
+  function cliPending(key = 'cli-attempt') {
+    return cli([
+      '--company',
+      companyId,
+      '--action',
+      'PAYMENT_PENDING',
+      '--plan',
+      planId,
+      '--interval',
+      'MONTHLY',
+      '--key',
+      key,
+    ]);
+  }
+  it('CLI PENDING and APPROVED share the endpoint service, retain idempotency and record OS provenance', async () => {
+    const p = await cliPending();
+    const repeated = await cliPending();
+    expect(repeated).toMatchObject({ paymentId: p.paymentId, duplicate: true });
+    await cli([
+      '--company',
+      companyId,
+      '--action',
+      'PAYMENT_APPROVED',
+      '--payment',
+      p.paymentId,
+    ]);
+    const approvedAgain = await cli([
+      '--company',
+      companyId,
+      '--action',
+      'PAYMENT_APPROVED',
+      '--payment',
+      p.paymentId,
+    ]);
+    expect(approvedAgain.duplicate).toBe(true);
+    expect(await prisma.payment.count({ where: { companyId } })).toBe(1);
+    expect(await prisma.subscription.count({ where: { companyId } })).toBe(1);
+    expect(
+      await prisma.payment.findUnique({ where: { id: p.paymentId } }),
+    ).toMatchObject({
+      gateway: 'QA_SIMULATION',
+      environment: 'SANDBOX',
+      status: 'APPROVED',
+      amountCents: 9900,
+    });
+    for (const action of ['PAYMENT_PENDING', 'PAYMENT_APPROVED']) {
+      expect(
+        await prisma.globalCommunicationOutbox.count({
+          where: { companyId, event: action },
+        }),
+      ).toBe(1);
+      const journal = await prisma.webhookEvent.findFirstOrThrow({
+        where: { companyId, eventType: action },
+      });
+      expect(journal.payload).toMatchObject({
+        source: 'QA_SIMULATION',
+        execution: 'CLI',
+        operator: expect.any(String),
+        operatorUid: expect.any(Number),
+      });
+      expect(journal.payload).not.toHaveProperty('actorId');
+    }
+  });
+  it('CLI check is read-only and never creates a payment, journal or outbox event', async () => {
+    const before = await prisma.globalCommunicationOutbox.count({
+      where: { companyId },
+    });
+    expect(await cli(['--company', companyId, '--check'])).toMatchObject({
+      execution: 'CLI',
+      environment: 'DEV',
+      readOnly: true,
+      safeToSimulate: true,
+      enumAvailable: true,
+    });
+    expect(await prisma.payment.count({ where: { companyId } })).toBe(0);
+    expect(await prisma.webhookEvent.count({ where: { companyId } })).toBe(0);
+    expect(
+      await prisma.globalCommunicationOutbox.count({ where: { companyId } }),
+    ).toBe(before);
+  });
+  it('CLI blocks PROD with flag=true, disabled flag and non-QA tenant before writes', async () => {
+    vi.stubEnv('EVOLUTION_WEBHOOK_BASE_URL', 'https://api.kalend.tech');
+    vi.stubEnv('BILLING_PUBLIC_API_URL', 'https://api.kalend.tech');
+    vi.stubEnv('DATABASE_URL', 'postgresql://test:test@127.0.0.1/kalend');
+    await expect(cliPending()).rejects.toThrow(
+      'COMMERCIAL_QA_SIMULATION_BLOCKED',
+    );
+    runtime();
+    vi.stubEnv('COMMERCIAL_QA_SIMULATION_ENABLED', 'false');
+    await expect(cliPending()).rejects.toThrow(
+      'COMMERCIAL_QA_SIMULATION_BLOCKED',
+    );
+    runtime();
+    vi.stubEnv('QA_COMMUNICATION_COMPANY_IDS', otherId);
+    await expect(cliPending()).rejects.toThrow(
+      'COMMERCIAL_QA_SIMULATION_BLOCKED',
+    );
+    expect(await prisma.payment.count({ where: { companyId } })).toBe(0);
+  });
+  it('CLI blocks nonexistent and inactive QA companies with no payment/subscription writes', async () => {
+    const missing = randomUUID();
+    vi.stubEnv('QA_COMMUNICATION_COMPANY_IDS', `${companyId},${missing}`);
+    await expect(
+      cli([
+        '--company',
+        missing,
+        '--action',
+        'PAYMENT_PENDING',
+        '--plan',
+        planId,
+        '--interval',
+        'MONTHLY',
+        '--key',
+        'missing',
+      ]),
+    ).rejects.toThrow('QA_COMPANY_NOT_ACTIVE');
+    await prisma.company.update({
+      where: { id: companyId },
+      data: { isActive: false },
+    });
+    await expect(cliPending()).rejects.toThrow('QA_COMPANY_NOT_ACTIVE');
+    await expect(cli(['--company', companyId, '--check'])).rejects.toThrow(
+      'QA_COMPANY_NOT_ACTIVE',
+    );
+    expect(await prisma.payment.count({ where: { companyId } })).toBe(0);
+    expect(await prisma.subscription.count({ where: { companyId } })).toBe(0);
+  });
+  it('HTTP callers cannot request operational CLI authorization', async () => {
+    await post({
+      companyId,
+      action: 'PAYMENT_PENDING',
+      planId,
+      billingInterval: 'MONTHLY',
+      idempotencyKey: 'impersonation',
+      execution: 'CLI',
+    }).expect(400);
+    await post(
+      {
+        companyId,
+        action: 'PAYMENT_PENDING',
+        planId,
+        billingInterval: 'MONTHLY',
+        idempotencyKey: 'impersonation',
+      },
+      'member',
+    ).expect(403);
+    expect(await prisma.payment.count({ where: { companyId } })).toBe(0);
+  });
   it('applies only the enum migration; no QA gateway configuration exists', async () => {
     const sql = await readFile(
       new URL(

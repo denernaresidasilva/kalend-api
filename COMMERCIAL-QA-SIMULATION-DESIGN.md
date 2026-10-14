@@ -56,6 +56,57 @@ Ações: PAYMENT_PENDING, PAYMENT_APPROVED, PAYMENT_FAILED, PAYMENT_OVERDUE, SUB
 
 Resposta: source=QA_SIMULATION, paymentId, subscriptionId, action e duplicate. Repetir PENDING por paymentId é aceito. Outros estados exigem paymentId. Não recebe subscriptionId, valor, gateway, destinatários ou secrets. Campos desconhecidos bloqueiam. IDs de outra empresa, pagamentos reais e vínculos incompatíveis entre Payment/Subscription/Plan bloqueiam.
 
+## CLI operacional DEV
+
+Comando: `npm run billing:qa-simulate -- ...`, após build. Não exige senha, cookie, token ou sessão HTTP. O operador precisa de acesso operacional ao host DEV e à configuração privada existente. Não há token fixo, autenticação HTTP alternativa ou impersonação de Super Admin.
+
+O endpoint continua com AdminGuard, sessão autenticada, Origin e Super Admin obrigatório. O CLI usa `QaSimulationService.simulateFromCli()`; os dois caminhos convergem para a mesma aplicação de transições, transação, validação da empresa, idempotência e domínio. A policy de DEV/flag/allowlist foi extraída para `assertCommercialQaScope()`. O caminho HTTP conserva adicionalmente `assertCommercialQa()` com Super Admin obrigatório. Nenhum campo HTTP permite escolher autorização CLI.
+
+O contexto Nest do comando contém apenas PrismaService e QaSimulationService. A policy é verificada antes de criar/conectar Prisma e novamente dentro do serviço e da transação. Não inicializa AppModule, providers financeiros, listener HTTP, worker ou scheduler. PROD, STAGING, UNKNOWN, flag desativada, allowlist inválida/ausente e empresas fora do escopo bloqueiam. Empresa inexistente ou inativa também bloqueia antes de qualquer Payment/Subscription/evento.
+
+Disponibilidade e preflight sem criar pagamento:
+
+```sh
+npm run billing:qa-simulate -- --help
+npm run billing:qa-simulate -- --company <UUID-QA> --check
+```
+
+`--check` exige exclusivamente company, usa transação READ ONLY, verifica empresa ativa e valor QA_SIMULATION no enum do banco e retorna `readOnly=true` e `safeToSimulate=true`. Não publica evento, cria tentativa ou executa worker. Não pode ser combinado com action/payment/plan/key.
+
+Criação explícita de uma tentativa pelo catálogo:
+
+```sh
+npm run billing:qa-simulate -- --company <UUID-QA> --action PAYMENT_PENDING --plan <UUID-PLANO> --interval MONTHLY --key <CHAVE-ESTAVEL>
+```
+
+Intervalo MONTHLY ou YEARLY. Plano, intervalo e chave estável são obrigatórios na criação. A chave não é gerada automaticamente: repetir os mesmos argumentos reutiliza a tentativa. O comando não aceita valor, gateway, secrets ou identidade de usuário.
+
+Transição ou repetição da tentativa existente:
+
+```sh
+npm run billing:qa-simulate -- --company <UUID-QA> --action PAYMENT_APPROVED --payment <UUID-PAYMENT-QA>
+```
+
+Todas as oito ações já listadas são aceitas. Ações diferentes de PAYMENT_PENDING exigem payment. PENDING também aceita payment para repetição. Payment não pode ser combinado com plan/interval/key. Argumentos desconhecidos, repetidos ou incompletos bloqueiam; não há ação padrão. O comando encerra com código 1 ao bloquear e não imprime erros brutos de provider, conexão ou valores de argumentos.
+
+Auditoria CLI: source=QA_SIMULATION, execution=CLI, operator e operatorUid obtidos do sistema operacional, sem actorId fictício. Auditoria HTTP mantém actorId autenticado e execution=HTTP. Gateway e environment persistidos continuam QA_SIMULATION/SANDBOX. Nenhuma migration adicional foi necessária.
+
+## Worker QA manual
+
+O timer comercial permanece inalterado, executando `communication:worker` e ignorando a outbox QA. O CLI não dispara comunicações. Após uma criação explicitamente autorizada, a homologação deve usar:
+
+```sh
+npm run communication:worker:qa:check
+```
+
+Somente se o preflight indicar SAFE TO RUN = SIM:
+
+```sh
+npm run communication:worker:qa
+```
+
+Execução one-shot, manual, sem timer QA. Esta etapa de entrega do CLI não executa PAYMENT_PENDING nem qualquer outra transição no DEV remoto e não executa worker QA real.
+
 ## Domínio comercial e eventos
 
 BillingDomain contém as transições extraídas de WebhookProcessor e a política temporal extraída de LifecycleService. Webhooks reais continuam validando assinatura e normalizando a entrada antes de chamar o mesmo domínio. O simulador chama esse domínio diretamente, sem contextos, configuração ou adapters financeiros.
@@ -95,4 +146,6 @@ Node usado: 24.21.0, já instalado. O Node padrão 18 não é compatível com o 
 
 Testes usam mocks de sessão com AdminGuard/Origin reais e migrations completas no PGlite efêmero. Incluem bloqueios de ambiente/flag/company/usuário, checkout HTTP, as oito ações, repetição, concorrência, tenant isolation/IDOR, preservação de assinaturas reais e usuários, acesso autoritativo, captura de eventos, notificações/templates/deliveries, reconciliação e exclusão financeira. Métodos dos quatro adapters e fetch foram mockados com falha caso chamados; chamadas externas do simulador: zero. Transports são mocks; envios reais: zero.
 
-Resultados finais: npm test — 824 testes aprovados em 50 arquivos; npm run test:e2e — 152 testes aprovados em 9 arquivos; npm run lint — passou sem avisos; npm run build — passou; npx prisma validate — passou; npx prisma generate — passou; git diff --check — passou. Nenhum comando de migration deploy/dev foi executado contra banco remoto. Na etapa de implementação descrita, não houve commit, push, deploy ou alteração de PROD/main.
+Resultados da etapa inicial: npm test — 824 testes aprovados em 50 arquivos; npm run test:e2e — 152 testes aprovados em 9 arquivos; npm run lint — passou sem avisos; npm run build — passou; npx prisma validate — passou; npx prisma generate — passou; git diff --check — passou. Nenhum comando de migration deploy/dev foi executado contra banco remoto. Na etapa de implementação descrita, não houve commit, push, deploy ou alteração de PROD/main.
+
+Validação adicional do CLI: npm test — 848 testes aprovados em 51 arquivos; npm run test:e2e — 157 testes aprovados em 9 arquivos; lint, build, prisma validate e diff check passaram. Os novos testes cobrem as oito ações no parser, bloqueio antes de conectar ao banco, criação PENDING e aprovação do mesmo Payment pelo serviço compartilhado, repetição, auditoria operacional, preflight READ ONLY, empresas inexistentes/inativas e impossibilidade de solicitar autorização CLI pelo HTTP. As quatro famílias de adapters externos continuam mockadas com zero chamadas.
