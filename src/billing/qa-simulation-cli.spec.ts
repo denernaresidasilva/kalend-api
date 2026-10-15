@@ -116,6 +116,73 @@ describe('commercial QA CLI', () => {
   ])('rejects ambiguous, secret-bearing or incomplete arguments (%j)', (args) =>
     expect(() => parseQaCli(args)).toThrow(),
   );
+  it('parses recovery and isolated grace policy without financial amounts', () => {
+    expect(
+      parseQaCli([
+        '--company',
+        companyId,
+        '--action',
+        'PAYMENT_PENDING',
+        '--subscription',
+        paymentId,
+        '--key',
+        'recovery',
+      ]),
+    ).toEqual({
+      mode: 'SIMULATE',
+      input: {
+        companyId,
+        action: 'PAYMENT_PENDING',
+        subscriptionId: paymentId,
+        idempotencyKey: 'recovery',
+      },
+    });
+    expect(
+      parseQaCli([
+        '--company',
+        companyId,
+        '--action',
+        'SUBSCRIPTION_GRACE_PERIOD',
+        '--payment',
+        paymentId,
+        '--grace-days',
+        '1',
+      ]),
+    ).toEqual({
+      mode: 'SIMULATE',
+      input: {
+        companyId,
+        action: 'SUBSCRIPTION_GRACE_PERIOD',
+        paymentId,
+        graceDays: 1,
+      },
+    });
+    for (const days of ['-1', '0.5', '1000', 'NaN'])
+      expect(() =>
+        parseQaCli([
+          '--company',
+          companyId,
+          '--action',
+          'SUBSCRIPTION_GRACE_PERIOD',
+          '--payment',
+          paymentId,
+          '--grace-days',
+          days,
+        ]),
+      ).toThrow();
+    expect(() =>
+      parseQaCli([
+        '--company',
+        companyId,
+        '--action',
+        'PAYMENT_APPROVED',
+        '--payment',
+        paymentId,
+        '--grace-days',
+        '1',
+      ]),
+    ).toThrow();
+  });
   it('help never opens a database and errors never echo provider/connection secrets', async () => {
     const open = vi.fn(),
       output = vi.fn();

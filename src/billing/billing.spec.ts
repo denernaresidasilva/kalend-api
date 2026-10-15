@@ -64,7 +64,7 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
           findFirst: vi.fn().mockResolvedValue(null),
           count: vi.fn().mockResolvedValue(0),
         },
-        company: { update: vi.fn() },
+        company: { findUnique: vi.fn().mockResolvedValue({ administrativeStatus: 'ACTIVE' }), update: vi.fn() },
         $transaction: vi.fn(),
       };
       db.$transaction.mockImplementation((fn) => fn(db));

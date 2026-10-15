@@ -141,6 +141,11 @@ describe('configuration', () => {
 describe('commercial access', () => {
   it('returns structured limit error using DB membership count; no frontend usage input', async () => {
     const db = {
+      company: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ administrativeStatus: 'ACTIVE' }),
+      },
       membership: { count: vi.fn().mockResolvedValue(5) },
       subscription: {
         findFirst: vi
@@ -167,7 +172,14 @@ describe('commercial access', () => {
     }
   });
   it('rejects expired entitlement and disabled feature; permits unlimited configured limit', async () => {
-    const db = { subscription: { findFirst: vi.fn().mockResolvedValue(null) } };
+    const db = {
+      company: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ administrativeStatus: 'ACTIVE' }),
+      },
+      subscription: { findFirst: vi.fn().mockResolvedValue(null) },
+    };
     const service = new EntitlementsService(db as never);
     await expect(service.current('company')).rejects.toThrow();
     db.subscription.findFirst.mockResolvedValue({
@@ -183,6 +195,11 @@ describe('commercial access', () => {
   });
   it('regularization exposes expired trial and alternate public plans without credentials', async () => {
     const db = {
+      company: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ administrativeStatus: 'ACTIVE' }),
+      },
       subscription: {
         findFirst: vi
           .fn()
@@ -237,7 +254,12 @@ describe('commercial access', () => {
           update: vi.fn(),
           count: vi.fn().mockResolvedValue(0),
         },
-        company: { update: vi.fn() },
+        company: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue({ administrativeStatus: 'ACTIVE' }),
+          update: vi.fn(),
+        },
         $transaction: vi.fn(),
       };
       db.$transaction.mockImplementation((fn) => fn(db));

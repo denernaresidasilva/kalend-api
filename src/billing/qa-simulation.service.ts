@@ -6,6 +6,8 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
+import { recoverySubscription } from './recovery-policy.js';
+import { qaRecoverableCompany } from './company-policy.js';
 import { createHash } from 'node:crypto';
 import { userInfo } from 'node:os';
 import { Prisma } from '@prisma/client';
@@ -79,15 +81,22 @@ export class QaSimulationService {
   private async requireActiveCompany(
     tx: Prisma.TransactionClient,
     companyId: string,
+    action = 'CHECK',
   ) {
-    const company = await tx.company.findFirst({
-      where: {
-        id: companyId,
-        isActive: true,
-        status: { in: ['ACTIVE', 'TRIAL'] },
-      },
-    });
-    if (!company) throw new ForbiddenException('QA_COMPANY_NOT_ACTIVE');
+    const company = await tx.company.findUnique({ where: { id: companyId } });
+    if (!qaRecoverableCompany(company))
+      throw new ForbiddenException('QA_COMPANY_NOT_ACTIVE');
+    if (
+      company!.status === 'SUSPENDED' &&
+      ![
+        'CHECK',
+        'PAYMENT_PENDING',
+        'PAYMENT_APPROVED',
+        'SUBSCRIPTION_REACTIVATED',
+      ].includes(action)
+    )
+      throw new ForbiddenException('QA_COMPANY_RECOVERY_ONLY');
+    return company!;
   }
   /** Read-only operator preflight; never applies a transition, publishes an event or starts a worker. */
   async preflightFromCli(company: unknown) {
@@ -128,6 +137,8 @@ export class QaSimulationService {
       'planId',
       'billingInterval',
       'idempotencyKey',
+      'subscriptionId',
+      'graceDays',
     ]);
     const companyId = uuid(d.companyId);
     const assertAccess = () => {
@@ -149,11 +160,27 @@ export class QaSimulationService {
       throw new BadRequestException('QA_TRANSITION_INVALID');
     if (!d.paymentId && action !== 'PAYMENT_PENDING')
       throw new BadRequestException('QA_PAYMENT_REQUIRED');
+    const subscriptionId =
+      d.subscriptionId === undefined ? undefined : uuid(d.subscriptionId);
+    const graceDays = d.graceDays;
+    if (
+      graceDays !== undefined &&
+      (!Number.isInteger(graceDays) ||
+        Number(graceDays) < 0 ||
+        Number(graceDays) > 999 ||
+        ![
+          'PAYMENT_OVERDUE',
+          'PAYMENT_FAILED',
+          'SUBSCRIPTION_GRACE_PERIOD',
+        ].includes(action))
+    )
+      throw new BadRequestException('QA_GRACE_DAYS_INVALID');
     const paymentId = d.paymentId === undefined ? undefined : uuid(d.paymentId);
     const planId = d.planId === undefined ? undefined : uuid(d.planId);
     const interval = d.billingInterval;
     if (
       !paymentId &&
+      !subscriptionId &&
       (!planId || !['MONTHLY', 'YEARLY'].includes(String(interval)))
     )
       throw new BadRequestException('QA_PLAN_REQUIRED');
@@ -171,7 +198,11 @@ export class QaSimulationService {
           async (tx) => {
             // Rechecked inside the transaction, before any mutation.
             assertAccess();
-            await this.requireActiveCompany(tx, companyId);
+            const company = await this.requireActiveCompany(
+              tx,
+              companyId,
+              action,
+            );
             let payment = paymentId
               ? await tx.payment.findFirst({
                   where: {
@@ -189,28 +220,52 @@ export class QaSimulationService {
             if (paymentId && !payment)
               throw new ForbiddenException('QA_PAYMENT_SCOPE_MISMATCH');
             if (!payment) {
+              const recovery = subscriptionId
+                ? await tx.subscription.findFirst({
+                    where: {
+                      id: subscriptionId,
+                      companyId,
+                      status: { in: ['PAST_DUE', 'SUSPENDED'] },
+                      gateway: 'QA_SIMULATION',
+                      environment: 'SANDBOX',
+                    },
+                  })
+                : null;
+              if (subscriptionId && !recovery)
+                throw new ForbiddenException('QA_SUBSCRIPTION_SCOPE_MISMATCH');
+              if (company.status === 'SUSPENDED' && !recovery)
+                throw new ForbiddenException(
+                  'QA_RECOVERY_SUBSCRIPTION_REQUIRED',
+                );
+              if (
+                recovery &&
+                (await recoverySubscription(tx, companyId))?.id !== recovery.id
+              )
+                throw new ConflictException('QA_RECOVERY_ENTITLEMENT_CONFLICT');
               const plan = await tx.plan.findFirst({
-                where: { id: planId, isActive: true },
+                where: { id: recovery?.planId ?? planId, isActive: true },
               });
               if (!plan) throw new BadRequestException('QA_PLAN_UNAVAILABLE');
               const amountCents =
-                interval === 'YEARLY'
+                (recovery?.billingInterval ?? interval) === 'YEARLY'
                   ? plan.yearlyPriceCents
                   : plan.monthlyPriceCents;
               if (!amountCents || amountCents <= 0)
                 throw new BadRequestException('QA_PLAN_PRICE_INVALID');
               // A separate QA subscription prevents mutation of existing real subscriptions.
-              const subscription = await tx.subscription.create({
-                data: {
-                  companyId,
-                  planId: plan.id,
-                  status: 'PENDING',
-                  gateway: 'QA_SIMULATION',
-                  environment: 'SANDBOX',
-                  billingInterval: interval as 'MONTHLY' | 'YEARLY',
-                  expectedAmountCents: amountCents,
-                },
-              });
+              const subscription =
+                recovery ??
+                (await tx.subscription.create({
+                  data: {
+                    companyId,
+                    planId: plan.id,
+                    status: 'PENDING',
+                    gateway: 'QA_SIMULATION',
+                    environment: 'SANDBOX',
+                    billingInterval: interval as 'MONTHLY' | 'YEARLY',
+                    expectedAmountCents: amountCents,
+                  },
+                }));
               const now = new Date();
               payment = await tx.payment.create({
                 data: {
@@ -232,7 +287,14 @@ export class QaSimulationService {
                 include: { subscription: true },
               });
             }
+            if (subscriptionId && payment.subscriptionId !== subscriptionId)
+              throw new ConflictException('QA_SUBSCRIPTION_SCOPE_MISMATCH');
             const sub = payment.subscription;
+            if (
+              company.status === 'SUSPENDED' &&
+              (!sub || !['PAST_DUE', 'SUSPENDED'].includes(sub.status))
+            )
+              throw new ForbiddenException('QA_RECOVERY_SUBSCRIPTION_REQUIRED');
             if (
               payment.companyId !== companyId ||
               payment.gateway !== 'QA_SIMULATION' ||
@@ -264,7 +326,11 @@ export class QaSimulationService {
                 action,
                 duplicate: true,
               };
-            const domain = new BillingDomain();
+            const domain = new BillingDomain(
+              graceDays === undefined
+                ? undefined
+                : { graceDays: Number(graceDays) },
+            );
             if (action.startsWith('PAYMENT_')) {
               const status = action.slice(8) as
                 'PENDING' | 'APPROVED' | 'FAILED' | 'OVERDUE';
@@ -330,7 +396,12 @@ export class QaSimulationService {
                 paymentId: payment.id,
                 status: 'PROCESSED',
                 processedAt: new Date(),
-                payload: { source: 'QA_SIMULATION', ...audit, action },
+                payload: {
+                  source: 'QA_SIMULATION',
+                  ...audit,
+                  action,
+                  ...(graceDays === undefined ? {} : { graceDays }),
+                },
               },
             });
             return {

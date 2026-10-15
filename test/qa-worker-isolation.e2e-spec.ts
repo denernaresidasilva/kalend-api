@@ -85,6 +85,24 @@ describe('full worker QA isolation (ephemeral PostgreSQL, mocked transports)', (
     for (const event of [unauthorized, malformed, metadata]) expect(await prisma.globalCommunicationOutbox.findUnique({ where: { id: event.id } })).toMatchObject({ notificationProcessedAt: null, expandedAt: null });
     await expect(inbox.ingest({ qaMode: true, companyIds: [outside] })).rejects.toThrow('QA_COMMUNICATION_SCOPE_MISMATCH');
   });
+  it('commercially suspended QA can communicate recovery, while administrative quarantine blocks the same worker', async () => {
+    const p = await pending();
+    const simulator = new QaSimulationService(prisma as never);
+    await simulator.simulateFromCli({ companyId: qa, action: 'PAYMENT_APPROVED', paymentId: p.paymentId });
+    await simulator.simulateFromCli({ companyId: qa, action: 'SUBSCRIPTION_SUSPENDED', paymentId: p.paymentId });
+    expect(await prisma.company.findUnique({ where: { id: qa } })).toMatchObject({ status: 'SUSPENDED', isActive: false, administrativeStatus: 'ACTIVE' });
+    expect((await engine.qaPreflight(true)).safeToRun).toBe(true);
+    await inbox.ingest(); await engine.run();
+    expect((await qaEvent()).notificationProcessedAt).toBeNull();
+    await engine.runQaWorker(options => inbox.ingest(options));
+    expect(send).toHaveBeenCalled();
+    expect(await prisma.globalCommunicationDelivery.findFirst({ where: { outbox: { companyId: qa }, channel: 'EMAIL' } })).toMatchObject({ status: 'ACCEPTED' });
+    for (const administrativeStatus of ['DISABLED', 'LEGACY_UNKNOWN'] as const) {
+      await prisma.company.update({ where: { id: qa }, data: { administrativeStatus } });
+      expect((await engine.qaPreflight(true)).safeToRun).toBe(false);
+      await expect(engine.runQaWorker(options => inbox.ingest(options))).rejects.toThrow('QA_WORKER_PREFLIGHT_BLOCKED');
+    }
+  });
   it('partial QA facts, retries and stale SENDING are untouched by normal recovery; QA owns retry/backoff and recovery', async () => {
     await pending(); await inbox.ingest({ qaMode: true }); await engine.expand({ qaMode: true });
     const delivery = await prisma.globalCommunicationDelivery.findFirstOrThrow({ where: { outbox: { companyId: qa } } });

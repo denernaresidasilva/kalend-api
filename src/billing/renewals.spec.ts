@@ -35,7 +35,7 @@ it('new recurring invoice uses subscription price snapshot, not current Plan or 
       updateMany: vi.fn(),
       update: vi.fn(),
     },
-    company: { update: vi.fn() },
+    company: { findUnique: vi.fn().mockResolvedValue({ administrativeStatus: 'ACTIVE' }), update: vi.fn() },
     webhookEvent: {
       upsert: vi.fn().mockResolvedValue({ id: 'evt', status: 'RECEIVED' }),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),

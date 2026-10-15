@@ -65,6 +65,10 @@ describe('authentication HTTP with real bcrypt/JWT and mock persistence', () => 
     const response = await login('member@example.test').expect(200);
     const authCookie = cookie(response, ACCESS_COOKIE);
     await request(app.getHttpServer())
+      .get('/auth/me')
+      .set('Cookie', authCookie)
+      .expect(200);
+    await request(app.getHttpServer())
       .post('/auth/tenant')
       .set('Cookie', authCookie)
       .set('Origin', origin)
@@ -87,6 +91,31 @@ describe('authentication HTTP with real bcrypt/JWT and mock persistence', () => 
       .send({ companyId: OTHER_COMPANY_ID, amountCents: 1 })
       .expect(400);
   });
+  it.each(['DISABLED', 'LEGACY_UNKNOWN'])(
+    'administratively %s cannot use authentication or billing to recover',
+    async (administrativeStatus) => {
+      const response = await login('member@example.test').expect(200);
+      const authCookie = cookie(response, ACCESS_COOKIE);
+      fixture.sessions[0].selectedCompanyId = COMPANY_ID;
+      for (const membership of fixture.memberships)
+        membership.company.administrativeStatus = administrativeStatus;
+      await request(app.getHttpServer())
+        .get('/billing/regularization')
+        .set('Cookie', authCookie)
+        .expect(403);
+      await request(app.getHttpServer())
+        .post('/billing/checkout')
+        .set('Cookie', authCookie)
+        .set('Origin', origin)
+        .send({})
+        .expect(403);
+      await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Cookie', authCookie)
+        .expect(403);
+      await login('member@example.test').expect(403);
+    },
+  );
   it('denies login for a user without active company and creates no session', async () => {
     for (const membership of fixture.memberships) membership.isActive = false;
     await request(app.getHttpServer())
@@ -587,7 +616,8 @@ describe('authentication HTTP with real bcrypt/JWT and mock persistence', () => 
       .expect(200);
     // A normal tenant request now requires a persisted, unexpired entitlement.
     fixture.db.subscription.findFirst.mockResolvedValueOnce({
-      status: 'ACTIVE', currentPeriodEnd: new Date(Date.now() + 86400000),
+      status: 'ACTIVE',
+      currentPeriodEnd: new Date(Date.now() + 86400000),
     } as never);
     const tenant = await request(app.getHttpServer())
       .get('/auth/tenant')

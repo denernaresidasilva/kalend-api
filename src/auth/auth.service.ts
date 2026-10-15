@@ -5,6 +5,10 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import {
+  administrativelyActive,
+  assertAdministrativeAccess,
+} from '../billing/company-policy.js';
 import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { parseLoginDto, parseSelectTenantDto } from './auth.dto.js';
@@ -39,7 +43,14 @@ const membershipSelect = {
   isActive: true,
   companyId: true,
   company: {
-    select: { id: true, name: true, slug: true, status: true, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      status: true,
+      isActive: true,
+      administrativeStatus: true,
+    },
   },
 } as const;
 @Injectable()
@@ -67,17 +78,20 @@ export class AuthService {
       where: { userId, isActive: true },
       select: {
         role: true,
-        company: { select: { status: true, isActive: true } },
+        company: {
+          select: { status: true, isActive: true, administrativeStatus: true },
+        },
       },
     });
     return memberships.some(
       (membership) =>
-        membership.role === 'OWNER' ||
-        ((membership.company.status === 'ACTIVE' ||
-          membership.company.status === 'TRIAL') &&
-          membership.company.isActive) ||
-        membership.company.status === 'SUSPENDED' ||
-        membership.company.status === 'CANCELED',
+        administrativelyActive(membership.company) &&
+        (membership.role === 'OWNER' ||
+          ((membership.company.status === 'ACTIVE' ||
+            membership.company.status === 'TRIAL') &&
+            membership.company.isActive) ||
+          membership.company.status === 'SUSPENDED' ||
+          membership.company.status === 'CANCELED'),
     );
   }
   async login(input: unknown, ip: string) {
@@ -96,7 +110,10 @@ export class AuthService {
     );
     if (!user || !correct)
       throw new UnauthorizedException('E-mail ou senha inválidos.');
-    if (!user.isSuperAdmin && !(await this.hasAuthenticationMembership(user.id)))
+    if (
+      !user.isSuperAdmin &&
+      !(await this.hasAuthenticationMembership(user.id))
+    )
       throw this.noActiveCompany();
     if (!user.isActive)
       throw new UnauthorizedException('E-mail ou senha inválidos.');
@@ -251,11 +268,7 @@ export class AuthService {
     if (result?.blocked) throw this.noActiveCompany();
     if (!result)
       throw new UnauthorizedException('Sessão inválida ou expirada.');
-    return this.issue(
-      result.session.userId,
-      result.session,
-      refresh,
-    );
+    return this.issue(result.session.userId, result.session, refresh);
   }
   async authenticate(raw: string | undefined): Promise<AuthIdentity> {
     if (!raw) throw new UnauthorizedException('Autenticação necessária.');
@@ -343,10 +356,11 @@ export class AuthService {
     });
     const available = memberships.filter(
       (m) =>
-        m.role === 'OWNER' ||
-        (['ACTIVE', 'TRIAL'].includes(m.company.status) &&
-          m.company.isActive) ||
-        ['SUSPENDED', 'CANCELED'].includes(m.company.status),
+        administrativelyActive(m.company) &&
+        (m.role === 'OWNER' ||
+          (['ACTIVE', 'TRIAL'].includes(m.company.status) &&
+            m.company.isActive) ||
+          ['SUSPENDED', 'CANCELED'].includes(m.company.status)),
     );
     const selected = available.find(
       (m) => m.companyId === identity.session.selectedCompanyId,
@@ -381,6 +395,7 @@ export class AuthService {
         code: 'TENANT_ACCESS_REQUIRED',
         message: 'Acesso à empresa não permitido.',
       });
+    assertAdministrativeAccess(membership.company);
     if (
       (!recovery &&
         (!membership.company.isActive ||

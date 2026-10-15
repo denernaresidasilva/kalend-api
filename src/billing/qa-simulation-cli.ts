@@ -11,6 +11,9 @@ Read-only preflight:
   npm run billing:qa-simulate -- --company <uuid> --check
 Create a catalog-priced QA attempt (stable key required):
   npm run billing:qa-simulate -- --company <uuid> --action PAYMENT_PENDING --plan <uuid> --interval MONTHLY --key <key>
+Recovery attempt on its existing QA subscription:
+  npm run billing:qa-simulate -- --company <uuid> --action PAYMENT_PENDING --subscription <uuid> --key <key>
+Temporal override (DEV only, no environment mutation): append --grace-days <0..999> to PAYMENT_OVERDUE/PAYMENT_FAILED/SUBSCRIPTION_GRACE_PERIOD.
 Transition/repeat an existing QA attempt:
   npm run billing:qa-simulate -- --company <uuid> --action <action> --payment <uuid>
 Actions: ${QA_TRANSITIONS.join(', ')}
@@ -29,6 +32,8 @@ type Command =
         planId?: string;
         billingInterval?: 'MONTHLY' | 'YEARLY';
         idempotencyKey?: string;
+        subscriptionId?: string;
+        graceDays?: number;
       };
     };
 
@@ -42,6 +47,8 @@ export function parseQaCli(args: readonly string[]): Command {
     '--interval',
     '--key',
     '--check',
+    '--subscription',
+    '--grace-days',
   ];
   const values = new Map<string, string>();
   for (let index = 0; index < args.length; index++) {
@@ -66,8 +73,21 @@ export function parseQaCli(args: readonly string[]): Command {
   const action = values.get('--action');
   if (!QA_TRANSITIONS.includes(action as (typeof QA_TRANSITIONS)[number]))
     throw new BadRequestException('QA_TRANSITION_INVALID');
+  const graceDays = values.has('--grace-days')
+    ? Number(values.get('--grace-days'))
+    : undefined;
+  if (
+    graceDays !== undefined &&
+    (!/^(0|[1-9]\d{0,2})$/.test(values.get('--grace-days')!) ||
+      ![
+        'PAYMENT_OVERDUE',
+        'PAYMENT_FAILED',
+        'SUBSCRIPTION_GRACE_PERIOD',
+      ].includes(action!))
+  )
+    throw new BadRequestException('QA_GRACE_DAYS_INVALID');
   if (values.has('--payment')) {
-    if (values.size !== 3)
+    if (values.size !== (graceDays === undefined ? 3 : 4))
       throw new BadRequestException('QA_CLI_PAYMENT_ARGUMENT_INVALID');
     return {
       mode: 'SIMULATE',
@@ -75,11 +95,25 @@ export function parseQaCli(args: readonly string[]): Command {
         companyId,
         action: action!,
         paymentId: uuid(values.get('--payment')),
+        ...(graceDays === undefined ? {} : { graceDays }),
       },
     };
   }
   if (action !== 'PAYMENT_PENDING')
     throw new BadRequestException('QA_PAYMENT_REQUIRED');
+  if (values.has('--subscription')) {
+    if (values.size !== 4)
+      throw new BadRequestException('QA_CLI_CREATION_ARGUMENT_INVALID');
+    return {
+      mode: 'SIMULATE',
+      input: {
+        companyId,
+        action: action!,
+        subscriptionId: uuid(values.get('--subscription')),
+        idempotencyKey: string(values.get('--key'), 'idempotencyKey', 128),
+      },
+    };
+  }
   if (
     values.size !== 5 ||
     !['MONTHLY', 'YEARLY'].includes(values.get('--interval') ?? '')

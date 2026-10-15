@@ -1,11 +1,13 @@
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { assertAdministrativeAccess } from './company-policy.js';
 import { entitledWhere } from './commercial-policy.js';
 @Injectable()
 export class EntitlementsService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
   async current(companyId: string, tx: Prisma.TransactionClient = this.prisma) {
+    assertAdministrativeAccess(await tx.company.findUnique({ where: { id: companyId } }));
     const sub = await tx.subscription.findFirst({
       where: entitledWhere(companyId),
       include: { plan: { include: { features: true } } },

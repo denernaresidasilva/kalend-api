@@ -387,6 +387,7 @@ export class CompaniesService {
         slug: company.slug,
         timezone: company.timezone,
         status: company.status,
+        administrativeStatus: company.administrativeStatus,
         createdAt: company.createdAt,
         updatedAt: company.updatedAt,
 
@@ -465,6 +466,7 @@ export class CompaniesService {
       'status',
       'ownerEmail',
       'planId',
+      'administrativeStatus',
     ]);
     if (Object.keys(data).length === 0)
       throw new BadRequestException('Informe ao menos um campo para atualizar.');
@@ -475,6 +477,7 @@ export class CompaniesService {
       timezone?: string;
       status?: 'TRIAL' | 'ACTIVE' | 'SUSPENDED' | 'CANCELED';
       isActive?: boolean;
+      administrativeStatus?: 'ACTIVE' | 'DISABLED';
     } = {};
     if (data.name !== undefined) {
       update.name = string(data.name, 'name', 120);
@@ -506,6 +509,14 @@ export class CompaniesService {
         throw new BadRequestException('Status de empresa inválido.');
       update.status = data.status as NonNullable<typeof update.status>;
       update.isActive = data.status === 'ACTIVE' || data.status === 'TRIAL';
+      if (data.status === 'SUSPENDED') update.administrativeStatus = 'DISABLED';
+      else if (['ACTIVE', 'TRIAL'].includes(data.status)) update.administrativeStatus = 'ACTIVE';
+    }
+    if (data.administrativeStatus !== undefined) {
+      if (typeof data.administrativeStatus !== 'string' || !['ACTIVE', 'DISABLED'].includes(data.administrativeStatus)) throw new BadRequestException('INVALID_ADMINISTRATIVE_STATUS');
+      update.administrativeStatus = data.administrativeStatus as 'ACTIVE' | 'DISABLED';
+      if (data.administrativeStatus === 'DISABLED') update.isActive = false;
+      // Administrative enablement does not grant a commercial entitlement.
     }
     let ownerEmail: string | undefined;
     if (data.ownerEmail !== undefined) {
@@ -519,9 +530,10 @@ export class CompaniesService {
       await this.prisma.$transaction(async (tx) => {
         const company = await tx.company.findUnique({
           where: { id },
-          select: { id: true },
+          select: { id: true, status: true },
         });
         if (!company) throw new NotFoundException('Empresa não encontrada.');
+        if (data.administrativeStatus === 'ACTIVE' && data.status === undefined) update.isActive = ['ACTIVE', 'TRIAL'].includes(company.status);
 
         if (ownerEmail) {
           const owner = await tx.user.findUnique({

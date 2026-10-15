@@ -1,3 +1,4 @@
+import { administrativelyActive } from './company-policy.js';
 import { ConflictException } from '@nestjs/common';
 import type { Prisma, Subscription } from '@prisma/client';
 import type {
@@ -11,11 +12,14 @@ import { graceEnd, graceDeadline, suspendIfUnentitled } from './commercial-polic
 export type BillingOrigin = Gateway | 'QA_SIMULATION';
 /** Shared verified commercial transitions. No provider or transport dependencies. */
 export class BillingDomain {
+  constructor(private readonly policy?: { graceDays: number }) {}
   async activatePaid(
     tx: Prisma.TransactionClient,
     p: Prisma.PaymentGetPayload<{ include: { subscription: true } }>,
     now = new Date(),
   ) {
+    const company = await tx.company.findUnique({ where: { id: p.companyId } });
+    if (!administrativelyActive(company)) return false;
     const sub = p.subscription;
     if (!sub || sub.status === 'CANCELED')
       throw new ConflictException('SUBSCRIPTION_UNAVAILABLE');
@@ -79,7 +83,7 @@ export class BillingDomain {
     ) return;
     const grace =
       sub.status === 'ACTIVE'
-        ? graceEnd(sub.currentPeriodEnd!)
+        ? graceEnd(sub.currentPeriodEnd!, this.policy?.graceDays)
         : sub.graceEndsAt;
     const status =
       sub.status === 'TRIALING'
@@ -110,7 +114,7 @@ export class BillingDomain {
     if (!sub || !['ACTIVE', 'PAST_DUE'].includes(sub.status))
       throw new ConflictException('SUBSCRIPTION_GRACE_NOT_ALLOWED');
     const now = new Date();
-    const end = graceEnd(now);
+    const end = graceEnd(now, this.policy?.graceDays);
     if (end <= now) throw new ConflictException('BILLING_GRACE_NOT_CONFIGURED');
     await tx.subscription.update({
       where: { id: sub.id },
@@ -192,7 +196,7 @@ export class BillingDomain {
               ? {
                   status: 'PAST_DUE',
                   graceEndsAt:
-                    sub.graceEndsAt ?? graceDeadline(sub.currentPeriodEnd, now),
+                    sub.graceEndsAt ?? graceDeadline(sub.currentPeriodEnd, now, this.policy?.graceDays),
                 }
               : {}),
         cancelAtPeriodEnd: e.cancelAtPeriodEnd,
@@ -381,7 +385,7 @@ export class BillingDomain {
             status: fullRefund ? 'SUSPENDED' : 'PAST_DUE',
             graceEndsAt: fullRefund
               ? null
-              : (sub.graceEndsAt ?? graceDeadline(sub.currentPeriodEnd, now)),
+              : (sub.graceEndsAt ?? graceDeadline(sub.currentPeriodEnd, now, this.policy?.graceDays)),
           },
         });
         await suspendIfUnentitled(tx, p.companyId, now);

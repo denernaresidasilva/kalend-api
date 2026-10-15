@@ -1,3 +1,5 @@
+import { assertAdministrativeAccess } from './company-policy.js';
+import { recoverySubscription } from './recovery-policy.js';
 import type { MembershipRole } from '@prisma/client';
 import type {
   CommercialTrial,
@@ -61,6 +63,7 @@ export class RegularizationService {
     };
   }
   async get(companyId: string, role: MembershipRole = 'OWNER') {
+    assertAdministrativeAccess(await this.prisma.company.findUnique({ where: { id: companyId } }));
     const now = new Date();
     const current = await this.prisma.subscription.findFirst({
       where: entitledWhere(companyId, now),
@@ -151,6 +154,7 @@ export class RegularizationService {
           ? 'TRIAL_EXPIRED'
           : 'PAYMENT_REQUIRED',
       trialExpired,
+      recoverySubscriptionId: (await recoverySubscription(this.prisma, companyId))?.id ?? null,
       subscription: last
         ? {
             id: last.id,

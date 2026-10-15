@@ -18,6 +18,7 @@ function qaFixture(overrides: { companyId?: string; email?: string; slug?: strin
         id: overrides.companyId ?? companyId,
         slug: overrides.slug ?? 'any-reserved-name-is-irrelevant',
         name: 'QA Kalend',
+        status: 'ACTIVE', administrativeStatus: 'ACTIVE',
         isActive: true,
       }),
     },
@@ -142,7 +143,7 @@ describe('QA commercial worker orchestration', () => {
       ),
     };
     const db = {
-      company: { findMany: vi.fn().mockResolvedValue([{ id: companyId, name: 'QA', isActive: true }]) },
+      company: { findMany: vi.fn().mockResolvedValue([{ id: companyId, name: 'QA', isActive: true, status: 'ACTIVE', administrativeStatus: 'ACTIVE' }]) },
       globalCommunicationOutbox: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
       globalCommunicationDelivery: { findMany: vi.fn().mockResolvedValue([]) },
       membership: { findMany: vi.fn().mockResolvedValue([]) },

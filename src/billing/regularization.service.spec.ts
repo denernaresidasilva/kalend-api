@@ -19,6 +19,7 @@ function setup(status: string | null, offset = 0, entitled = false) {
       }
     : null;
   const db = {
+    company: { findUnique: vi.fn().mockResolvedValue({ administrativeStatus: 'ACTIVE' }) },
     subscription: {
       findFirst: vi
         .fn()

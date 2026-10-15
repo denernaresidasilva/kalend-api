@@ -26,7 +26,8 @@
     "communication:worker": "node dist/communication/worker.js",
     "communication:worker:qa": "node dist/communication/worker.js --qa-only",
     "communication:worker:qa:check": "node dist/communication/worker.js --qa-check",
-    "communication:scheduler": "node dist/communication/scheduler.js"
+    "communication:scheduler": "node dist/communication/scheduler.js",
+    "billing:qa-fixture": "node dist/billing/qa-lifecycle-fixture.cli.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

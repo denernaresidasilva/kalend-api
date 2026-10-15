@@ -1,3 +1,4 @@
+import { qaRecoverableCompany } from '../billing/company-policy.js';
 import { adminList, listStatus } from '../common/admin-list.js';
 import { pushPayload, pushTargets } from './push.js';
 import {
@@ -149,7 +150,7 @@ export class CommunicationEngine {
     const channel = data.channel as QaChannel;
     const company = await this.db.company.findUnique({
       where: { id: companyId },
-      select: { id: true, name: true, isActive: true },
+      select: { id: true, name: true, isActive: true, status: true, administrativeStatus: true },
     });
     const membership = await this.db.membership.findFirst({
       where: {
@@ -163,7 +164,7 @@ export class CommunicationEngine {
         user: { select: { id: true, name: true, email: true, phone: true } },
       },
     });
-    if (!company?.isActive || !isQaCompany(companyId, allowlist) || !membership)
+    if (!company || !company.isActive || !qaRecoverableCompany(company) || !isQaCompany(companyId, allowlist) || !membership)
       throw new ForbiddenException('QA_COMMUNICATION_TENANT_INVALID');
 
     const provider = await this.configuration.resolveProvider(channel);
@@ -784,7 +785,7 @@ export class CommunicationEngine {
           },
           include: {
             user: { select: { email: true, phone: true, isSuperAdmin: true } },
-          company: { select: { isActive: true } },
+          company: { select: { isActive: true, status: true, administrativeStatus: true } },
           },
         });
         const t =
@@ -806,7 +807,7 @@ export class CommunicationEngine {
           if (
             !isQaCompany(event.companyId, allowlist!) ||
             !member ||
-            !member.company.isActive ||
+            !qaRecoverableCompany(member.company) ||
             member.user.isSuperAdmin ||
             !allowedRecipient(
               channel,
@@ -1009,7 +1010,7 @@ export class CommunicationEngine {
     const allowlist = requireQaCommunicationAllowlist();
     const companies = await this.db.company.findMany({
       where: { id: { in: allowlist.companyIds } },
-      select: { id: true, name: true, isActive: true },
+      select: { id: true, name: true, isActive: true, status: true, administrativeStatus: true },
     });
     const pendingEvents = await this.db.globalCommunicationOutbox.findMany({
       where: {
@@ -1059,7 +1060,7 @@ export class CommunicationEngine {
         companyId: { in: allowlist.companyIds },
         role: 'OWNER',
         isActive: true,
-        company: { isActive: true },
+        company: { administrativeStatus: 'ACTIVE', OR: [{ isActive: true, status: { in: ['ACTIVE', 'TRIAL'] } }, { status: 'SUSPENDED' }] },
         user: { isActive: true, isSuperAdmin: false },
       },
       select: {
@@ -1115,7 +1116,7 @@ export class CommunicationEngine {
       },
     });
     const missingCompanies = allowlist.companyIds.filter(
-      (id) => !companies.some((company) => company.id === id && company.isActive),
+      (id) => !companies.some((company) => company.id === id && qaRecoverableCompany(company)),
     );
     const permittedEmailRecipients = owners
       .map((owner) => normalizeQaDestination('EMAIL', owner.user.email))

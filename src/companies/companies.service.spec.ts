@@ -155,6 +155,29 @@ describe('manual company', () => {
     ).toEqual({ select: safeUserSelect });
     expect(safeUserSelect).not.toHaveProperty('passwordHash');
   });
+  it('administrative disable/enable is explicit and cancellation does not imply administrative disable', async () => {
+    const { service, db } = setup();
+    db.company.findUnique.mockResolvedValue({ id: 'company' });
+    await service.update('company', { status: 'SUSPENDED' });
+    expect(db.company.update).toHaveBeenLastCalledWith({
+      where: { id: 'company' },
+      data: {
+        status: 'SUSPENDED',
+        isActive: false,
+        administrativeStatus: 'DISABLED',
+      },
+    });
+    await service.update('company', { administrativeStatus: 'ACTIVE' });
+    expect(db.company.update).toHaveBeenLastCalledWith({
+      where: { id: 'company' },
+      data: { administrativeStatus: 'ACTIVE', isActive: false },
+    });
+    await service.update('company', { status: 'CANCELED' });
+    expect(db.company.update).toHaveBeenLastCalledWith({
+      where: { id: 'company' },
+      data: { status: 'CANCELED', isActive: false },
+    });
+  });
   it('updates company fields, owner membership and the current plan transactionally', async () => {
     const { service, db } = setup();
     db.company.findUnique.mockResolvedValue({ id: 'company' });
@@ -175,6 +198,7 @@ describe('manual company', () => {
     expect(db.company.update).toHaveBeenCalledWith({
       where: { id: 'company' },
       data: {
+        administrativeStatus: 'ACTIVE',
         name: 'Nome atualizado',
         slug: 'novo-slug',
         timezone: 'UTC',

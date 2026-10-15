@@ -22,17 +22,22 @@ export function effectiveAccessStatus(
     ? 'SUSPENDED'
     : (last?.status ?? 'NO_SUBSCRIPTION');
 }
-export function graceEnd(from: Date): Date {
-  const value = process.env.BILLING_GRACE_DAYS;
+export function graceEnd(from: Date, days?: number): Date {
+  const value =
+    days === undefined ? process.env.BILLING_GRACE_DAYS : String(days);
   // Unconfigured means no grace, never an invented positive allowance.
   if (value !== undefined && !/^(0|[1-9]\d{0,2})$/.test(value))
     throw new ServiceUnavailableException('BILLING_GRACE_DAYS_INVALID');
   return new Date(from.getTime() + Number(value ?? 0) * 86400000);
 }
 /** Preserve a paid deadline; without one, zero tolerance is no grace window. */
-export function graceDeadline(periodEnd: Date | null, now: Date): Date | null {
+export function graceDeadline(
+  periodEnd: Date | null,
+  now: Date,
+  days?: number,
+): Date | null {
   const start = periodEnd ?? now;
-  const end = graceEnd(start);
+  const end = graceEnd(start, days);
   return periodEnd !== null || end > start ? end : null;
 }
 export function entitledWhere(

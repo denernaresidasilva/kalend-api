@@ -6,6 +6,8 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { assertAdministrativeAccess } from './company-policy.js';
+import { recoverySubscription, assertRecoveryTerms } from './recovery-policy.js';
 import { createHash } from 'node:crypto';
 import type { Payment } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -111,6 +113,7 @@ export class PaymentsService {
       throw new BadRequestException('CPF/CNPJ inválido.');
     if (gateway === 'ASAAS' && !taxId)
       throw new BadRequestException('BILLING_TAX_ID_REQUIRED');
+    assertAdministrativeAccess(await this.prisma.company.findUnique({ where: { id: companyId } }));
     const provider = this.registry.get(gateway),
       context = await this.gateways.context(gateway);
     if (
@@ -155,10 +158,19 @@ export class PaymentsService {
               : plan.monthlyPriceCents;
           if (amountCents == null || amountCents <= 0)
             throw new BadRequestException('Preço não configurado.');
+          assertAdministrativeAccess(await tx.company.findUnique({ where: { id: companyId } }));
+          const recovery = await recoverySubscription(tx, companyId);
+          if (recovery) {
+            assertRecoveryTerms(recovery, { planId, billingInterval, gateway, environment: context.environment });
+            if (recurring) throw new ConflictException('RECOVERY_REQUIRES_ONE_OFF_PAYMENT');
+          }
+          const targetSubscriptionId = legacySubscriptionId ?? recovery?.id;
+          if (legacySubscriptionId && recovery && legacySubscriptionId !== recovery.id) throw new ConflictException('RECOVERY_SUBSCRIPTION_MISMATCH');
           const pending = await tx.payment.findFirst({
             where: {
               companyId,
               status: 'PENDING',
+              gateway: { not: 'QA_SIMULATION' },
               creationState: {
                 in: ['READY', 'CREATING', 'UNCERTAIN', 'CREATED'],
               },
@@ -177,14 +189,14 @@ export class PaymentsService {
               ],
             },
           });
-          if (active && !legacySubscriptionId)
+          if (active && (!targetSubscriptionId || active.id !== targetSubscriptionId))
             throw new ConflictException(
               'ACTIVE_SUBSCRIPTION_CANCEL_BEFORE_NEW_CHECKOUT',
             );
           const now = new Date();
-          const sub = legacySubscriptionId
+          const sub = targetSubscriptionId
             ? await tx.subscription.findFirst({
-                where: { id: legacySubscriptionId, companyId, planId },
+                where: { id: targetSubscriptionId, companyId, planId },
               })
             : await tx.subscription.create({
                 data: {
@@ -235,6 +247,7 @@ export class PaymentsService {
     )
       throw new ConflictException('IDEMPOTENCY_SCOPE_MISMATCH');
     if (payment.creationState === 'CREATED') return this.view(payment);
+    assertAdministrativeAccess(await this.prisma.company.findUnique({ where: { id: companyId } }));
     const owner = await this.prisma.membership.findFirst({
       where: {
         companyId,

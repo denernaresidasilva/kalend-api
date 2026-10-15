@@ -65,6 +65,7 @@ export function authDatabase(passwordHash: string) {
         name: 'Empresa',
         slug: 'empresa',
         status: 'ACTIVE',
+        administrativeStatus: 'ACTIVE',
         isActive: true,
       },
     },
@@ -79,6 +80,7 @@ export function authDatabase(passwordHash: string) {
         name: 'Outra',
         slug: 'outra',
         status: 'TRIAL',
+        administrativeStatus: 'ACTIVE',
         isActive: true,
       },
     },
@@ -92,6 +94,12 @@ export function authDatabase(passwordHash: string) {
     passwordHash: user.passwordHash,
   });
   const db = {
+    company: {
+      findUnique: vi.fn(
+        async ({ where }) =>
+          memberships.find((m) => m.companyId === where.id)?.company ?? null,
+      ),
+    },
     user: {
       findUnique: vi.fn(
         async ({ where }) => users.find((u) => u.email === where.email) ?? null,
@@ -217,6 +225,7 @@ export function authDatabase(passwordHash: string) {
     for (const m of memberships) {
       m.isActive = true;
       m.company.isActive = true;
+      m.company.administrativeStatus = 'ACTIVE';
       m.company.status = m.companyId === COMPANY_ID ? 'ACTIVE' : 'TRIAL';
     }
   }

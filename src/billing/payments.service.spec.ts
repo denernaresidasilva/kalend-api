@@ -83,7 +83,7 @@ function setup() {
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       update: vi.fn(),
     },
-    company: { update: vi.fn() },
+    company: { findUnique: vi.fn().mockResolvedValue({ administrativeStatus: 'ACTIVE' }), update: vi.fn() },
     $transaction: vi.fn(),
   };
   db.$transaction.mockImplementation((fn) => fn(db));

@@ -133,11 +133,11 @@ EntitlementsService consulta o banco; não há cache comercial nesses serviços.
 
 ## Limites sem contornar regras reais
 
-- BILLING_GRACE_DAYS deve ser positivo para o cenário GRACE. Sem grace configurado, esse cenário falha com conflito e rollback; não inventa tolerância comercial.
+- BILLING_GRACE_DAYS global permanece inalterado. O CLI aceita --grace-days 0..999 somente em PAYMENT_FAILED, PAYMENT_OVERDUE e SUBSCRIPTION_GRACE_PERIOD; a policy é passada ao mesmo BillingDomain, sem alterar process.env. GRACE exige tolerância positiva. OVERDUE com override positivo já pode iniciar grace e emitir seu evento pelo trigger real.
 - Uma tentativa aprovada não pode ser rebaixada para PENDING/FAILED/OVERDUE. Use outra chave para um cenário incompatível.
 - Cancelamento não é desfeito pelo simulador.
 - Cada ação é aplicada uma vez por Payment. Repetição retorna duplicate=true enquanto as proteções continuam satisfeitas.
-- Suspensão/cancelamento podem tornar a empresa isActive=false pela regra real. Nesse caso, qualquer nova chamada, inclusive repetição e reativação, retorna 403, sem duplicar dados. Não há bypass de empresa inativa. Reativação foi homologada após GRACE e após SUSPENDED com outra assinatura QA válida mantendo a empresa ativa.
+- Suspensão comercial pode tornar isActive=false sem alterar administrativeStatus=ACTIVE. Nesse caso, o CLI aceita somente preflight, PAYMENT_PENDING de recovery (com --subscription), PAYMENT_APPROVED e SUBSCRIPTION_REACTIVATED. DISABLED e LEGACY_UNKNOWN continuam bloqueados. O worker QA pode comunicar os eventos de recuperação da empresa comercialmente suspensa; allowlists e transportes sandbox permanecem obrigatórios. Aprovação do pagamento de recovery já reativa a mesma assinatura e emite SUBSCRIPTION_REACTIVATED; não executar uma reativação redundante após a aprovação.
 - Para ciclos adicionais, use nova tentativa QA. Não há edição arbitrária de datas ou mudança de relógio global.
 
 ## Auditoria, finanças e isolamento
@@ -159,3 +159,19 @@ Testes usam mocks de sessão com AdminGuard/Origin reais e migrations completas 
 Resultados da etapa inicial: npm test — 824 testes aprovados em 50 arquivos; npm run test:e2e — 152 testes aprovados em 9 arquivos; npm run lint — passou sem avisos; npm run build — passou; npx prisma validate — passou; npx prisma generate — passou; git diff --check — passou. Nenhum comando de migration deploy/dev foi executado contra banco remoto. Na etapa de implementação descrita, não houve commit, push, deploy ou alteração de PROD/main.
 
 Validação adicional do CLI: npm test — 848 testes aprovados em 51 arquivos; npm run test:e2e — 157 testes aprovados em 9 arquivos; lint, build, prisma validate e diff check passaram. Os novos testes cobrem as oito ações no parser, bloqueio antes de conectar ao banco, criação PENDING e aprovação do mesmo Payment pelo serviço compartilhado, repetição, auditoria operacional, preflight READ ONLY, empresas inexistentes/inativas e impossibilidade de solicitar autorização CLI pelo HTTP. As quatro famílias de adapters externos continuam mockadas com zero chamadas.
+
+## Recovery e fixture lifecycle
+
+O checkout real e o QA compartilham a seleção em recovery-policy e o mesmo BillingDomain. Recovery exige assinatura PAST_DUE/SUSPENDED, origem/ambiente corretos e ausência de outro entitlement ACTIVE/TRIALING válido. O QA não altera a origem de uma assinatura de provider real.
+
+```sh
+npm run billing:qa-simulate -- --company <UUID-QA> --action PAYMENT_PENDING --subscription <UUID-SUB-QA> --key <CHAVE>
+npm run billing:qa-simulate -- --company <UUID-QA> --action PAYMENT_OVERDUE --payment <UUID-PAYMENT-QA> --grace-days 1
+npm run billing:qa-fixture -- --source-company <UUID-QA-AUTORIZADA> --key <CHAVE>
+```
+
+A fixture é DEV-only, exige as flags comerciais e de comunicação QA e uma empresa-fonte na allowlist. Reutiliza seu OWNER ativo, não Super Admin, com email e telefone já autorizados. Cria somente uma Company chamada QA Billing Lifecycle e Membership OWNER: nenhum usuário/senha novo, assinatura, entitlement ou Evolution COMPANY. OWNER_WELCOME é marcado QA na mesma transação. Chave estável evita duplicação; fixture já utilizada por billing não é recriada.
+
+A fixture NÃO adiciona o novo UUID à allowlist. É obrigatória autorização separada para configuração privada DEV antes de simular ou comunicar a nova empresa. Não executar fixture nem transições como parte do deploy.
+
+Ver SUSPENDED-SUBSCRIPTION-RECOVERY.md para backfill administrativo e contratos reais.

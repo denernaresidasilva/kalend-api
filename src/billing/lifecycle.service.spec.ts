@@ -16,7 +16,7 @@ it('expires trial and suspends only companies without entitlement, without touch
       update: vi.fn(),
       count: vi.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(1),
     },
-    company: { update: vi.fn() },
+    company: { findUnique: vi.fn().mockResolvedValue({ administrativeStatus: 'ACTIVE' }), update: vi.fn() },
     $transaction: vi.fn(),
   };
   db.$transaction.mockImplementation((fn) => fn(db));
@@ -60,7 +60,7 @@ it('uses configured grace and queries actual adapter before expiration', async (
       update: vi.fn(),
       count: vi.fn().mockResolvedValue(1),
     },
-    company: { update: vi.fn() },
+    company: { findUnique: vi.fn().mockResolvedValue({ administrativeStatus: 'ACTIVE' }), update: vi.fn() },
     $transaction: vi.fn(),
   };
   db.$transaction.mockImplementation((fn) => fn(db));
