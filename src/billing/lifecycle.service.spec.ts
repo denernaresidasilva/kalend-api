@@ -5,7 +5,7 @@ it('expires trial and suspends only companies without entitlement, without touch
     payment: { findMany: vi.fn().mockResolvedValue([]) },
     subscription: {
       findMany: vi.fn().mockResolvedValue([
-        { id: 's1', companyId: 'c1', status: 'TRIALING' },
+        { id: 's1', companyId: 'c1', status: 'TRIALING', trialEndsAt: new Date(0) },
         {
           id: 's2',
           companyId: 'c2',

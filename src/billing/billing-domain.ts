@@ -7,7 +7,7 @@ import type {
 } from './gateway.types.js';
 import { integer } from '../common/validation.js';
 import { nextPeriod } from '../common/period.js';
-import { graceEnd, suspendIfUnentitled } from './commercial-policy.js';
+import { graceEnd, graceDeadline, suspendIfUnentitled } from './commercial-policy.js';
 export type BillingOrigin = Gateway | 'QA_SIMULATION';
 /** Shared verified commercial transitions. No provider or transport dependencies. */
 export class BillingDomain {
@@ -69,6 +69,14 @@ export class BillingDomain {
     return false;
   }
   async elapsed(tx: Prisma.TransactionClient, sub: Subscription, now: Date) {
+    // The deadline is persisted. A caller/sweep must not advance it early.
+    if (
+      (sub.status === 'TRIALING' && (!sub.trialEndsAt || sub.trialEndsAt > now)) ||
+      (sub.status === 'ACTIVE' && sub.currentPeriodEnd && sub.currentPeriodEnd > now) ||
+      (sub.status === 'PAST_DUE' &&
+        ((sub.currentPeriodEnd && sub.currentPeriodEnd > now) ||
+          (sub.graceEndsAt && sub.graceEndsAt > now)))
+    ) return;
     const grace =
       sub.status === 'ACTIVE'
         ? graceEnd(sub.currentPeriodEnd!)
@@ -184,7 +192,7 @@ export class BillingDomain {
               ? {
                   status: 'PAST_DUE',
                   graceEndsAt:
-                    sub.graceEndsAt ?? graceEnd(sub.currentPeriodEnd ?? now),
+                    sub.graceEndsAt ?? graceDeadline(sub.currentPeriodEnd, now),
                 }
               : {}),
         cancelAtPeriodEnd: e.cancelAtPeriodEnd,
@@ -373,7 +381,7 @@ export class BillingDomain {
             status: fullRefund ? 'SUSPENDED' : 'PAST_DUE',
             graceEndsAt: fullRefund
               ? null
-              : (sub.graceEndsAt ?? graceEnd(sub.currentPeriodEnd ?? now)),
+              : (sub.graceEndsAt ?? graceDeadline(sub.currentPeriodEnd, now)),
           },
         });
         await suspendIfUnentitled(tx, p.companyId, now);

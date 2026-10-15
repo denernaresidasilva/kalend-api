@@ -1349,18 +1349,34 @@ export class CommunicationEngine {
       ? Prisma.sql`AND s."companyId" IN (${Prisma.join(options.companyIds)})`
       : Prisma.empty;
     const limit = Math.max(1, Math.min(options.limit ?? 100, 100));
-    const now = new Date(),
-      horizon = new Date(now.getTime() + 3 * 86400000);
     const inserted = await this.db.$executeRaw`
+      WITH tick AS MATERIALIZED (SELECT clock_timestamp() AT TIME ZONE 'UTC' AS at),
+      candidates AS (
+        SELECT 'TRIAL_EXPIRING' AS event,
+          'TRIAL_EXPIRING:' || s.id::text || ':' || s."trialEndsAt"::text AS business_key,
+          s."companyId" AS company_id,
+          jsonb_build_object('plano',p.name,'dias_trial',ceil(extract(epoch from (s."trialEndsAt" - tick.at))/86400)::text,'vencimento',s."trialEndsAt"::text) AS variables,
+          tick.at AS created_at, s."trialEndsAt" AS due_at, s.id AS subscription_id
+        FROM "Subscription" s JOIN "Plan" p ON p.id=s."planId" CROSS JOIN tick
+        WHERE s.gateway <> 'QA_SIMULATION' AND s.status='TRIALING'
+          AND s."trialEndsAt">tick.at AND s."trialEndsAt"<=tick.at + INTERVAL '3 days'
+          ${companyFilter}
+        UNION ALL
+        SELECT 'SUBSCRIPTION_GRACE_PERIOD',
+          'SUBSCRIPTION_GRACE_PERIOD:' || s.id::text || ':' || s."graceEndsAt"::text,
+          s."companyId", '{}'::jsonb, tick.at,
+          COALESCE(s."currentPeriodEnd",s."updatedAt"), s.id
+        FROM "Subscription" s CROSS JOIN tick
+        WHERE s.gateway <> 'QA_SIMULATION' AND s.status='PAST_DUE'
+          AND kalend_subscription_grace_due(s."currentPeriodEnd",s."graceEndsAt",s."updatedAt",tick.at)
+          ${companyFilter}
+          AND NOT kalend_subscription_legacy_grace_seen(s.id,s."companyId",COALESCE(s."currentPeriodStart",s."createdAt"),s."graceEndsAt")
+      )
       INSERT INTO "GlobalCommunicationOutbox" (id, scope, event, "businessKey", "companyId", variables, "createdAt")
-      SELECT gen_random_uuid(), 'GLOBAL', 'TRIAL_EXPIRING',
-        'TRIAL_EXPIRING:' || s.id::text || ':' || s."trialEndsAt"::text,
-        s."companyId", jsonb_build_object('plano',p.name,'dias_trial',ceil(extract(epoch from (s."trialEndsAt" - ${now}::timestamp))/86400)::text,'vencimento',s."trialEndsAt"::text), ${now}
-      FROM "Subscription" s JOIN "Plan" p ON p.id=s."planId"
-      WHERE s.gateway <> 'QA_SIMULATION' AND s.status='TRIALING' AND s."trialEndsAt">${now} AND s."trialEndsAt"<=${horizon}
-      ${companyFilter}
-      AND NOT EXISTS (SELECT 1 FROM "GlobalCommunicationOutbox" o WHERE o."businessKey"='TRIAL_EXPIRING:' || s.id::text || ':' || s."trialEndsAt"::text)
-      ORDER BY s."trialEndsAt",s.id LIMIT ${limit}
+      SELECT gen_random_uuid(), 'GLOBAL', c.event, c.business_key, c.company_id, c.variables, c.created_at
+      FROM candidates c
+      WHERE NOT EXISTS (SELECT 1 FROM "GlobalCommunicationOutbox" o WHERE o."businessKey"=c.business_key)
+      ORDER BY c.due_at,c.subscription_id LIMIT ${limit}
       ON CONFLICT ("businessKey") DO NOTHING`;
     return { inserted };
   }

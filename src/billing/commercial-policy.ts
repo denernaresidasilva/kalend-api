@@ -29,6 +29,12 @@ export function graceEnd(from: Date): Date {
     throw new ServiceUnavailableException('BILLING_GRACE_DAYS_INVALID');
   return new Date(from.getTime() + Number(value ?? 0) * 86400000);
 }
+/** Preserve a paid deadline; without one, zero tolerance is no grace window. */
+export function graceDeadline(periodEnd: Date | null, now: Date): Date | null {
+  const start = periodEnd ?? now;
+  const end = graceEnd(start);
+  return periodEnd !== null || end > start ? end : null;
+}
 export function entitledWhere(
   companyId: string,
   now = new Date(),
