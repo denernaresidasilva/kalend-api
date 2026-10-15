@@ -269,6 +269,13 @@ describe('suspended subscription recovery with persisted commercial facts', () =
       where: { id: subscriptionId },
       data: { gateway: 'QA_SIMULATION' },
     });
+    expect(await qa().preflightFromCli(companyId)).toMatchObject({
+      companyActive: false,
+      companyStatus: 'SUSPENDED',
+      administrativeStatus: 'ACTIVE',
+      recoveryOnly: true,
+      safeToSimulate: true,
+    });
     const pending = await qa().simulateFromCli({
       companyId,
       action: 'PAYMENT_PENDING',

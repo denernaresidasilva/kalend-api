@@ -106,7 +106,7 @@ export class QaSimulationService {
       async (tx) => {
         await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY');
         assertCommercialQaScope(companyId);
-        await this.requireActiveCompany(tx, companyId);
+        const company = await this.requireActiveCompany(tx, companyId);
         const values = await tx.$queryRaw<{ enumlabel: string }[]>`
         SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid
         WHERE t.typname='PaymentGateway' AND e.enumlabel='QA_SIMULATION'
@@ -120,7 +120,10 @@ export class QaSimulationService {
           companyId,
           flagEnabled: true,
           qaCompanyAuthorized: true,
-          companyActive: true,
+          companyActive: company.isActive,
+          companyStatus: company.status,
+          administrativeStatus: company.administrativeStatus,
+          recoveryOnly: company.status === 'SUSPENDED',
           enumAvailable: true,
           readOnly: true,
           safeToSimulate: true,
