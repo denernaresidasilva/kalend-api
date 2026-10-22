@@ -1,0 +1,121 @@
+{
+  "updated_utc": "2026-10-22T09:37:20.119975+00:00",
+  "environment": "LOCAL; SSH READ ONLY for DEV schema/service metadata",
+  "tests": {
+    "api-unit-final": {
+      "success": true,
+      "numTotalTests": 878,
+      "numPassedTests": 878,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "api-e2e-final": {
+      "success": true,
+      "numTotalTests": 251,
+      "numPassedTests": 251,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "native-final": {
+      "success": true,
+      "numTotalTests": 41,
+      "numPassedTests": 41,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "web-unit": {
+      "passed": 393,
+      "failed": 0,
+      "source": "web-unit.log"
+    },
+    "playwright": {
+      "startTime": "2026-10-22T09:25:49.179Z",
+      "duration": 111302.74799999999,
+      "expected": 114,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0,
+      "scope": "API intercepted, local browser only"
+    },
+    "responsive": {
+      "checks": 324,
+      "overflowFailures": 0,
+      "javascriptExceptions": 0,
+      "scope": "18 routes x9 viewports x2 themes; fixture data"
+    }
+  },
+  "quality_exits": {
+    "api-lint-final": 0,
+    "api-types-final": 0,
+    "prisma-validate": 0,
+    "api-build-final": 0
+  },
+  "web_quality": "lint/typecheck/build passed; exit 0, execution session 81968",
+  "runtime_audit": {
+    "api": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "web": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    }
+  },
+  "full_audit": {
+    "api": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "web": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 5,
+      "critical": 0,
+      "total": 5
+    }
+  },
+  "database": {
+    "version": "PostgreSQL 16.15",
+    "method": "official packages extracted under /tmp; per-run initdb cluster, random loopback port, owner-only directory and marker",
+    "native_cases": 17,
+    "native_backfill_cases": 24,
+    "pool_max_connections": 6,
+    "real_databases_modified": false,
+    "lock_proof": {
+      "backendPids": [
+        3656172,
+        3656204
+      ],
+      "blocked": true,
+      "poolMax": 6
+    }
+  },
+  "release": {
+    "push": false,
+    "deploy": false,
+    "migration_DEV": false,
+    "DEV_tables": "ABSENT; read-only rechecked 2026-10-22",
+    "remote_access": "root; technical DEV isolation not demonstrated",
+    "production_preserved": true
+  },
+  "notes": [
+    "Initial native run: 4/12 failures proved P2010 SQLSTATE 40001 not retried. Fixed classifier and bounded retries.",
+    "Grant revocation reproduction: concurrent revocation failed with serializable conflict. Fixed whole-transaction retries.",
+    "One initial recovery test incorrectly assumed APPROVED after full refund could restore that same payment. Corrected fixture to require a new valid payment; no business-rule weakening.",
+    "Runtime advisories resolved. Web braces tooling advisory remains without published patch; full audit 5 high entries are one underlying tooling advisory, not five runtime flaws.",
+    "Old 2026-10-21 evidence remains historical; initial hashes matched 211 API/203 Web files. Full relevant regression rerun after patches."
+  ]
+}

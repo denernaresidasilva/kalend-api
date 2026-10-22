@@ -1,0 +1,14 @@
+{
+  "date_utc": "2026-10-22T09:33:09.199527+00:00",
+  "initial_heads": {
+    "kalend-api": "b1cc220aafcb1f2fef97c026150795fcd5c88906",
+    "kalend-web": "4d86829b81737189503eb8b1859477e708dcdb12"
+  },
+  "historical_source_hashes_matched_before_changes": {
+    "kalend-api": 211,
+    "kalend-web": 203
+  },
+  "remote_access_observed": "root uid=0; isolation not proven; no remote writes",
+  "pipeline_api": "push develop -> SSH -> npm ci -> prisma migrate deploy -> build -> pm2 restart",
+  "push_authorized_by_conditions": false
+}

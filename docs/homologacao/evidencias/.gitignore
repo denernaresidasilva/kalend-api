@@ -1,0 +1,18 @@
+# Raw logs, traces and browser profiles stay local; no private runtime artifacts in Git.
+*
+!.gitignore
+!2026-10-21-super-admin/
+!2026-10-22-super-admin/
+2026-10-21-super-admin/*
+!2026-10-21-super-admin/resumo-execucao.json
+!2026-10-21-super-admin/candidate-source-hashes.json
+2026-10-22-super-admin/*
+!2026-10-22-super-admin/preflight.json
+!2026-10-22-super-admin/resumo-execucao.json
+!2026-10-22-super-admin/candidate-source-hashes.json
+!2026-10-22-super-admin/*audit*.json
+!2026-10-22-super-admin/api-unit-final.json
+!2026-10-22-super-admin/api-e2e-final.json
+!2026-10-22-super-admin/native-final.json
+!2026-10-22-super-admin/web-playwright.json
+!2026-10-22-super-admin/README.md

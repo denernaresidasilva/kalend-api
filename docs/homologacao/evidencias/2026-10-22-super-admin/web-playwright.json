@@ -1,0 +1,4175 @@
+{
+  "config": {
+    "argv": [
+      "/home/guest/.nvm/versions/node/v24.21.0/bin/node",
+      "/home/guest/Projetos/Kalend/kalend-web/node_modules/.bin/playwright",
+      "test",
+      "--config",
+      "playwright.homologacao.config.ts",
+      "--output=/tmp/kalend-playwright-20261022",
+      "--reporter=json"
+    ],
+    "configFile": "/home/guest/Projetos/Kalend/kalend-web/playwright.homologacao.config.ts",
+    "rootDir": "/home/guest/Projetos/Kalend/kalend-web/homologacao/specs",
+    "failOnFlakyTests": false,
+    "forbidOnly": true,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/tmp/kalend-playwright-20261022",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "desktop",
+        "name": "desktop",
+        "testDir": "/home/guest/Projetos/Kalend/kalend-web/homologacao/specs",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.local.spec.ts"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/tmp/kalend-playwright-20261022",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "tablet",
+        "name": "tablet",
+        "testDir": "/home/guest/Projetos/Kalend/kalend-web/homologacao/specs",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.local.spec.ts"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/tmp/kalend-playwright-20261022",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mobile",
+        "name": "mobile",
+        "testDir": "/home/guest/Projetos/Kalend/kalend-web/homologacao/specs",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.local.spec.ts"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/tmp/kalend-playwright-20261022",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "name": "desktop",
+        "testDir": "/home/guest/Projetos/Kalend/kalend-web/homologacao/specs",
+        "snapshotDir": "/home/guest/Projetos/Kalend/kalend-web/homologacao/specs",
+        "testIgnore": [],
+        "testMatch": "**/*.local.spec.ts",
+        "timeout": 30000,
+        "use": {
+          "baseURL": "http://127.0.0.1:3131",
+          "locale": "pt-BR",
+          "trace": "retain-on-failure",
+          "screenshot": "only-on-failure",
+          "launchOptions": {
+            "executablePath": "/usr/bin/google-chrome",
+            "args": [
+              "--no-sandbox"
+            ]
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          }
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "desktop"
+      },
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/tmp/kalend-playwright-20261022",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "name": "tablet",
+        "testDir": "/home/guest/Projetos/Kalend/kalend-web/homologacao/specs",
+        "snapshotDir": "/home/guest/Projetos/Kalend/kalend-web/homologacao/specs",
+        "testIgnore": [],
+        "testMatch": "**/*.local.spec.ts",
+        "timeout": 30000,
+        "use": {
+          "baseURL": "http://127.0.0.1:3131",
+          "locale": "pt-BR",
+          "trace": "retain-on-failure",
+          "screenshot": "only-on-failure",
+          "launchOptions": {
+            "executablePath": "/usr/bin/google-chrome",
+            "args": [
+              "--no-sandbox"
+            ]
+          },
+          "viewport": {
+            "width": 768,
+            "height": 1024
+          },
+          "hasTouch": true
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "tablet"
+      },
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/tmp/kalend-playwright-20261022",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "name": "mobile",
+        "testDir": "/home/guest/Projetos/Kalend/kalend-web/homologacao/specs",
+        "snapshotDir": "/home/guest/Projetos/Kalend/kalend-web/homologacao/specs",
+        "testIgnore": [],
+        "testMatch": "**/*.local.spec.ts",
+        "timeout": 30000,
+        "use": {
+          "baseURL": "http://127.0.0.1:3131",
+          "locale": "pt-BR",
+          "trace": "retain-on-failure",
+          "screenshot": "only-on-failure",
+          "launchOptions": {
+            "executablePath": "/usr/bin/google-chrome",
+            "args": [
+              "--no-sandbox"
+            ]
+          },
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "isMobile": true,
+          "hasTouch": true
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "mobile"
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.64.0",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run start -- --hostname 127.0.0.1 --port 3131",
+      "url": "http://127.0.0.1:3131",
+      "reuseExistingServer": false,
+      "timeout": 60000
+    }
+  },
+  "suites": [
+    {
+      "title": "checkout.local.spec.ts",
+      "file": "checkout.local.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "CHECKOUT-annual: preço, plano, referência e chave de intento",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 794,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:25:50.126Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9df372054ee8be72ff28-64e8e0c8b9a88b2805b4",
+          "file": "checkout.local.spec.ts",
+          "line": 3,
+          "column": 5
+        },
+        {
+          "title": "CHECKOUT-annual: preço, plano, referência e chave de intento",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 767,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:26.729Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9df372054ee8be72ff28-2b1977451a763c447191",
+          "file": "checkout.local.spec.ts",
+          "line": 3,
+          "column": 5
+        },
+        {
+          "title": "CHECKOUT-annual: preço, plano, referência e chave de intento",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 757,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:04.984Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9df372054ee8be72ff28-34cda864dbebb4fe6b88",
+          "file": "checkout.local.spec.ts",
+          "line": 3,
+          "column": 5
+        }
+      ]
+    },
+    {
+      "title": "core.local.spec.ts",
+      "file": "core.local.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "TRIAL-clock--300000: decisão do backend no limite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 389,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:25:51.097Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-a68e1d37d623eeb118c8",
+          "file": "core.local.spec.ts",
+          "line": 7,
+          "column": 7
+        },
+        {
+          "title": "TRIAL-clock--1000: decisão do backend no limite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 355,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:25:51.499Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-d6f861d91ee3727feb30",
+          "file": "core.local.spec.ts",
+          "line": 7,
+          "column": 7
+        },
+        {
+          "title": "TRIAL-clock-0: decisão do backend no limite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 357,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:25:51.865Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-e8ca705f9484c086cf1c",
+          "file": "core.local.spec.ts",
+          "line": 7,
+          "column": 7
+        },
+        {
+          "title": "TRIAL-clock-1000: decisão do backend no limite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 316,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:25:52.238Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-9e05a67772f22682fb33",
+          "file": "core.local.spec.ts",
+          "line": 7,
+          "column": 7
+        },
+        {
+          "title": "TRIAL-clock-3600000: decisão do backend no limite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 338,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:25:52.569Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-d9dd0f9659ca816dbb74",
+          "file": "core.local.spec.ts",
+          "line": 7,
+          "column": 7
+        },
+        {
+          "title": "TRIAL-auto: vence sem refresh, pagamento restaura",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 6635,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:25:52.922Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-9fea6182aa14ffd55e52",
+          "file": "core.local.spec.ts",
+          "line": 17,
+          "column": 5
+        },
+        {
+          "title": "TRIAL-clock-browser: relógio local não autoriza estado",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 359,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:25:59.578Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-bf36453dbf23aaea4b31",
+          "file": "core.local.spec.ts",
+          "line": 28,
+          "column": 5
+        },
+        {
+          "title": "TRIAL-routes: rota direta, reload, nova aba e navegação",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1183,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:25:59.946Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-05bf0a4626b7f5961194",
+          "file": "core.local.spec.ts",
+          "line": 33,
+          "column": 5
+        },
+        {
+          "title": "CHECKOUT: plano, periodicidade, gateway e pendência",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 489,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:01.138Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-5471278b60574ffce2b8",
+          "file": "core.local.spec.ts",
+          "line": 43,
+          "column": 5
+        },
+        {
+          "title": "OWNER-recovery: seleção compacta mantém bloqueio até confirmação autoritativa",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1207,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:01.635Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-c60c272024f9740fbd6a",
+          "file": "core.local.spec.ts",
+          "line": 53,
+          "column": 5
+        },
+        {
+          "title": "AUTH: login válido, logout, rota protegida",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 718,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:02.850Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-5f356028382b49a3af19",
+          "file": "core.local.spec.ts",
+          "line": 73,
+          "column": 5
+        },
+        {
+          "title": "AUTH: login inválido",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 464,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:03.577Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-aef281f07d30006cf1dc",
+          "file": "core.local.spec.ts",
+          "line": 80,
+          "column": 5
+        },
+        {
+          "title": "AUTH: sessão expirada",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 608,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:04.049Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-46e5ee85f3023de26291",
+          "file": "core.local.spec.ts",
+          "line": 85,
+          "column": 5
+        },
+        {
+          "title": "GLOBAL: Super Admin não bloqueado pelo trial",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 340,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:04.665Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-b3a9ab225ad304df03f4",
+          "file": "core.local.spec.ts",
+          "line": 93,
+          "column": 5
+        },
+        {
+          "title": "MOBILE-layout: /conta/configuracoes",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 333,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:05.013Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-68efc549a31b47213a58",
+          "file": "core.local.spec.ts",
+          "line": 98,
+          "column": 7
+        },
+        {
+          "title": "MOBILE-layout: /conta/notificacoes",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 335,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:05.356Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-a53e412efe16aadedcac",
+          "file": "core.local.spec.ts",
+          "line": 98,
+          "column": 7
+        },
+        {
+          "title": "MOBILE-layout: /conta/planos",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 345,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:05.700Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-299a94a9c3352413f8cb",
+          "file": "core.local.spec.ts",
+          "line": 98,
+          "column": 7
+        },
+        {
+          "title": "RATE-frontend: 429 não gera loop de login",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1936,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:06.054Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-0336aa7f44a9a90dc771",
+          "file": "core.local.spec.ts",
+          "line": 105,
+          "column": 5
+        },
+        {
+          "title": "TRIAL-clock--300000: decisão do backend no limite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 380,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:27.668Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-24938fc79b44bee31477",
+          "file": "core.local.spec.ts",
+          "line": 7,
+          "column": 7
+        },
+        {
+          "title": "TRIAL-clock--1000: decisão do backend no limite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 334,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:28.062Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-71a5ebd3248558fe0372",
+          "file": "core.local.spec.ts",
+          "line": 7,
+          "column": 7
+        },
+        {
+          "title": "TRIAL-clock-0: decisão do backend no limite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 371,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:28.408Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-2bdd53eb3e8360afa7d0",
+          "file": "core.local.spec.ts",
+          "line": 7,
+          "column": 7
+        },
+        {
+          "title": "TRIAL-clock-1000: decisão do backend no limite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 348,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:28.796Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-5beb693c7423ac7a3fa1",
+          "file": "core.local.spec.ts",
+          "line": 7,
+          "column": 7
+        },
+        {
+          "title": "TRIAL-clock-3600000: decisão do backend no limite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 361,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:29.160Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-0ce4af95514385cd643d",
+          "file": "core.local.spec.ts",
+          "line": 7,
+          "column": 7
+        },
+        {
+          "title": "TRIAL-auto: vence sem refresh, pagamento restaura",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 6657,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:29.536Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-2a1dc615dd4ee3d67a44",
+          "file": "core.local.spec.ts",
+          "line": 17,
+          "column": 5
+        },
+        {
+          "title": "TRIAL-clock-browser: relógio local não autoriza estado",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 277,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:36.213Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-24d00ad7c8d33b521b15",
+          "file": "core.local.spec.ts",
+          "line": 28,
+          "column": 5
+        },
+        {
+          "title": "TRIAL-routes: rota direta, reload, nova aba e navegação",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1030,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:36.499Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-571ec6e18cb66286ae5b",
+          "file": "core.local.spec.ts",
+          "line": 33,
+          "column": 5
+        },
+        {
+          "title": "CHECKOUT: plano, periodicidade, gateway e pendência",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 441,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:37.540Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-3c566f5ad28538473eb8",
+          "file": "core.local.spec.ts",
+          "line": 43,
+          "column": 5
+        },
+        {
+          "title": "OWNER-recovery: seleção compacta mantém bloqueio até confirmação autoritativa",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1176,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:37.988Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-6583632f99948fd294a6",
+          "file": "core.local.spec.ts",
+          "line": 53,
+          "column": 5
+        },
+        {
+          "title": "AUTH: login válido, logout, rota protegida",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 571,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:39.172Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-506a831dbc137281884d",
+          "file": "core.local.spec.ts",
+          "line": 73,
+          "column": 5
+        },
+        {
+          "title": "AUTH: login inválido",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 376,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:39.751Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-a7e34837408bc51e6b9d",
+          "file": "core.local.spec.ts",
+          "line": 80,
+          "column": 5
+        },
+        {
+          "title": "AUTH: sessão expirada",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 487,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:40.135Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-ff03b6704f2979de5b1a",
+          "file": "core.local.spec.ts",
+          "line": 85,
+          "column": 5
+        },
+        {
+          "title": "GLOBAL: Super Admin não bloqueado pelo trial",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 303,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:40.632Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-b7c4325f26ac5478ecb4",
+          "file": "core.local.spec.ts",
+          "line": 93,
+          "column": 5
+        },
+        {
+          "title": "MOBILE-layout: /conta/configuracoes",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 317,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:40.943Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-cac6c25d2f9c72e3983d",
+          "file": "core.local.spec.ts",
+          "line": 98,
+          "column": 7
+        },
+        {
+          "title": "MOBILE-layout: /conta/notificacoes",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 327,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:41.267Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-7644ad3c25c2dd008c3d",
+          "file": "core.local.spec.ts",
+          "line": 98,
+          "column": 7
+        },
+        {
+          "title": "MOBILE-layout: /conta/planos",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 312,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:41.601Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-7e8a8df8c83b048658a5",
+          "file": "core.local.spec.ts",
+          "line": 98,
+          "column": 7
+        },
+        {
+          "title": "RATE-frontend: 429 não gera loop de login",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1828,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:41.921Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-b6a4a63baff0abe2ac3b",
+          "file": "core.local.spec.ts",
+          "line": 105,
+          "column": 5
+        },
+        {
+          "title": "TRIAL-clock--300000: decisão do backend no limite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 308,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:05.918Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-beb413798a491f15a3c2",
+          "file": "core.local.spec.ts",
+          "line": 7,
+          "column": 7
+        },
+        {
+          "title": "TRIAL-clock--1000: decisão do backend no limite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 355,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:06.240Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-01011b02af7dca548be4",
+          "file": "core.local.spec.ts",
+          "line": 7,
+          "column": 7
+        },
+        {
+          "title": "TRIAL-clock-0: decisão do backend no limite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 313,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:06.604Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-fa546fce3162ad4decdc",
+          "file": "core.local.spec.ts",
+          "line": 7,
+          "column": 7
+        },
+        {
+          "title": "TRIAL-clock-1000: decisão do backend no limite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 315,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:06.930Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-b969c4a24a5adf478553",
+          "file": "core.local.spec.ts",
+          "line": 7,
+          "column": 7
+        },
+        {
+          "title": "TRIAL-clock-3600000: decisão do backend no limite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 320,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:07.259Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-8929c40949ad005a3e6a",
+          "file": "core.local.spec.ts",
+          "line": 7,
+          "column": 7
+        },
+        {
+          "title": "TRIAL-auto: vence sem refresh, pagamento restaura",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 6646,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:07.594Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-661268e1104f169108f6",
+          "file": "core.local.spec.ts",
+          "line": 17,
+          "column": 5
+        },
+        {
+          "title": "TRIAL-clock-browser: relógio local não autoriza estado",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 299,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:14.253Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-ff1c7885e8d2db685cd8",
+          "file": "core.local.spec.ts",
+          "line": 28,
+          "column": 5
+        },
+        {
+          "title": "TRIAL-routes: rota direta, reload, nova aba e navegação",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1192,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:14.574Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-3cf0ae5d48e8e64dc27f",
+          "file": "core.local.spec.ts",
+          "line": 33,
+          "column": 5
+        },
+        {
+          "title": "CHECKOUT: plano, periodicidade, gateway e pendência",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 491,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:15.776Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-19c2fb46c0e5ad4cee1d",
+          "file": "core.local.spec.ts",
+          "line": 43,
+          "column": 5
+        },
+        {
+          "title": "OWNER-recovery: seleção compacta mantém bloqueio até confirmação autoritativa",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1217,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:16.276Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-d100ee05885335a51ee9",
+          "file": "core.local.spec.ts",
+          "line": 53,
+          "column": 5
+        },
+        {
+          "title": "AUTH: login válido, logout, rota protegida",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 629,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:17.502Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-78c5f7fa54c9f2074599",
+          "file": "core.local.spec.ts",
+          "line": 73,
+          "column": 5
+        },
+        {
+          "title": "AUTH: login inválido",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 411,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:18.139Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-9daf4c08722a6c993885",
+          "file": "core.local.spec.ts",
+          "line": 80,
+          "column": 5
+        },
+        {
+          "title": "AUTH: sessão expirada",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 526,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:18.559Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-594d51ee0ff61ca2a967",
+          "file": "core.local.spec.ts",
+          "line": 85,
+          "column": 5
+        },
+        {
+          "title": "GLOBAL: Super Admin não bloqueado pelo trial",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 329,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:19.093Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-af067620397b2db3e428",
+          "file": "core.local.spec.ts",
+          "line": 93,
+          "column": 5
+        },
+        {
+          "title": "MOBILE-layout: /conta/configuracoes",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 369,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:19.431Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-f917521bcd822da8110e",
+          "file": "core.local.spec.ts",
+          "line": 98,
+          "column": 7
+        },
+        {
+          "title": "MOBILE-layout: /conta/notificacoes",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 357,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:19.811Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-91e067710e6e63164bcc",
+          "file": "core.local.spec.ts",
+          "line": 98,
+          "column": 7
+        },
+        {
+          "title": "MOBILE-layout: /conta/planos",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 308,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:20.175Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-f9775d23d2a80049cb39",
+          "file": "core.local.spec.ts",
+          "line": 98,
+          "column": 7
+        },
+        {
+          "title": "RATE-frontend: 429 não gera loop de login",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2015,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:20.492Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "871da80c22286954600a-714cae87dc4a758565b8",
+          "file": "core.local.spec.ts",
+          "line": 105,
+          "column": 5
+        }
+      ]
+    },
+    {
+      "title": "outbox.local.spec.ts",
+      "file": "outbox.local.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "OUTBOX sem provider aparece como bloqueio, nunca como entrega",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 552,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:08.001Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f07f1745c06b8de5deb2-fb32ff07c6e6a28657c5",
+          "file": "outbox.local.spec.ts",
+          "line": 4,
+          "column": 5
+        },
+        {
+          "title": "OUTBOX sem provider aparece como bloqueio, nunca como entrega",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 511,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:43.758Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f07f1745c06b8de5deb2-bdf6464dd8aef361cac4",
+          "file": "outbox.local.spec.ts",
+          "line": 4,
+          "column": 5
+        },
+        {
+          "title": "OUTBOX sem provider aparece como bloqueio, nunca como entrega",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 516,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:22.517Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f07f1745c06b8de5deb2-54264580752450f650f7",
+          "file": "outbox.local.spec.ts",
+          "line": 4,
+          "column": 5
+        }
+      ]
+    },
+    {
+      "title": "push-diagnosis.local.spec.ts",
+      "file": "push-diagnosis.local.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "PUSH-diagnosis: permissão nativa granted com convite antigo sem evento Permissions API",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1111,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "{\"permission\":\"granted\",\"inviteCount\":0,\"activationModals\":0,\"localKeys\":[],\"sessionKeys\":[],\"workerScopes\":[\"/\"],\"condition\":\"Convite montado em default; Notifications Permissions API indisponível; autorização nativa passa a granted sem novo render\",\"layer\":\"LOCAL CONTROLADO: Chrome real + perfil/API fixture; não reproduz perfil DEV do usuário\"}\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:08.563Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "regressao-permissao-sem-evento",
+                      "contentType": "application/json",
+                      "body": "eyJwZXJtaXNzaW9uIjoiZ3JhbnRlZCIsImludml0ZUNvdW50IjowLCJhY3RpdmF0aW9uTW9kYWxzIjowLCJsb2NhbEtleXMiOltdLCJzZXNzaW9uS2V5cyI6W10sIndvcmtlclNjb3BlcyI6WyIvIl0sImNvbmRpdGlvbiI6IkNvbnZpdGUgbW9udGFkbyBlbSBkZWZhdWx0OyBOb3RpZmljYXRpb25zIFBlcm1pc3Npb25zIEFQSSBpbmRpc3BvbsOtdmVsOyBhdXRvcml6YcOnw6NvIG5hdGl2YSBwYXNzYSBhIGdyYW50ZWQgc2VtIG5vdm8gcmVuZGVyIiwibGF5ZXIiOiJMT0NBTCBDT05UUk9MQURPOiBDaHJvbWUgcmVhbCArIHBlcmZpbC9BUEkgZml4dHVyZTsgbsOjbyByZXByb2R1eiBwZXJmaWwgREVWIGRvIHVzdcOhcmlvIn0="
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "e3cc8bd3c2c31e60baf3-187a0e0da5037d9b340b",
+          "file": "push-diagnosis.local.spec.ts",
+          "line": 3,
+          "column": 5
+        },
+        {
+          "title": "PUSH-diagnosis: permissão nativa granted com convite antigo sem evento Permissions API",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1061,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "{\"permission\":\"granted\",\"inviteCount\":0,\"activationModals\":0,\"localKeys\":[],\"sessionKeys\":[],\"workerScopes\":[\"/\"],\"condition\":\"Convite montado em default; Notifications Permissions API indisponível; autorização nativa passa a granted sem novo render\",\"layer\":\"LOCAL CONTROLADO: Chrome real + perfil/API fixture; não reproduz perfil DEV do usuário\"}\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:44.278Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "regressao-permissao-sem-evento",
+                      "contentType": "application/json",
+                      "body": "eyJwZXJtaXNzaW9uIjoiZ3JhbnRlZCIsImludml0ZUNvdW50IjowLCJhY3RpdmF0aW9uTW9kYWxzIjowLCJsb2NhbEtleXMiOltdLCJzZXNzaW9uS2V5cyI6W10sIndvcmtlclNjb3BlcyI6WyIvIl0sImNvbmRpdGlvbiI6IkNvbnZpdGUgbW9udGFkbyBlbSBkZWZhdWx0OyBOb3RpZmljYXRpb25zIFBlcm1pc3Npb25zIEFQSSBpbmRpc3BvbsOtdmVsOyBhdXRvcml6YcOnw6NvIG5hdGl2YSBwYXNzYSBhIGdyYW50ZWQgc2VtIG5vdm8gcmVuZGVyIiwibGF5ZXIiOiJMT0NBTCBDT05UUk9MQURPOiBDaHJvbWUgcmVhbCArIHBlcmZpbC9BUEkgZml4dHVyZTsgbsOjbyByZXByb2R1eiBwZXJmaWwgREVWIGRvIHVzdcOhcmlvIn0="
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "e3cc8bd3c2c31e60baf3-287e43774e5f58ac139e",
+          "file": "push-diagnosis.local.spec.ts",
+          "line": 3,
+          "column": 5
+        },
+        {
+          "title": "PUSH-diagnosis: permissão nativa granted com convite antigo sem evento Permissions API",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1128,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "{\"permission\":\"granted\",\"inviteCount\":0,\"activationModals\":0,\"localKeys\":[],\"sessionKeys\":[],\"workerScopes\":[\"/\"],\"condition\":\"Convite montado em default; Notifications Permissions API indisponível; autorização nativa passa a granted sem novo render\",\"layer\":\"LOCAL CONTROLADO: Chrome real + perfil/API fixture; não reproduz perfil DEV do usuário\"}\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:23.044Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "regressao-permissao-sem-evento",
+                      "contentType": "application/json",
+                      "body": "eyJwZXJtaXNzaW9uIjoiZ3JhbnRlZCIsImludml0ZUNvdW50IjowLCJhY3RpdmF0aW9uTW9kYWxzIjowLCJsb2NhbEtleXMiOltdLCJzZXNzaW9uS2V5cyI6W10sIndvcmtlclNjb3BlcyI6WyIvIl0sImNvbmRpdGlvbiI6IkNvbnZpdGUgbW9udGFkbyBlbSBkZWZhdWx0OyBOb3RpZmljYXRpb25zIFBlcm1pc3Npb25zIEFQSSBpbmRpc3BvbsOtdmVsOyBhdXRvcml6YcOnw6NvIG5hdGl2YSBwYXNzYSBhIGdyYW50ZWQgc2VtIG5vdm8gcmVuZGVyIiwibGF5ZXIiOiJMT0NBTCBDT05UUk9MQURPOiBDaHJvbWUgcmVhbCArIHBlcmZpbC9BUEkgZml4dHVyZTsgbsOjbyByZXByb2R1eiBwZXJmaWwgREVWIGRvIHVzdcOhcmlvIn0="
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "e3cc8bd3c2c31e60baf3-17c65d6a09c6e67deec2",
+          "file": "push-diagnosis.local.spec.ts",
+          "line": 3,
+          "column": 5
+        }
+      ]
+    },
+    {
+      "title": "push-flow.local.spec.ts",
+      "file": "push-flow.local.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "PUSH-A: default mostra convite único; dispensar não força nova inscrição",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 367,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:09.686Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-9dabc1d9553ed049be40",
+          "file": "push-flow.local.spec.ts",
+          "line": 9,
+          "column": 5
+        },
+        {
+          "title": "PUSH-granted-valid: permissão não é convite; recuperação só nas configurações",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 494,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:10.060Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-f3dfd225c483a7177057",
+          "file": "push-flow.local.spec.ts",
+          "line": 18,
+          "column": 7
+        },
+        {
+          "title": "PUSH-granted-missing: permissão não é convite; recuperação só nas configurações",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 577,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:10.561Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-a1a6ce39f4a8236ed85a",
+          "file": "push-flow.local.spec.ts",
+          "line": 18,
+          "column": 7
+        },
+        {
+          "title": "PUSH-granted-backend-missing: permissão não é convite; recuperação só nas configurações",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 576,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:11.146Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-c4784a83e6fb3ae8587d",
+          "file": "push-flow.local.spec.ts",
+          "line": 18,
+          "column": 7
+        },
+        {
+          "title": "PUSH-granted-stale: permissão não é convite; recuperação só nas configurações",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 544,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:11.729Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-3b58b00d6b5728ccef38",
+          "file": "push-flow.local.spec.ts",
+          "line": 18,
+          "column": 7
+        },
+        {
+          "title": "PUSH-D: denied permanece sem popup ou pedidos repetidos",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2079,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:12.280Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-57ec966b75b80447d1e4",
+          "file": "push-flow.local.spec.ts",
+          "line": 37,
+          "column": 5
+        },
+        {
+          "title": "PUSH-navigation: granted resiste a flags, reload, rota, SPA, nova aba e logout/login",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1094,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:14.366Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-e4cd2d2f1e4ea26a6a83",
+          "file": "push-flow.local.spec.ts",
+          "line": 42,
+          "column": 5
+        },
+        {
+          "title": "PUSH-activate-granted: resultado nativo fecha modal sem insistência",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 636,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:15.469Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-3b2f394f6d9f706bb558",
+          "file": "push-flow.local.spec.ts",
+          "line": 54,
+          "column": 7
+        },
+        {
+          "title": "PUSH-activate-denied: resultado nativo fecha modal sem insistência",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 575,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:16.116Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-ee0482028beeb6e724ed",
+          "file": "push-flow.local.spec.ts",
+          "line": 54,
+          "column": 7
+        },
+        {
+          "title": "PUSH-SW: registro/ready nativos no escopo raiz, sem unregister",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 388,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:16.700Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-7a59f6ac70c9a2383977",
+          "file": "push-flow.local.spec.ts",
+          "line": 65,
+          "column": 5
+        },
+        {
+          "title": "PUSH-GLOBAL: Super Admin conserva contexto separado",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 427,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:17.095Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-4867622c59d16fbf014f",
+          "file": "push-flow.local.spec.ts",
+          "line": 71,
+          "column": 5
+        },
+        {
+          "title": "PUSH-recovery-failure: granted com erro de registro nunca reabre convite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 494,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:17.529Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-1d0b4df464db16f01111",
+          "file": "push-flow.local.spec.ts",
+          "line": 75,
+          "column": 5
+        },
+        {
+          "title": "PUSH-F: backend antigo sem subscription local não remove outro dispositivo",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 496,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:18.033Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-1a877c85b80f1aebea97",
+          "file": "push-flow.local.spec.ts",
+          "line": 81,
+          "column": 5
+        },
+        {
+          "title": "PUSH-unsupported: ausência de PushManager não provoca convite ou solicitação",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 366,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:18.538Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-7c536efe50aeb3fd4e10",
+          "file": "push-flow.local.spec.ts",
+          "line": 88,
+          "column": 5
+        },
+        {
+          "title": "PUSH-A: default mostra convite único; dispensar não força nova inscrição",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 324,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:45.350Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-f9c6667ca61912b598a0",
+          "file": "push-flow.local.spec.ts",
+          "line": 9,
+          "column": 5
+        },
+        {
+          "title": "PUSH-granted-valid: permissão não é convite; recuperação só nas configurações",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 428,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:45.681Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-ad43336044a2af8bd53d",
+          "file": "push-flow.local.spec.ts",
+          "line": 18,
+          "column": 7
+        },
+        {
+          "title": "PUSH-granted-missing: permissão não é convite; recuperação só nas configurações",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 509,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:46.116Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-d770088082a1a6f17ca3",
+          "file": "push-flow.local.spec.ts",
+          "line": 18,
+          "column": 7
+        },
+        {
+          "title": "PUSH-granted-backend-missing: permissão não é convite; recuperação só nas configurações",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 537,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:46.634Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-b3f47ba284f954046143",
+          "file": "push-flow.local.spec.ts",
+          "line": 18,
+          "column": 7
+        },
+        {
+          "title": "PUSH-granted-stale: permissão não é convite; recuperação só nas configurações",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 545,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:47.181Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-36b1535036f31881acc8",
+          "file": "push-flow.local.spec.ts",
+          "line": 18,
+          "column": 7
+        },
+        {
+          "title": "PUSH-D: denied permanece sem popup ou pedidos repetidos",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2071,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:47.733Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-cf44643486f3011e0a16",
+          "file": "push-flow.local.spec.ts",
+          "line": 37,
+          "column": 5
+        },
+        {
+          "title": "PUSH-navigation: granted resiste a flags, reload, rota, SPA, nova aba e logout/login",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1078,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:49.811Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-3b28f6fdf68142e1c490",
+          "file": "push-flow.local.spec.ts",
+          "line": 42,
+          "column": 5
+        },
+        {
+          "title": "PUSH-activate-granted: resultado nativo fecha modal sem insistência",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 620,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:50.897Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-8c98dc087a207c9693e6",
+          "file": "push-flow.local.spec.ts",
+          "line": 54,
+          "column": 7
+        },
+        {
+          "title": "PUSH-activate-denied: resultado nativo fecha modal sem insistência",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 823,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:51.524Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-eef9ed3ef240dd3ddca5",
+          "file": "push-flow.local.spec.ts",
+          "line": 54,
+          "column": 7
+        },
+        {
+          "title": "PUSH-SW: registro/ready nativos no escopo raiz, sem unregister",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 804,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:52.355Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-2621643b3a43a43f5dc8",
+          "file": "push-flow.local.spec.ts",
+          "line": 65,
+          "column": 5
+        },
+        {
+          "title": "PUSH-GLOBAL: Super Admin conserva contexto separado",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1842,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:53.174Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-324e8e717bf81dd87850",
+          "file": "push-flow.local.spec.ts",
+          "line": 71,
+          "column": 5
+        },
+        {
+          "title": "PUSH-recovery-failure: granted com erro de registro nunca reabre convite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1142,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:55.034Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-de7efb887e01856324a6",
+          "file": "push-flow.local.spec.ts",
+          "line": 75,
+          "column": 5
+        },
+        {
+          "title": "PUSH-F: backend antigo sem subscription local não remove outro dispositivo",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 846,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:56.209Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-8ca1ab6e554740f932ba",
+          "file": "push-flow.local.spec.ts",
+          "line": 81,
+          "column": 5
+        },
+        {
+          "title": "PUSH-unsupported: ausência de PushManager não provoca convite ou solicitação",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 327,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:57.084Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-99c3dc9f767e2c640a82",
+          "file": "push-flow.local.spec.ts",
+          "line": 88,
+          "column": 5
+        },
+        {
+          "title": "PUSH-A: default mostra convite único; dispensar não força nova inscrição",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 341,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:24.186Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-8d49724d0992c162a232",
+          "file": "push-flow.local.spec.ts",
+          "line": 9,
+          "column": 5
+        },
+        {
+          "title": "PUSH-granted-valid: permissão não é convite; recuperação só nas configurações",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 581,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:24.534Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-3ca258d7858d98c06a17",
+          "file": "push-flow.local.spec.ts",
+          "line": 18,
+          "column": 7
+        },
+        {
+          "title": "PUSH-granted-missing: permissão não é convite; recuperação só nas configurações",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 660,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:25.122Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-28a1e145500a8c057b2d",
+          "file": "push-flow.local.spec.ts",
+          "line": 18,
+          "column": 7
+        },
+        {
+          "title": "PUSH-granted-backend-missing: permissão não é convite; recuperação só nas configurações",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 681,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:25.790Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-e958a1601099a2cbc1e4",
+          "file": "push-flow.local.spec.ts",
+          "line": 18,
+          "column": 7
+        },
+        {
+          "title": "PUSH-granted-stale: permissão não é convite; recuperação só nas configurações",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 600,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:26.481Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-35a6da6a719664f17da8",
+          "file": "push-flow.local.spec.ts",
+          "line": 18,
+          "column": 7
+        },
+        {
+          "title": "PUSH-D: denied permanece sem popup ou pedidos repetidos",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2115,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:27.089Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-395dbe8229108801becf",
+          "file": "push-flow.local.spec.ts",
+          "line": 37,
+          "column": 5
+        },
+        {
+          "title": "PUSH-navigation: granted resiste a flags, reload, rota, SPA, nova aba e logout/login",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1134,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:29.211Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-8c75d073fbfd036065f4",
+          "file": "push-flow.local.spec.ts",
+          "line": 42,
+          "column": 5
+        },
+        {
+          "title": "PUSH-activate-granted: resultado nativo fecha modal sem insistência",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 578,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:30.354Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-4c81d244d2b99ee811ea",
+          "file": "push-flow.local.spec.ts",
+          "line": 54,
+          "column": 7
+        },
+        {
+          "title": "PUSH-activate-denied: resultado nativo fecha modal sem insistência",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 569,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:30.942Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-20736be069adb2ea18c7",
+          "file": "push-flow.local.spec.ts",
+          "line": 54,
+          "column": 7
+        },
+        {
+          "title": "PUSH-SW: registro/ready nativos no escopo raiz, sem unregister",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 403,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:31.520Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-cf63362cc04bb76538f0",
+          "file": "push-flow.local.spec.ts",
+          "line": 65,
+          "column": 5
+        },
+        {
+          "title": "PUSH-GLOBAL: Super Admin conserva contexto separado",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 391,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:31.931Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-af7d933c53bb62e60b1a",
+          "file": "push-flow.local.spec.ts",
+          "line": 71,
+          "column": 5
+        },
+        {
+          "title": "PUSH-recovery-failure: granted com erro de registro nunca reabre convite",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 497,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:32.331Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-055230c4475f04f9a12e",
+          "file": "push-flow.local.spec.ts",
+          "line": 75,
+          "column": 5
+        },
+        {
+          "title": "PUSH-F: backend antigo sem subscription local não remove outro dispositivo",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 495,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:32.838Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-093cf6fbd328f442d0cd",
+          "file": "push-flow.local.spec.ts",
+          "line": 81,
+          "column": 5
+        },
+        {
+          "title": "PUSH-unsupported: ausência de PushManager não provoca convite ou solicitação",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 305,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:33.341Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7d8ed5a8e9809165a6f8-c40b67dea44a9bc2ddc8",
+          "file": "push-flow.local.spec.ts",
+          "line": 88,
+          "column": 5
+        }
+      ]
+    },
+    {
+      "title": "push.local.spec.ts",
+      "file": "push.local.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "PUSH-permission-granted: convite e navegação",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2505,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:18.916Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "120422d4cccce7000e35-771c3c7e48e1b7e5cad1",
+          "file": "push.local.spec.ts",
+          "line": 4,
+          "column": 7
+        },
+        {
+          "title": "PUSH-permission-denied: convite e navegação",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2400,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:21.430Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "120422d4cccce7000e35-a42c33335263f59e622e",
+          "file": "push.local.spec.ts",
+          "line": 4,
+          "column": 7
+        },
+        {
+          "title": "PUSH-permission-default: convite e navegação",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2361,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:23.841Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "120422d4cccce7000e35-797ecec0235961af77fe",
+          "file": "push.local.spec.ts",
+          "line": 4,
+          "column": 7
+        },
+        {
+          "title": "PUSH-permission-granted: convite e navegação",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2278,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:57.420Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "120422d4cccce7000e35-86af8561dd6fe37f1fdf",
+          "file": "push.local.spec.ts",
+          "line": 4,
+          "column": 7
+        },
+        {
+          "title": "PUSH-permission-denied: convite e navegação",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2319,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:26:59.706Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "120422d4cccce7000e35-22b5900c047b23bedd33",
+          "file": "push.local.spec.ts",
+          "line": 4,
+          "column": 7
+        },
+        {
+          "title": "PUSH-permission-default: convite e navegação",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2445,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:02.032Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "120422d4cccce7000e35-2be9b0e1c89752e0e034",
+          "file": "push.local.spec.ts",
+          "line": 4,
+          "column": 7
+        },
+        {
+          "title": "PUSH-permission-granted: convite e navegação",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2258,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:33.656Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "120422d4cccce7000e35-6e812d62cd90294b53cc",
+          "file": "push.local.spec.ts",
+          "line": 4,
+          "column": 7
+        },
+        {
+          "title": "PUSH-permission-denied: convite e navegação",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2176,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:35.922Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "120422d4cccce7000e35-4fe1edafacb5806ed489",
+          "file": "push.local.spec.ts",
+          "line": 4,
+          "column": 7
+        },
+        {
+          "title": "PUSH-permission-default: convite e navegação",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2243,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T09:27:38.105Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "120422d4cccce7000e35-5ed5cc3ccde433e6e19e",
+          "file": "push.local.spec.ts",
+          "line": 4,
+          "column": 7
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-22T09:25:49.179Z",
+    "duration": 111302.74799999999,
+    "expected": 114,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

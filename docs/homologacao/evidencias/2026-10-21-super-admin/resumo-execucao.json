@@ -1,0 +1,92 @@
+{
+  "updated_utc": "2026-10-21T21:50:32.878558+00:00",
+  "tests": {
+    "api-unit-final": {
+      "success": true,
+      "numTotalTests": 862,
+      "numPassedTests": 862,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "api-e2e": {
+      "success": true,
+      "numTotalTests": 243,
+      "numPassedTests": 243,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "api-unit-corrected": {
+      "success": true,
+      "numTotalTests": 868,
+      "numPassedTests": 868,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "api-unit-restored": {
+      "success": true,
+      "numTotalTests": 868,
+      "numPassedTests": 868,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "api-e2e-corrected": {
+      "success": true,
+      "numTotalTests": 251,
+      "numPassedTests": 251,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "entitlement-regression-final": {
+      "success": true,
+      "numTotalTests": 62,
+      "numPassedTests": 62,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    }
+  },
+  "requirements": 72,
+  "status_counts": {
+    "APROVADO LOCALMENTE": 51,
+    "PARCIAL": 11,
+    "NÃO TESTADO": 2,
+    "BLOQUEADO": 8
+  },
+  "final_quality_checks": {
+    "api_lint": 0,
+    "api_typecheck": 0,
+    "api_build": 0,
+    "prisma_validate": 0,
+    "prisma_generate_local": 0,
+    "web_lint": 0,
+    "web_typecheck": 0,
+    "web_build_restored": 0,
+    "sql_http_assertions": 42,
+    "restart_local_assertions": 10,
+    "homologation_gate_tests": 13,
+    "responsive_checks": 324,
+    "responsive_overflow_failures": 0,
+    "responsive_js_errors": 0,
+    "api_dependency_tree": 0,
+    "web_dependency_tree": 0
+  },
+  "dependency_remediation": "blocked by download timeouts; manifests restored and client regenerated; audit findings remain open",
+  "browser_final": {
+    "startTime": "2026-10-21T21:47:59.589Z",
+    "duration": 100476.909,
+    "expected": 114,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "web_node_final": {
+    "passed": 393,
+    "failed": 0,
+    "skipped": 0
+  },
+  "api_final": {
+    "unit": 868,
+    "e2e": 251,
+    "failed": 0,
+    "skipped": 0
+  }
+}
