@@ -1,3 +1,6 @@
+import { paidEvidence } from './support/paid-entitlement.js';
+import { nextPeriod } from '../src/common/period.js';
+import { setTimeout as pause } from 'node:timers/promises';
 import { readFile, readdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { PGlite } from '@electric-sql/pglite';
@@ -120,13 +123,14 @@ describe('commercial QA HTTP and persisted domain (ephemeral local database)', (
       PagBankAdapter,
       AsaasAdapter,
     ]) {
-      for (const name of Object.getOwnPropertyNames(Adapter.prototype)) {
+      const prototype = Adapter.prototype as unknown as Record<string, (...args: unknown[]) => unknown>;
+      for (const name of Object.getOwnPropertyNames(prototype)) {
         if (
           name !== 'constructor' &&
-          typeof Adapter.prototype[name] === 'function'
+          typeof prototype[name] === 'function'
         )
           externalCalls.push(
-            vi.spyOn(Adapter.prototype, name).mockImplementation(() => {
+            vi.spyOn(prototype, name).mockImplementation(() => {
               throw new Error('External adapter forbidden');
             }),
           );
@@ -191,7 +195,7 @@ describe('commercial QA HTTP and persisted domain (ephemeral local database)', (
       .post('/billing/qa-simulation')
       .set('Origin', 'https://qa.example.test')
       .set('Cookie', `__Host-kalend_access=${cookie}`)
-      .send(body);
+      .send(body as Record<string, unknown>);
   }
   async function pending(key = 'attempt') {
     const result = await post({
@@ -542,7 +546,8 @@ describe('commercial QA HTTP and persisted domain (ephemeral local database)', (
     async (action) => {
       const p = await pending();
       await transition(p.paymentId, action);
-      await transition(p.paymentId, action);
+      // No paid entitlement: company is now commercially suspended; only recovery is allowed.
+      await post({ companyId, paymentId: p.paymentId, action }).expect(403);
       expect(
         await prisma.payment.findUnique({ where: { id: p.paymentId } }),
       ).toMatchObject({ status: action.slice(8) });
@@ -563,17 +568,25 @@ describe('commercial QA HTTP and persisted domain (ephemeral local database)', (
       ).toBe('ACTIVE');
     },
   );
-  it('GRACE and REACTIVATED use persisted paid entitlement and are idempotent', async () => {
+  it('GRACE respects the paid deadline and a new recovery payment reactivates the same subscription', async () => {
     const p = await pending();
+    const end = new Date(Date.now()+300);
+    const start = new Date(end);
+    start.setUTCMonth(start.getUTCMonth() - 1);
+    await prisma.payment.update({where:{id:p.paymentId},data:{periodStart:start,periodEnd:nextPeriod(start, 'MONTHLY')}});
+    const deadline = nextPeriod(start, 'MONTHLY');
     await transition(p.paymentId, 'PAYMENT_APPROVED');
+    await post({companyId,paymentId:p.paymentId,action:'SUBSCRIPTION_GRACE_PERIOD'}).expect(409);
+    await pause(Math.max(0,deadline.getTime()-Date.now()+10));
     await transition(p.paymentId, 'SUBSCRIPTION_GRACE_PERIOD');
     await transition(p.paymentId, 'SUBSCRIPTION_GRACE_PERIOD');
     expect(
       (await new EntitlementsService(prisma as never).current(companyId))
         .status,
     ).toBe('PAST_DUE');
-    await transition(p.paymentId, 'SUBSCRIPTION_REACTIVATED');
-    await transition(p.paymentId, 'SUBSCRIPTION_REACTIVATED');
+    const recovery = await post({companyId, action:'PAYMENT_PENDING', subscriptionId:p.subscriptionId,idempotencyKey:'paid-recovery'}).expect(201);
+    await transition(recovery.body.paymentId, 'PAYMENT_APPROVED');
+    await transition(recovery.body.paymentId, 'PAYMENT_APPROVED');
     expect(
       (await new EntitlementsService(prisma as never).current(companyId))
         .status,
@@ -610,17 +623,19 @@ describe('commercial QA HTTP and persisted domain (ephemeral local database)', (
   );
   it('SUSPENDED/REACTIVATED/CANCELLED are idempotent while company remains active; no paid proof means no reactivation', async () => {
     // Existing valid QA entitlement keeps the company active, as required by policy.
-    await prisma.subscription.create({
+    const concurrent = await prisma.subscription.create({
       data: {
         companyId,
         planId,
         gateway: 'QA_SIMULATION',
         environment: 'SANDBOX',
         status: 'ACTIVE',
+        currentPeriodStart: new Date(Date.now() - 86400000),
         currentPeriodEnd: new Date(Date.now() + 86400000),
         createdAt: new Date(Date.now() - 60000),
       },
     });
+    await paidEvidence(prisma, concurrent);
     const p = await pending();
     await post({
       companyId,

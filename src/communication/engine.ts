@@ -1370,6 +1370,7 @@ export class CommunicationEngine {
         FROM "Subscription" s CROSS JOIN tick
         WHERE s.gateway <> 'QA_SIMULATION' AND s.status='PAST_DUE'
           AND kalend_subscription_grace_due(s."currentPeriodEnd",s."graceEndsAt",s."updatedAt",tick.at)
+          AND kalend_subscription_grace_entitled(s.id,s."graceEndsAt",tick.at)
           ${companyFilter}
           AND NOT kalend_subscription_legacy_grace_seen(s.id,s."companyId",COALESCE(s."currentPeriodStart",s."createdAt"),s."graceEndsAt")
       )

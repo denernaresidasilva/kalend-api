@@ -113,7 +113,7 @@ describe('commercial QA CLI', () => {
       '--key',
       'ignored',
     ],
-  ])('rejects ambiguous, secret-bearing or incomplete arguments (%j)', (args) =>
+  ].map(args => [args] as [string[]]))('rejects ambiguous, secret-bearing or incomplete arguments (%j)', (args) =>
     expect(() => parseQaCli(args)).toThrow(),
   );
   it('parses recovery and isolated grace policy without financial amounts', () => {

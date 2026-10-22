@@ -62,7 +62,7 @@ try {
       ),
     );
   check(
-    '14 existing migrations, no new migration',
+    'versioned migrations applied to disposable PGlite; Subscription exists',
     (
       await sql.query(
         "SELECT count(*)::int AS n FROM information_schema.tables WHERE table_name='Subscription'",
@@ -128,6 +128,16 @@ try {
     },
   });
   const password = 'trial-disposable-password';
+  // The grant actor is an explicit disposable Super Admin, never an inferred
+  // bypass of the same authorization required by the HTTP manual-company route.
+  const grantActor = await prisma.user.create({
+    data: {
+      name: 'Grant actor fixture',
+      email: `qa+grant-actor-${qaRunId}@example.invalid`,
+      passwordHash: 'fixture-not-used-for-login',
+      isSuperAdmin: true,
+    },
+  });
   const created = await companyService.createManual({
     companyName: `QA-E2E-${qaRunId}-A`,
     slug: `qa-e2e-${qaRunId}-a`,
@@ -135,7 +145,7 @@ try {
     ownerEmail: qaOwnerEmail,
     ownerPassword: password,
     planId: plan.id,
-  });
+  }, grantActor.id);
   const companyB = await companyService.createManual({
     companyName: `QA-E2E-${qaRunId}-B`,
     slug: `qa-e2e-${qaRunId}-b`,
@@ -144,7 +154,7 @@ try {
     ownerPassword: password,
     planId: plan.id,
     startWithTrial: false,
-  });
+  }, grantActor.id);
   check('new company OWNER', created.membership.role, 'OWNER');
   check(
     'T0 authoritative state is TRIAL_ACTIVE',

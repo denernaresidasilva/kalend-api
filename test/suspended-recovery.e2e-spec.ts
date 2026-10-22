@@ -1,3 +1,4 @@
+import { paidEvidence } from './support/paid-entitlement.js';
 import { readFile, readdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { PGlite } from '@electric-sql/pglite';
@@ -417,6 +418,10 @@ describe('suspended subscription recovery with persisted commercial facts', () =
       subscriptionId,
       idempotencyKey: 'grace',
     });
+    // A pending intent is not paid proof, even with an explicit DEV override.
+    await expect(qa().simulateFromCli({companyId, action:'SUBSCRIPTION_GRACE_PERIOD', paymentId:p.paymentId,graceDays:1})).rejects.toThrow();
+    const historical = await db.subscription.update({where:{id:subscriptionId}, data:{currentPeriodStart:new Date(Date.now()-86400000),currentPeriodEnd:new Date(Date.now()-1000)}});
+    await paidEvidence(db,historical);
     await qa().simulateFromCli({
       companyId,
       action: 'SUBSCRIPTION_GRACE_PERIOD',
@@ -448,7 +453,7 @@ describe('suspended subscription recovery with persisted commercial facts', () =
       await db.subscription.findUnique({ where: { id: untouched.id } }),
     ).toMatchObject({
       status: 'SUSPENDED',
-      graceEndsAt: untouched.currentPeriodEnd,
+      graceEndsAt: null,
     });
     expect(
       await db.globalCommunicationOutbox.count({

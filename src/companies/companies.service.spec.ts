@@ -20,11 +20,13 @@ function setup(existing = false) {
     yearlyPriceCents: 10000,
   };
   const db = {
+    subscriptionEntitlement: { create: vi.fn(), count: vi.fn().mockResolvedValue(0) },
+    payment: { count: vi.fn().mockResolvedValue(0) },
     plan: { findUnique: vi.fn().mockResolvedValue(plan) },
     user: {
       findUnique: vi
         .fn()
-        .mockResolvedValue(existing ? { id: 'owner', isActive: true } : null),
+        .mockImplementation(async ({ where }) => where.id === 'admin' ? { id: 'admin', isActive: true, isSuperAdmin: true } : existing ? { id: 'owner', isActive: true } : null),
       findMany: vi.fn().mockResolvedValue([]),
       updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       upsert: vi
@@ -48,13 +50,14 @@ function setup(existing = false) {
     },
     authSession: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     subscription: {
+      count: vi.fn().mockResolvedValue(0),
       create: vi
         .fn()
         .mockImplementation(({ data }) => ({ ...data, id: 'sub', plan })),
       findFirst: vi.fn().mockResolvedValue({ id: 'sub', status: 'TRIALING' }),
       update: vi.fn().mockResolvedValue({ id: 'sub' }),
     },
-    webhookEvent: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    webhookEvent: { count: vi.fn().mockResolvedValue(0), deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
     globalCommunicationOutbox: { findMany: vi.fn().mockResolvedValue([]), deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
     globalCommunicationDelivery: { findMany: vi.fn().mockResolvedValue([]), deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
     globalCommunicationLog: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
@@ -67,11 +70,11 @@ function setup(existing = false) {
 describe('manual company', () => {
   it('changing catalog trial days only affects trials created afterwards', async () => {
     const { db, service } = setup();
-    const first = await service.createManual(input);
+    const first = await service.createManual(input, 'admin');
     const originalEnd = first.subscription.trialEndsAt!.getTime();
     const plan = await db.plan.findUnique();
     plan.trialDays = 14;
-    const second = await service.createManual(input);
+    const second = await service.createManual(input, 'admin');
     expect(first.subscription.trialEndsAt!.getTime()).toBe(originalEnd);
     expect(
       second.subscription.trialEndsAt!.getTime() -
@@ -80,7 +83,7 @@ describe('manual company', () => {
   });
   it('atomically creates owner, membership and trial without fabricating payment', async () => {
     const { db, service } = setup();
-    const result = await service.createManual(input);
+    const result = await service.createManual(input, 'admin');
     expect(result.company.status).toBe('TRIAL');
     expect(result.subscription.status).toBe('TRIALING');
     expect(
@@ -105,12 +108,12 @@ describe('manual company', () => {
     '(12) 99601-5129',
   ])('normalizes owner phone on company registration (%s)', async (ownerPhone) => {
     const { service, db } = setup();
-    await service.createManual({ ...input, ownerPhone });
+    await service.createManual({ ...input, ownerPhone }, 'admin');
     expect(db.user.upsert.mock.calls[0][0].create.phone).toBe('+5512996015129');
   });
   it('rejects an invalid owner phone on company registration', async () => {
     const { service, db } = setup();
-    await expect(service.createManual({ ...input, ownerPhone: 'not-a-phone' }))
+    await expect(service.createManual({ ...input, ownerPhone: 'not-a-phone' }, 'admin'))
       .rejects.toThrow('Telefone inválido.');
     expect(db.$transaction).not.toHaveBeenCalled();
   });
@@ -121,7 +124,7 @@ describe('manual company', () => {
       db as unknown as PrismaService,
       { prepareAfterCompanyCreated } as unknown as EvolutionService,
     );
-    const result = await service.createManual(input);
+    const result = await service.createManual(input, 'admin');
     const data = db.company.create.mock.calls[0][0].data;
     expect(data.evolutionConnection.create.instanceName).toBe(
       `kalend_${data.id.replaceAll('-', '')}`,
@@ -134,7 +137,7 @@ describe('manual company', () => {
     const result = await service.createManual({
       ...input,
       startWithTrial: false,
-    });
+    }, 'admin');
     expect(result.company.status).toBe('ACTIVE');
     expect(result.subscription.status).toBe('ACTIVE');
     expect(result.subscription.trialEndsAt).toBeNull();
@@ -144,7 +147,7 @@ describe('manual company', () => {
   });
   it('reuses user without changing password', async () => {
     const { service, db } = setup(true);
-    await service.createManual(input);
+    await service.createManual(input, 'admin');
     expect(db.user.upsert.mock.calls[0][0].update).toEqual({});
   });
   it('selects only safe user columns for company details', async () => {
@@ -246,6 +249,32 @@ describe('manual company', () => {
     await expect(service.update('company', { planId }))
       .rejects.toThrow('gestão de assinaturas');
     expect(db.subscription.update).not.toHaveBeenCalled();
+  });
+  it.each(['payment', 'webhookEvent', 'subscriptionEntitlement', 'subscription'] as const)(
+    'preserves companies with %s financial history before any external cleanup', async (model) => {
+      const { db } = setup();
+      db.company.findUnique.mockResolvedValue({
+        id: 'company', name: 'QA Empresa',
+        evolutionConnection: { companyId: 'company', globalKey: null, prepared: true, status: 'OPEN' },
+      });
+      db[model].count.mockResolvedValue(1);
+      const remove = vi.fn();
+      const service = new CompaniesService(db as unknown as PrismaService, { remove } as unknown as EvolutionService);
+      await expect(service.remove('company', { confirmationName: 'QA Empresa' }))
+        .rejects.toThrow('COMPANY_FINANCIAL_HISTORY_PRESERVED');
+      expect(remove).not.toHaveBeenCalled();
+      expect(db.company.delete).not.toHaveBeenCalled();
+      expect(db.webhookEvent.deleteMany).not.toHaveBeenCalled();
+    },
+  );
+  it('rechecks financial history inside the serializable deletion transaction', async () => {
+    const { db, service } = setup();
+    db.company.findUnique.mockResolvedValue({ id: 'company', name: 'QA Empresa', evolutionConnection: null });
+    db.payment.count.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
+    await expect(service.remove('company', { confirmationName: 'QA Empresa' }))
+      .rejects.toThrow('COMPANY_FINANCIAL_HISTORY_PRESERVED');
+    expect(db.company.delete).not.toHaveBeenCalled();
+    expect(db.webhookEvent.deleteMany).not.toHaveBeenCalled();
   });
   it('requires an exact company-name confirmation and never deletes before it matches', async () => {
     const { service, db } = setup();
@@ -409,7 +438,7 @@ describe('manual company', () => {
   ])('rejects invalid runtime input %j', async (extra) => {
     const { service, db } = setup();
     await expect(
-      service.createManual({ ...input, ...extra } as never),
+      service.createManual({ ...input, ...extra } as never, 'admin'),
     ).rejects.toThrow();
     expect(db.$transaction).not.toHaveBeenCalled();
   });

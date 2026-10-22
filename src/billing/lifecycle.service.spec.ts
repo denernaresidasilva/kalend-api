@@ -2,6 +2,7 @@ import { LifecycleService } from './lifecycle.service.js';
 afterEach(() => vi.unstubAllEnvs());
 it('expires trial and suspends only companies without entitlement, without touching users', async () => {
   const db = {
+    subscriptionEntitlement: { findFirst: vi.fn().mockImplementation(({where}) => ({ id: 'right', origin: 'PAYMENT', endsAt: where.endsAt, graceEndsAt: null })), update: vi.fn() },
     payment: { findMany: vi.fn().mockResolvedValue([]) },
     subscription: {
       findMany: vi.fn().mockResolvedValue([
@@ -33,6 +34,7 @@ it('expires trial and suspends only companies without entitlement, without touch
 it('uses configured grace and queries actual adapter before expiration', async () => {
   vi.stubEnv('BILLING_GRACE_DAYS', '3');
   const db = {
+    subscriptionEntitlement: { findFirst: vi.fn().mockImplementation(({where}) => ({ id: 'right', origin: 'PAYMENT', endsAt: where.endsAt, graceEndsAt: null })), update: vi.fn() },
     payment: {
       findMany: vi
         .fn()

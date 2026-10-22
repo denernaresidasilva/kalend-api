@@ -17,6 +17,7 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
         status: 'RECEIVED',
         paymentId: 'payment',
       };
+      const periodStart = new Date();
       const payment = {
         id: 'payment',
         gateway,
@@ -29,8 +30,8 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
         currency: 'BRL',
         status: 'PENDING',
         externalPaymentId: null as string | null,
-        periodStart: new Date(),
-        periodEnd: new Date(Date.now() + 30 * 86400000),
+        periodStart,
+        periodEnd: nextPeriod(periodStart, 'MONTHLY'),
         subscription: {
           id: subscriptionId,
           companyId,
@@ -40,6 +41,8 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
         },
       };
       const db = {
+      subscriptionEntitlement: { upsert: vi.fn(), findFirst: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({id:'right'}), update: vi.fn() },
+      paymentEvidence: { upsert: vi.fn(), findFirst: vi.fn().mockResolvedValue(null), findUnique: vi.fn().mockResolvedValue(null), updateMany: vi.fn() },
         payment: {
           findUnique: vi.fn().mockImplementation(async () => payment),
           findFirst: vi.fn().mockResolvedValue(null),
@@ -59,12 +62,14 @@ describe.each(['STRIPE', 'PAGBANK'] as const)(
             ),
         },
         subscription: {
+          findUnique: vi.fn().mockImplementation(async () => payment.subscription),
           update: vi.fn(),
           updateMany: vi.fn(),
           findFirst: vi.fn().mockResolvedValue(null),
           count: vi.fn().mockResolvedValue(0),
         },
         company: { findUnique: vi.fn().mockResolvedValue({ administrativeStatus: 'ACTIVE' }), update: vi.fn() },
+        $queryRaw: vi.fn().mockResolvedValue([]),
         $transaction: vi.fn(),
       };
       db.$transaction.mockImplementation((fn) => fn(db));
@@ -466,6 +471,7 @@ describe('secrets and periods', () => {
   });
   it('configuration returns flags only', async () => {
     const db = {
+      subscriptionEntitlement: { upsert: vi.fn(), findFirst: vi.fn().mockResolvedValue(null), update: vi.fn() },
       gatewayConfiguration: {
         findUnique: vi.fn().mockResolvedValue({
           credentialsEncrypted: 'ciphertext',

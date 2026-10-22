@@ -1,5 +1,6 @@
 import { WebhookProcessor } from './webhook-processor.service.js';
 import type { VerifiedEvent } from './gateway.types.js';
+import { nextPeriod } from '../common/period.js';
 it('new recurring invoice uses subscription price snapshot, not current Plan or the original trial', async () => {
   const sub = {
     id: 'sub-pro',
@@ -16,6 +17,8 @@ it('new recurring invoice uses subscription price snapshot, not current Plan or 
     createdAt: new Date('2026-01-01'),
   };
   const db = {
+      subscriptionEntitlement: { upsert: vi.fn(), findFirst: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({id:'right'}), update: vi.fn() },
+    paymentEvidence: { upsert: vi.fn(), findFirst: vi.fn().mockResolvedValue(null), findUnique: vi.fn().mockResolvedValue(null), updateMany: vi.fn() },
     payment: {
       findUnique: vi.fn().mockResolvedValue(null),
       findFirst: vi.fn().mockResolvedValue(null),
@@ -46,7 +49,7 @@ it('new recurring invoice uses subscription price snapshot, not current Plan or 
   db.$transaction.mockImplementation((fn) => fn(db));
   const service = new WebhookProcessor(db as never, {} as never, {} as never);
   const start = new Date(),
-    end = new Date(Date.now() + 30 * 86400000);
+    end = nextPeriod(start, 'MONTHLY');
   const event: VerifiedEvent = {
     eventId: 'invoice-2',
     type: 'invoice.paid',

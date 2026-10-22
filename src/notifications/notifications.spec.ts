@@ -75,6 +75,21 @@ describe('notification authenticated contracts', () => {
       { companyId: null },
     ]);
   });
+  it('scopes recovery inbox to the exact active membership and administratively authorized company', async () => {
+    const { service, db } = fixture();
+    await service.count(auth);
+    expect(db.membership.findFirst).toHaveBeenCalledWith({
+      where: {
+        userId: 'user', companyId: 'company', isActive: true,
+        company: { administrativeStatus: 'ACTIVE' },
+        OR: [
+          { role: 'OWNER' },
+          { company: { isActive: true, status: { in: ['ACTIVE', 'TRIAL'] } } },
+          { company: { status: { in: ['SUSPENDED', 'CANCELED'] } } },
+        ],
+      },
+    });
+  });
   it('rejects stale or unauthorized selected company before reading inbox', async () => {
     const { service, db } = fixture();
     db.membership.findFirst.mockResolvedValue(null as never);

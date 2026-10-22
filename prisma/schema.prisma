@@ -84,6 +84,8 @@ model User {
   isActive     Boolean @default(true)
   isSuperAdmin Boolean @default(false)
 
+  entitlementGrants       SubscriptionEntitlement[] @relation("EntitlementGrantActor")
+  entitlementRevocations  SubscriptionEntitlement[] @relation("EntitlementRevokeActor")
   memberships             Membership[]
   authSessions            AuthSession[]
   notifications           Notification[]
@@ -109,6 +111,7 @@ model Company {
   memberships            Membership[]
   subscriptions          Subscription[]
   payments               Payment[]
+  paymentEvidence        PaymentEvidence[]
   webhookEvents          WebhookEvent[]
   authSessions           AuthSession[]
   communicationTemplates CompanyCommunicationTemplate[]
@@ -218,6 +221,8 @@ model Subscription {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   plan    Plan    @relation(fields: [planId], references: [id])
 
+  entitlements SubscriptionEntitlement[]
+  paymentEvidence PaymentEvidence[]
   payments Payment[]
 
   createdAt DateTime @default(now())
@@ -253,6 +258,7 @@ model Payment {
   currency          String              @default("BRL")
   periodStart       DateTime?
   periodEnd         DateTime?
+  paymentEvidence   PaymentEvidence?
   webhookEvents     WebhookEvent[]
   externalPaymentId String?
   description       String?
@@ -705,4 +711,61 @@ model EvolutionConnection {
   @@index([codeExpiresAt])
   @@index([attemptExpiresAt])
   @@index([provisionRequested, provisionRetryAt])
+}
+
+// A persisted, auditable right. Payment evidence remains subject to financial reversal.
+enum EntitlementOrigin {
+  PAYMENT
+  ADMIN_GRANT
+}
+
+enum PaymentEvidenceStatus {
+  APPLIED
+  REVIEW
+  REVOKED
+}
+
+model SubscriptionEntitlement {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subscriptionId String @db.Uuid
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  origin EntitlementOrigin
+  paymentEvidence PaymentEvidence[]
+  startsAt DateTime
+  endsAt DateTime
+  graceEndsAt DateTime?
+  grantedById String? @db.Uuid
+  grantedBy User? @relation("EntitlementGrantActor", fields: [grantedById], references: [id], onDelete: Restrict)
+  grantedAt DateTime?
+  legacy Boolean @default(false)
+  revokedAt DateTime?
+  revokedById String? @db.Uuid
+  revokedBy User? @relation("EntitlementRevokeActor", fields: [revokedById], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  @@index([subscriptionId])
+}
+
+// Financial evidence is separate from the effective interval it supports.
+// Several valid payments can support one interval without extending it twice.
+model PaymentEvidence {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  paymentId      String @unique @db.Uuid
+  payment        Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  companyId      String @db.Uuid
+  company        Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  subscriptionId String @db.Uuid
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  entitlementId  String? @db.Uuid
+  entitlement    SubscriptionEntitlement? @relation(fields: [entitlementId], references: [id], onDelete: Restrict)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  status         PaymentEvidenceStatus @default(APPLIED)
+  reviewReason   String?
+  financialReviewRequired Boolean @default(false)
+  revokedAt      DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([subscriptionId, status, startsAt, endsAt])
+  @@index([companyId])
+  @@index([entitlementId])
 }

@@ -1,3 +1,4 @@
+import { entitledWhere } from './commercial-policy.js';
 import {
   Inject,
   BadRequestException,
@@ -181,7 +182,7 @@ export class PaymentsService {
             where: {
               companyId,
               OR: [
-                { status: 'ACTIVE', currentPeriodEnd: { gt: new Date() } },
+                { ...entitledWhere(companyId), status: 'ACTIVE' },
                 {
                   externalSubscriptionId: { not: null },
                   status: { not: 'CANCELED' },

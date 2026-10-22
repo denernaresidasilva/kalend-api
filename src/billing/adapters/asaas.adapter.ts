@@ -134,7 +134,7 @@ export class AsaasAdapter implements GatewayProvider {
     return {
       environment: c.environment,
       eventId: eventId(id(r.id), status, refunded),
-      type: 'payment',
+      type: String(r.status).includes('CHARGEBACK') ? `chargeback:${r.status}` : 'payment',
       externalPaymentId: id(r.id),
       externalReference: r.externalReference,
       externalSubscriptionId: r.subscription ? id(r.subscription) : undefined,
@@ -220,6 +220,8 @@ export class AsaasAdapter implements GatewayProvider {
       throw new BadRequestException('WEBHOOK_INVALID_BODY');
     if (e.event.startsWith('PAYMENT_') && e.payment?.id) {
       event = await this.getPayment(id(e.payment.id), c);
+      if (e.event.includes('CHARGEBACK'))
+        event = { ...event, status: 'FAILED' };
       if (
         e.event === 'PAYMENT_CREDIT_CARD_CAPTURE_REFUSED' &&
         event.status === 'PENDING'

@@ -8,11 +8,28 @@ import type {
 } from './gateway.types.js';
 import { integer } from '../common/validation.js';
 import { nextPeriod } from '../common/period.js';
-import { graceEnd, graceDeadline, suspendIfUnentitled } from './commercial-policy.js';
+import { eligibleGrace, entitledWhere, suspendIfUnentitled } from './commercial-policy.js';
 export type BillingOrigin = Gateway | 'QA_SIMULATION';
 /** Shared verified commercial transitions. No provider or transport dependencies. */
 export class BillingDomain {
   constructor(private readonly policy?: { graceDays: number }) {}
+  private async lockSubscription(tx: Prisma.TransactionClient, id: string) {
+    // Serialize every entitlement mutation for a contract, even when different
+    // payment webhooks arrive concurrently.
+    if (typeof tx.$queryRaw === 'function')
+      await tx.$queryRaw`SELECT id FROM "Subscription" WHERE id = ${id} FOR UPDATE`;
+  }
+  private onContractSchedule(
+    sub: Subscription,
+    start: Date,
+    end: Date,
+  ) {
+    // A verified payment may cover an interval that overlaps a previously
+    // paid interval (provider corrections, proration, or duplicate collection).
+    // Validate the contracted duration, then union intervals for access; never
+    // require every legitimate payment to share one fixed calendar anchor.
+    return nextPeriod(start, sub.billingInterval).getTime() === end.getTime();
+  }
   async activatePaid(
     tx: Prisma.TransactionClient,
     p: Prisma.PaymentGetPayload<{ include: { subscription: true } }>,
@@ -23,19 +40,108 @@ export class BillingDomain {
     const sub = p.subscription;
     if (!sub || sub.status === 'CANCELED')
       throw new ConflictException('SUBSCRIPTION_UNAVAILABLE');
-    if (!p.periodStart || !p.periodEnd)
-      throw new ConflictException('PAYMENT_PERIOD_MISSING');
+    await this.lockSubscription(tx, sub.id);
+    const locked = await tx.subscription.findUnique({ where: { id: sub.id } });
+    if (!locked || locked.status === 'CANCELED')
+      throw new ConflictException('SUBSCRIPTION_UNAVAILABLE');
+    if (!p.periodStart || !p.periodEnd) {
+      await tx.paymentEvidence.upsert({
+        where: { paymentId: p.id },
+        create: {
+          paymentId: p.id, companyId: p.companyId, subscriptionId: sub.id,
+          startsAt: p.periodStart, endsAt: p.periodEnd, status: 'REVIEW',
+          reviewReason: 'PAYMENT_PERIOD_MISSING',
+        },
+        update: {},
+      });
+      return false;
+    }
+    const contractPeriod = this.onContractSchedule(
+      locked, p.periodStart, p.periodEnd,
+    );
+    if (!contractPeriod) {
+      await tx.paymentEvidence.upsert({
+        where: { paymentId: p.id },
+        create: {
+          paymentId: p.id, companyId: p.companyId, subscriptionId: sub.id,
+          startsAt: p.periodStart, endsAt: p.periodEnd, status: 'REVIEW',
+          reviewReason: 'CONTRACT_PERIOD_REVIEW_REQUIRED',
+        },
+        update: {},
+      });
+      return false;
+    }
+    const existingRight = await tx.subscriptionEntitlement.findFirst({
+      where: {
+        subscriptionId: sub.id, origin: 'PAYMENT',
+        startsAt: p.periodStart, endsAt: p.periodEnd,
+      },
+      select: { id: true },
+    });
+    const right = existingRight ?? await tx.subscriptionEntitlement.create({
+      data: {
+        subscriptionId: sub.id, origin: 'PAYMENT',
+        startsAt: p.periodStart, endsAt: p.periodEnd,
+      },
+      select: { id: true },
+    });
+    const overlappingEvidence = await tx.paymentEvidence.findFirst({
+      where: {
+        subscriptionId: sub.id,
+        paymentId: { not: p.id },
+        status: 'APPLIED', revokedAt: null,
+        startsAt: { lt: p.periodEnd },
+        endsAt: { gt: p.periodStart },
+        payment: { status: 'APPROVED', paidAt: { not: null } },
+      },
+      select: { id: true },
+    });
+    const priorEvidence = await tx.paymentEvidence.findUnique({
+      where: { paymentId: p.id },
+      select: { financialReviewRequired: true, reviewReason: true },
+    });
+    const financialReviewRequired = Boolean(
+      overlappingEvidence ||
+      (priorEvidence?.financialReviewRequired &&
+        priorEvidence.reviewReason === 'PARTIAL_REFUND_REVIEW_REQUIRED'),
+    );
+    await tx.paymentEvidence.upsert({
+      where: { paymentId: p.id },
+      create: {
+        paymentId: p.id, companyId: p.companyId, subscriptionId: sub.id,
+        entitlementId: right.id, startsAt: p.periodStart, endsAt: p.periodEnd,
+        status: 'APPLIED',
+        financialReviewRequired,
+        reviewReason: overlappingEvidence
+          ? 'POSSIBLE_DUPLICATE_CHARGE'
+          : priorEvidence?.reviewReason === 'PARTIAL_REFUND_REVIEW_REQUIRED'
+            ? priorEvidence.reviewReason
+            : null,
+      },
+      update: {
+        entitlementId: right.id,
+        startsAt: p.periodStart,
+        endsAt: p.periodEnd,
+        status: 'APPLIED',
+        revokedAt: null,
+        financialReviewRequired,
+        reviewReason: overlappingEvidence
+          ? 'POSSIBLE_DUPLICATE_CHARGE'
+          : priorEvidence?.reviewReason === 'PARTIAL_REFUND_REVIEW_REQUIRED'
+            ? priorEvidence.reviewReason
+            : null,
+      },
+    });
     if (
-      (!sub.currentPeriodEnd || p.periodEnd >= sub.currentPeriodEnd) &&
+      (!locked.currentPeriodEnd || p.periodEnd >= locked.currentPeriodEnd) &&
       p.periodEnd > now
     ) {
       // Competing checkouts cannot silently overwrite an already paid plan.
       const newer = await tx.subscription.findFirst({
         where: {
-          companyId: p.companyId,
+          ...entitledWhere(p.companyId, now),
           id: { not: sub.id },
           status: 'ACTIVE',
-          currentPeriodEnd: { gt: now },
           createdAt: { gt: sub.createdAt },
         },
         select: { id: true },
@@ -57,7 +163,7 @@ export class BillingDomain {
             status: 'ACTIVE',
             gateway: p.gateway,
             environment: p.environment,
-            currentPeriodStart: p.periodStart,
+            currentPeriodStart: locked.currentPeriodStart ?? p.periodStart,
             currentPeriodEnd: p.periodEnd,
             graceEndsAt: null,
             endedAt: null,
@@ -83,7 +189,7 @@ export class BillingDomain {
     ) return;
     const grace =
       sub.status === 'ACTIVE'
-        ? graceEnd(sub.currentPeriodEnd!, this.policy?.graceDays)
+        ? await eligibleGrace(tx, sub, now, this.policy?.graceDays)
         : sub.graceEndsAt;
     const status =
       sub.status === 'TRIALING'
@@ -114,18 +220,15 @@ export class BillingDomain {
     if (!sub || !['ACTIVE', 'PAST_DUE'].includes(sub.status))
       throw new ConflictException('SUBSCRIPTION_GRACE_NOT_ALLOWED');
     const now = new Date();
-    const end = graceEnd(now, this.policy?.graceDays);
-    if (end <= now) throw new ConflictException('BILLING_GRACE_NOT_CONFIGURED');
+    if (!sub.currentPeriodEnd || sub.currentPeriodEnd > now)
+      throw new ConflictException('SUBSCRIPTION_GRACE_NOT_DUE');
+    const end = await eligibleGrace(tx, sub, now, this.policy?.graceDays);
+    if (!end) throw new ConflictException('SUBSCRIPTION_GRACE_NOT_ALLOWED');
     await tx.subscription.update({
-      where: { id: sub.id },
-      data: { currentPeriodEnd: now, graceEndsAt: null },
+      where: { id: sub.id }, data: { status: 'PAST_DUE', graceEndsAt: end },
     });
-    await this.elapsed(
-      tx,
-      { ...sub, status: 'ACTIVE', currentPeriodEnd: now },
-      now,
-    );
   }
+
   async reactivate(
     tx: Prisma.TransactionClient,
     paymentId: string,
@@ -192,11 +295,11 @@ export class BillingDomain {
           ? { status: 'CANCELED', canceledAt: now, endedAt: now }
           : e.status === 'SUSPENDED'
             ? { status: 'SUSPENDED' }
-            : e.status === 'PAST_DUE' && sub.status !== 'CANCELED'
+            : e.status === 'PAST_DUE' && !['CANCELED', 'SUSPENDED'].includes(sub.status)
               ? {
                   status: 'PAST_DUE',
                   graceEndsAt:
-                    sub.graceEndsAt ?? graceDeadline(sub.currentPeriodEnd, now, this.policy?.graceDays),
+                    await eligibleGrace(tx, sub, now, this.policy?.graceDays),
                 }
               : {}),
         cancelAtPeriodEnd: e.cancelAtPeriodEnd,
@@ -327,6 +430,7 @@ export class BillingDomain {
       throw new ConflictException('PAYMENT_REFERENCE_MISMATCH');
     const sub = p.subscription,
       now = new Date();
+    await this.lockSubscription(tx, sub.id);
     if (
       gateway === 'PAGBANK' &&
       p.recurring &&
@@ -354,9 +458,12 @@ export class BillingDomain {
       throw new ConflictException('REFUND_AMOUNT_MISMATCH');
     const allowed =
       !['APPROVED', 'REFUNDED'].includes(p.status) ||
-      (e.status === 'REFUNDED' && refund > p.refundedAmountCents);
+      (e.status === 'REFUNDED' && refund > p.refundedAmountCents) ||
+      (p.status === 'APPROVED' && e.status === 'FAILED' &&
+        e.type.toUpperCase().includes('CHARGEBACK'));
     if (allowed) {
       const fullRefund = e.status === 'REFUNDED' && refund === p.amountCents;
+      const chargeback = e.status === 'FAILED' && e.type.toUpperCase().includes('CHARGEBACK');
       const status =
         e.status === 'REFUNDED' && !fullRefund ? 'APPROVED' : e.status;
       await tx.payment.update({
@@ -370,22 +477,40 @@ export class BillingDomain {
           refundedAt: e.status === 'REFUNDED' ? now : undefined,
         },
       });
+      if (fullRefund || chargeback)
+        await tx.paymentEvidence.updateMany({
+          where: { paymentId: p.id, status: 'APPLIED', revokedAt: null },
+          data: {
+            status: 'REVOKED', revokedAt: now,
+            reviewReason: chargeback ? 'PAYMENT_CHARGEBACK' : 'PAYMENT_REVERSED',
+          },
+        });
+      else if (e.status === 'REFUNDED' && refund > p.refundedAmountCents)
+        await tx.paymentEvidence.updateMany({
+          where: { paymentId: p.id, status: 'APPLIED', revokedAt: null },
+          data: {
+            financialReviewRequired: true,
+            reviewReason: 'PARTIAL_REFUND_REVIEW_REQUIRED',
+          },
+        });
       if (e.status === 'APPROVED' && sub.status !== 'CANCELED')
         await this.activatePaid(tx, p, now);
       if (
         sub.status !== 'CANCELED' &&
-        ((fullRefund &&
-          p.periodEnd?.getTime() === sub.currentPeriodEnd?.getTime()) ||
-          (['FAILED', 'OVERDUE'].includes(e.status) &&
+        (((fullRefund || chargeback) && p.periodEnd?.getTime() === sub.currentPeriodEnd?.getTime() &&
+          !(await tx.subscription.count({
+            where: { ...entitledWhere(p.companyId, now), id: sub.id },
+          }))) ||
+          (['FAILED', 'OVERDUE'].includes(e.status) && sub.status !== 'SUSPENDED' &&
             (!sub.currentPeriodEnd || sub.currentPeriodEnd <= now)))
       ) {
         await tx.subscription.update({
           where: { id: sub.id },
           data: {
-            status: fullRefund ? 'SUSPENDED' : 'PAST_DUE',
-            graceEndsAt: fullRefund
+            status: fullRefund || chargeback ? 'SUSPENDED' : 'PAST_DUE',
+            graceEndsAt: fullRefund || chargeback
               ? null
-              : (sub.graceEndsAt ?? graceDeadline(sub.currentPeriodEnd, now, this.policy?.graceDays)),
+              : (await eligibleGrace(tx, sub, now, this.policy?.graceDays)),
           },
         });
         await suspendIfUnentitled(tx, p.companyId, now);

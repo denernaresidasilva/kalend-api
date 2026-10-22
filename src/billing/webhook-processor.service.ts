@@ -1,3 +1,4 @@
+import { retryableBillingConflict } from './transaction-conflict.js';
 import {
   Inject,
   BadRequestException,
@@ -7,7 +8,6 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { GatewayRegistry, gatewayName } from './gateway.provider.js';
 import type { Gateway, ProviderEvent } from './gateway.types.js';
@@ -191,8 +191,7 @@ export class WebhookProcessor {
         );
       } catch (error) {
         if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          ['P2034', 'P2002'].includes(error.code) &&
+          retryableBillingConflict(error) &&
           attempt < 2
         )
           continue;

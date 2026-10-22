@@ -36,20 +36,47 @@ export function graceDeadline(
   now: Date,
   days?: number,
 ): Date | null {
-  const start = periodEnd ?? now;
-  const end = graceEnd(start, days);
-  return periodEnd !== null || end > start ? end : null;
+  if (!periodEnd) return null;
+  const end = graceEnd(periodEnd, days);
+  return end > periodEnd && end > now ? end : null;
 }
 export function entitledWhere(
   companyId: string,
   now = new Date(),
 ): Prisma.SubscriptionWhereInput {
+  const evidence: Prisma.SubscriptionEntitlementWhereInput = {
+    revokedAt: null,
+    startsAt: { lte: now },
+    OR: [
+      { origin: 'ADMIN_GRANT' },
+      {
+        origin: 'PAYMENT',
+        paymentEvidence: {
+          some: {
+            status: 'APPLIED',
+            revokedAt: null,
+            payment: { status: 'APPROVED', paidAt: { not: null } },
+          },
+        },
+      },
+    ],
+  };
   return {
     companyId,
+    company: { administrativeStatus: 'ACTIVE' },
     OR: [
-      { status: 'ACTIVE', currentPeriodEnd: { gt: now } },
       { status: 'TRIALING', trialEndsAt: { gt: now } },
-      { status: 'PAST_DUE', graceEndsAt: { gt: now } },
+      {
+        status: { in: ['ACTIVE', 'PAST_DUE'] },
+        entitlements: { some: { ...evidence, endsAt: { gt: now } } },
+      },
+      {
+        status: 'PAST_DUE',
+        graceEndsAt: { gt: now },
+        entitlements: {
+          some: { ...evidence, endsAt: { lte: now }, graceEndsAt: { gt: now } },
+        },
+      },
     ],
   };
 }
@@ -63,4 +90,49 @@ export async function suspendIfUnentitled(
       where: { id: companyId },
       data: { status: 'SUSPENDED', isActive: false },
     });
+}
+
+/** Grace extends one proven right, anchored to its immutable end; never to the request clock. */
+export async function eligibleGrace(
+  tx: Prisma.TransactionClient,
+  sub: { id: string; currentPeriodEnd: Date | null },
+  now: Date,
+  days?: number,
+) {
+  if (!sub.currentPeriodEnd) return null;
+  const right = await tx.subscriptionEntitlement.findFirst({
+    where: {
+      subscriptionId: sub.id,
+      revokedAt: null,
+      endsAt: sub.currentPeriodEnd,
+      OR: [
+        {
+          origin: 'PAYMENT',
+          paymentEvidence: {
+            some: {
+              status: 'APPLIED',
+              revokedAt: null,
+              payment: { status: 'APPROVED', paidAt: { not: null } },
+            },
+          },
+        },
+        { origin: 'ADMIN_GRANT', graceEndsAt: { not: null }, legacy: false },
+      ],
+    },
+    orderBy: { endsAt: 'desc' },
+  });
+  if (!right) return null;
+  const deadline =
+    right.origin === 'ADMIN_GRANT'
+      ? right.graceEndsAt
+      : graceDeadline(right.endsAt, now, days);
+  if (!deadline || deadline <= now) return null;
+  // A persisted deadline can never be extended by retries or a changed runtime policy.
+  if (right.graceEndsAt)
+    return right.graceEndsAt > now ? right.graceEndsAt : null;
+  await tx.subscriptionEntitlement.update({
+    where: { id: right.id },
+    data: { graceEndsAt: deadline },
+  });
+  return deadline;
 }

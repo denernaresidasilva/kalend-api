@@ -130,7 +130,14 @@ export class NotificationsService {
           userId: auth.user.id,
           companyId,
           isActive: true,
-          company: { isActive: true },
+          company: { administrativeStatus: 'ACTIVE' },
+          // Account/recovery notifications do not grant product entitlement.
+          // Match authentication eligibility while retaining the exact user/tenant.
+          OR: [
+            { role: 'OWNER' },
+            { company: { isActive: true, status: { in: ['ACTIVE', 'TRIAL'] } } },
+            { company: { status: { in: ['SUSPENDED', 'CANCELED'] } } },
+          ],
         },
       });
       if (!membership)

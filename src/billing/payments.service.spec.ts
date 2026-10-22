@@ -26,6 +26,8 @@ function setup() {
     }),
   };
   const db = {
+      subscriptionEntitlement: { upsert: vi.fn(), findFirst: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({id:'right'}), update: vi.fn() },
+      paymentEvidence: { upsert: vi.fn(), findFirst: vi.fn().mockResolvedValue(null), findUnique: vi.fn().mockResolvedValue(null), updateMany: vi.fn() },
     gatewayConfiguration: {
       findUnique: vi.fn().mockResolvedValue({
         enabled: true,
@@ -46,6 +48,7 @@ function setup() {
       }),
     },
     subscription: {
+      findUnique: vi.fn().mockImplementation(() => sub),
       findFirst: vi.fn().mockResolvedValue(null),
       create: vi
         .fn()

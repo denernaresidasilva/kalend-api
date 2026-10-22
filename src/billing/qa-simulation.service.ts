@@ -1,3 +1,4 @@
+import { retryableBillingConflict } from './transaction-conflict.js';
 import {
   BadRequestException,
   ConflictException,
@@ -366,7 +367,7 @@ export class QaSimulationService {
               if (sub.status === 'CANCELED')
                 throw new ConflictException('QA_TRANSITION_NOT_ALLOWED');
               if (status === 'PAST_DUE') {
-                // Feed the same grace policy with a QA-only expired period.
+                // Require the same proven, actually elapsed period as the commercial domain.
                 await domain.beginGrace(tx, sub.id, companyId);
               } else {
                 await domain.subscription(tx, 'QA_SIMULATION', {
@@ -425,13 +426,13 @@ export class QaSimulationService {
         return result;
       } catch (error) {
         if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          ['P2002', 'P2034'].includes(error.code) &&
+          retryableBillingConflict(error) &&
           attempt < 2
         )
           continue;
         throw error;
       }
     }
+    throw new ConflictException('QA_SIMULATION_RETRY_EXHAUSTED');
   }
 }

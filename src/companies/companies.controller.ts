@@ -1,3 +1,5 @@
+import type { AuthRequest } from '../auth/auth.types.js';
+import { Req } from '@nestjs/common';
 import { Query } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
 import { UseGuards, ParseUUIDPipe } from '@nestjs/common';
@@ -25,6 +27,7 @@ export class CompaniesController {
 
   @Post('manual')
   async createManual(
+    @Req() req: AuthRequest,
     @Body()
     body: {
       companyName: string;
@@ -39,9 +42,19 @@ export class CompaniesController {
       planId: string;
       billingInterval?: 'MONTHLY' | 'YEARLY';
       startWithTrial?: boolean;
+      adminGraceDays?: number;
     },
   ) {
-    return this.companiesService.createManual(body);
+    return this.companiesService.createManual(body, req.auth.user.id);
+  }
+
+  @Post(':id/entitlements/:entitlementId/revoke')
+  revokeAdministrativeGrant(
+    @Req() req: AuthRequest,
+    @Param('id', new ParseUUIDPipe()) companyId: string,
+    @Param('entitlementId', new ParseUUIDPipe()) entitlementId: string,
+  ) {
+    return this.companiesService.revokeAdministrativeGrant(companyId, entitlementId, req.auth.user.id);
   }
 
   @Get()

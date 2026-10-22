@@ -1,3 +1,5 @@
+import { withBillingConflictRetry } from '../billing/transaction-conflict.js';
+import { assertGrantActor, createAdminGrant } from '../billing/admin-grant.js';
 import { randomUUID } from 'node:crypto';
 import {
   EvolutionService,
@@ -6,6 +8,7 @@ import {
 import { normalizeBrazilianPhone } from '../communication/recipient.js';
 import { adminList, listStatus } from '../common/admin-list.js';
 import { Inject } from '@nestjs/common';
+import { suspendIfUnentitled } from '../billing/commercial-policy.js';
 import { nextPeriod } from '../common/period.js';
 import {
   object,
@@ -39,6 +42,7 @@ type CreateManualCompanyInput = {
   billingInterval?: 'MONTHLY' | 'YEARLY';
 
   startWithTrial?: boolean;
+  adminGraceDays?: number;
 };
 
 @Injectable()
@@ -48,7 +52,33 @@ export class CompaniesService {
     @Inject(EvolutionService) private readonly evolution?: EvolutionService,
   ) {}
 
-  async createManual(input: CreateManualCompanyInput) {
+  async revokeAdministrativeGrant(companyId: string, entitlementId: string, actorId: string) {
+    return withBillingConflictRetry(() => this.prisma.$transaction(async tx => {
+      await assertGrantActor(tx, actorId);
+      const target = await tx.subscriptionEntitlement.findFirst({
+        where: { id: entitlementId, origin: 'ADMIN_GRANT', subscription: { companyId } },
+        select: { subscriptionId: true },
+      });
+      if (!target) throw new NotFoundException('Concessão não encontrada.');
+      if (typeof tx.$queryRaw === 'function')
+        await tx.$queryRaw`SELECT id FROM "Subscription" WHERE id = ${target.subscriptionId} FOR UPDATE`;
+      const right = await tx.subscriptionEntitlement.findFirst({
+        where: { id: entitlementId, origin: 'ADMIN_GRANT', subscription: { companyId } },
+      });
+      if (!right) throw new NotFoundException('Concessão não encontrada.');
+      if (right.revokedAt) return right;
+      const now = new Date();
+      await tx.subscriptionEntitlement.updateMany({
+        where: { id: right.id, revokedAt: null },
+        data: { revokedAt: now, revokedById: actorId },
+      });
+      await suspendIfUnentitled(tx, companyId, now);
+      return tx.subscriptionEntitlement.findUnique({ where: { id: right.id } });
+    }, { isolationLevel: 'Serializable' }));
+  }
+
+  async createManual(input: CreateManualCompanyInput, actorId: string) {
+    await assertGrantActor(this.prisma, actorId);
     object(input, [
       'companyName',
       'slug',
@@ -60,6 +90,7 @@ export class CompaniesService {
       'planId',
       'billingInterval',
       'startWithTrial',
+      'adminGraceDays',
     ]);
     for (const key of [
       'companyName',
@@ -271,6 +302,9 @@ export class CompaniesService {
           },
         });
 
+        if (!startWithTrial) await createAdminGrant(tx, actorId, subscription.id, currentPeriodStart!, currentPeriodEnd!, input.adminGraceDays);
+        else if (input.adminGraceDays !== undefined && input.adminGraceDays !== 0)
+          throw new BadRequestException('TRIAL_ADMIN_GRACE_NOT_ALLOWED');
         return {
           company,
           owner: {
@@ -300,7 +334,7 @@ export class CompaniesService {
             },
           },
         };
-      });
+      }, { isolationLevel: 'Serializable' });
 
       // The durable PENDING record was committed with the company. Network work is independent.
       void this.evolution?.prepareAfterCompanyCreated(result.company.id);
@@ -603,6 +637,20 @@ export class CompaniesService {
     return this.findOne(id);
   }
 
+  private async assertNoFinancialHistory(
+    db: Pick<Prisma.TransactionClient, 'payment' | 'webhookEvent' | 'subscriptionEntitlement' | 'subscription'>,
+    companyId: string,
+  ) {
+    const counts = await Promise.all([
+      db.payment.count({ where: { companyId } }),
+      db.webhookEvent.count({ where: { companyId } }),
+      db.subscriptionEntitlement.count({ where: { subscription: { companyId } } }),
+      db.subscription.count({ where: { companyId, externalSubscriptionId: { not: null } } }),
+    ]);
+    if (counts.some((count) => count > 0))
+      throw new ConflictException('COMPANY_FINANCIAL_HISTORY_PRESERVED');
+  }
+
   async remove(id: string, input: unknown) {
     const data = object(input, ['confirmationName']);
     const confirmationName = data.confirmationName;
@@ -631,6 +679,9 @@ export class CompaniesService {
         'O nome informado não corresponde ao nome da empresa.',
       );
 
+    // Never cascade financial records or erase evidence of grants/provider mandates.
+    // Check before any external cleanup, then again in the deletion transaction.
+    await this.assertNoFinancialHistory(this.prisma, id);
     const connection = company.evolutionConnection;
     if (connection) {
       if (connection.companyId !== id || connection.globalKey !== null)
@@ -673,6 +724,7 @@ export class CompaniesService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      await this.assertNoFinancialHistory(tx, id);
       // Keep the affected identities before the company cascade removes memberships.
       const companyMemberships = await tx.membership.findMany({
         where: { companyId: id },

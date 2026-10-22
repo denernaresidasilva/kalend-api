@@ -1,3 +1,4 @@
+import { paidEvidence } from './support/paid-entitlement.js';
 import { readFile, readdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as pause } from 'node:timers/promises';
@@ -9,6 +10,7 @@ import { BillingDomain } from '../src/billing/billing-domain.js';
 import { CommunicationEngine } from '../src/communication/engine.js';
 import { LifecycleService } from '../src/billing/lifecycle.service.js';
 import { SecretVault } from '../src/billing/secret-vault.js';
+import { nextPeriod } from '../src/common/period.js';
 
 describe('persisted grace windows and corrective SQL migration (ephemeral DB only)', () => {
   let db: PGlite, socket: PGLiteSocketServer, prisma: PrismaClient;
@@ -35,7 +37,9 @@ describe('persisted grace windows and corrective SQL migration (ephemeral DB onl
   const engine = () => new CommunicationEngine(prisma as never, new SecretVault(), {} as never, { get() { throw Error('Transport forbidden'); } } as never);
   const count = (event: string) => prisma.globalCommunicationOutbox.count({ where: { companyId: company, event } });
   async function subscription(extra = {}) {
-    return prisma.subscription.create({ data: { companyId: company, planId: plan, status: 'ACTIVE', gateway: 'STRIPE', environment: 'SANDBOX', currentPeriodStart: new Date(Date.now() - 86400000), currentPeriodEnd: new Date(Date.now() + 86400000), ...extra } });
+    const sub = await prisma.subscription.create({ data: { companyId: company, planId: plan, status: 'ACTIVE', gateway: 'STRIPE', environment: 'SANDBOX', currentPeriodStart: new Date(Date.now() - 86400000), currentPeriodEnd: new Date(Date.now() + 86400000), ...extra } });
+    if(sub.status === 'ACTIVE' && sub.currentPeriodEnd && sub.currentPeriodStart) await paidEvidence(prisma,sub,3);
+    return sub;
   }
   it('a freshly PAST_DUE legacy zero window does not capture grace even after the transaction-start clock is stale', async () => {
     const sub = await subscription({ status: 'PENDING', currentPeriodEnd: null });
@@ -64,7 +68,7 @@ describe('persisted grace windows and corrective SQL migration (ephemeral DB onl
   it('zero-day provider PAST_DUE preserves the paid deadline without turning it into grace', async () => {
     vi.stubEnv('BILLING_GRACE_DAYS', '0'); const sub = await subscription({ externalSubscriptionId: 'mandate' });
     await prisma.$transaction(tx => domain.subscription(tx, 'STRIPE', { kind: 'subscription', environment: 'SANDBOX', type: 'SUBSCRIPTION_PAST_DUE', eventId: 'provider-event', externalSubscriptionId: 'mandate', externalReference: sub.id, status: 'PAST_DUE' }));
-    expect(await prisma.subscription.findUnique({ where: { id: sub.id } })).toMatchObject({ status: 'PAST_DUE', graceEndsAt: sub.currentPeriodEnd });
+    expect(await prisma.subscription.findUnique({ where: { id: sub.id } })).toMatchObject({ status: 'PAST_DUE', graceEndsAt: null });
     expect(await count('SUBSCRIPTION_GRACE_PERIOD')).toBe(0);
     expect(await prisma.company.findUnique({ where: { id: company } })).toMatchObject({ status: 'ACTIVE', isActive: true });
   });
@@ -111,7 +115,7 @@ describe('persisted grace windows and corrective SQL migration (ephemeral DB onl
     vi.stubEnv('BILLING_GRACE_DAYS', '0');
     const now = new Date(), sub = await subscription({ currentPeriodEnd: now });
     await prisma.$transaction(tx => domain.elapsed(tx, sub, now)); expect(await count('SUBSCRIPTION_GRACE_PERIOD')).toBe(0); expect(await count('SUBSCRIPTION_SUSPENDED')).toBe(1);
-    const p = await prisma.payment.create({ data: { companyId: company, subscriptionId: sub.id, planId: plan, status: 'APPROVED', gateway: 'STRIPE', environment: 'SANDBOX', amountCents: 199, periodStart: now, periodEnd: new Date(now.getTime()+30*86400000) } });
+    const p = await prisma.payment.create({ data: { companyId: company, subscriptionId: sub.id, planId: plan, status: 'APPROVED', gateway: 'STRIPE', environment: 'SANDBOX', amountCents: 199, paidAt: now, periodStart: now, periodEnd: nextPeriod(now, 'MONTHLY') } });
     await prisma.$transaction(tx => domain.reactivate(tx, p.id, company));
     expect(await prisma.subscription.findUnique({ where: { id: sub.id } })).toMatchObject({ status: 'ACTIVE' }); expect(await count('SUBSCRIPTION_REACTIVATED')).toBe(1);
   });
