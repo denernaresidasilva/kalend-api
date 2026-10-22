@@ -348,3 +348,20 @@ it('approval racing full refund of the same payment cannot resurrect refunded ac
     (await db.payment.findUniqueOrThrow({ where: { id: p.id } })).status,
   ).toBe('REFUNDED');
 });
+it('chargeback racing an alternative refund revokes every affected paid proof', async () => {
+  const p = await payment();
+  const q = await payment(p.subscriptionId!);
+  await event(p, 'APPROVED');
+  await event(q, 'APPROVED');
+  await Promise.all([
+    processor.processVerified('STRIPE', {
+      eventId: 'chargeback', type: 'CHARGEBACK', status: 'FAILED',
+      externalPaymentId: p.externalPaymentId!, externalReference: p.id,
+      environment: 'SANDBOX', amountCents: 199, currency: 'BRL',
+    }),
+    event(q, 'REFUNDED'),
+  ]);
+  expect(await access()).toBe(0);
+  expect(await db.paymentEvidence.count({ where: { status: 'REVOKED' } })).toBe(2);
+  expect(await db.payment.count()).toBe(2);
+});
