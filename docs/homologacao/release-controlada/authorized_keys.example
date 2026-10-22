@@ -1,0 +1,7 @@
+# PROPOSAL ONLY. One independently validated key per context; no private key here.
+# For /home/kalend-dev/.ssh/authorized_keys (CI key only):
+restrict,command="/usr/local/libexec/kalend-dev-release-gate" ssh-ed25519 REPLACE_WEB_PUBLIC_KEY kalend-web-dev-ci
+# For /home/kalend-api-dev/.ssh/authorized_keys (separate CI key):
+restrict,command="/usr/local/libexec/kalend-dev-release-gate" ssh-ed25519 REPLACE_API_PUBLIC_KEY kalend-api-dev-ci
+# For /home/kalend_dev_audit/.ssh/authorized_keys:
+restrict,command="/usr/local/libexec/kalend-dev-audit" ssh-ed25519 REPLACE_AUDIT_PUBLIC_KEY kalend-dev-readonly-audit

@@ -266,7 +266,7 @@
     "pending": "Exige contas QA autorizadas A/B e versão candidata publicada; não executar testes com efeitos no DEV atual.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "BLOQUEADO",
-    "blocker": "Exige contas QA autorizadas A/B e versão candidata publicada; não executar testes com efeitos no DEV atual.",
+    "blocker": "Exige contas QA autorizadas A/B e versão candidata publicada; não executar testes com efeitos no DEV atual.; publicação bloqueada pelos gates de acesso/backup/legado (P1-OPS-01)",
     "next_step": "Exige contas QA autorizadas A/B e versão candidata publicada; não executar testes com efeitos no DEV atual."
   },
   {
@@ -763,15 +763,15 @@
     "backend": "Candidato apenas local",
     "database": "Tabelas novas ausentes no DEV",
     "implementation": "BLOQUEADO POR DEPENDÊNCIA EXTERNA",
-    "tests": "dev-schema-readonly.json",
-    "evidence": "dev-schema-readonly.json",
+    "tests": "dev-schema-readonly.json; classificador SELECT-only confrontado com migration em 24 casos PostgreSQL nativos",
+    "evidence": "dev-schema-readonly.json; evidencias/2026-10-22-release-controlada/backfill-classifier-native.json",
     "status": "BLOQUEADO",
     "severity": "P1",
-    "pending": "Revisão read-only de legado, backup, autorização e aplicação da migration; nenhuma aplicação real nesta tarefa.",
+    "pending": "Aplicar intervenção administrativa específica, validar permissões efetivas, classificar todo legado DEV, restaurar backup em cópia isolada e só então avaliar migration.",
     "environment": "DEV REAL — apenas schema READ ONLY em 22/10; sem aplicação",
     "result": "BLOQUEADO",
-    "blocker": "Revisão read-only de legado, backup, autorização e aplicação da migration; nenhuma aplicação real nesta tarefa.",
-    "next_step": "Revisão read-only de legado, backup, autorização e aplicação da migration; nenhuma aplicação real nesta tarefa."
+    "blocker": "P1-OPS-01: usuários DEV alcançam wrapper administrativo CloudPanel; identidade SQL SELECT-only não provisionada; legado real não classificado; backup real não restaurado",
+    "next_step": "Aplicar intervenção administrativa específica, validar permissões efetivas, classificar todo legado DEV, restaurar backup em cópia isolada e só então avaliar migration."
   },
   {
     "id": "KA-044",
@@ -878,7 +878,7 @@
     "pending": "Exige operação sandbox autorizada, callbacks correlacionados e evidência por pagamento; mocks não aprovam fornecedor.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "BLOQUEADO",
-    "blocker": "Exige operação sandbox autorizada, callbacks correlacionados e evidência por pagamento; mocks não aprovam fornecedor.",
+    "blocker": "Exige operação sandbox autorizada, callbacks correlacionados e evidência por pagamento; mocks não aprovam fornecedor.; publicação bloqueada pelos gates de acesso/backup/legado (P1-OPS-01)",
     "next_step": "Exige operação sandbox autorizada, callbacks correlacionados e evidência por pagamento; mocks não aprovam fornecedor."
   },
   {
@@ -1058,7 +1058,7 @@
     "pending": "BUG-01 histórico continua aberto até prova no perfil DEV afetado; não encerrar por mocks.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "PARCIAL",
-    "blocker": "BUG-01 histórico continua aberto até prova no perfil DEV afetado; não encerrar por mocks.",
+    "blocker": "BUG-01 histórico continua aberto até prova no perfil DEV afetado; não encerrar por mocks.; publicação bloqueada pelos gates de acesso/backup/legado (P1-OPS-01)",
     "next_step": "BUG-01 histórico continua aberto até prova no perfil DEV afetado; não encerrar por mocks."
   },
   {
@@ -1076,7 +1076,7 @@
     "pending": "Entrega crítica real e recibos/dispositivo destinatário não foram demonstrados nesta auditoria.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "PARCIAL",
-    "blocker": "Entrega crítica real e recibos/dispositivo destinatário não foram demonstrados nesta auditoria.",
+    "blocker": "Entrega crítica real e recibos/dispositivo destinatário não foram demonstrados nesta auditoria.; publicação bloqueada pelos gates de acesso/backup/legado (P1-OPS-01)",
     "next_step": "Entrega crítica real e recibos/dispositivo destinatário não foram demonstrados nesta auditoria."
   },
   {
@@ -1094,7 +1094,7 @@
     "pending": "Restaurar sink só com autorização; obter evidência sandbox e entrega por canal sem atingir usuários reais.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "BLOQUEADO",
-    "blocker": "Restaurar sink só com autorização; obter evidência sandbox e entrega por canal sem atingir usuários reais.",
+    "blocker": "Restaurar sink só com autorização; obter evidência sandbox e entrega por canal sem atingir usuários reais.; publicação bloqueada pelos gates de acesso/backup/legado (P1-OPS-01)",
     "next_step": "Restaurar sink só com autorização; obter evidência sandbox e entrega por canal sem atingir usuários reais."
   },
   {
@@ -1202,7 +1202,7 @@
     "pending": "Testar fluxos principais em DEV autorizado após publicação/migration; aprovação local não equivale a E2E real.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "BLOQUEADO",
-    "blocker": "Testar fluxos principais em DEV autorizado após publicação/migration; aprovação local não equivale a E2E real.",
+    "blocker": "Testar fluxos principais em DEV autorizado após publicação/migration; aprovação local não equivale a E2E real.; publicação bloqueada pelos gates de acesso/backup/legado (P1-OPS-01)",
     "next_step": "Testar fluxos principais em DEV autorizado após publicação/migration; aprovação local não equivale a E2E real."
   },
   {
@@ -1286,7 +1286,7 @@
     "database": "Sem writes administrativos",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "estado-inicial.json; dev-schema-readonly.json; estado-final.json",
-    "evidence": "estado-inicial.json; dev-schema-readonly.json; estado-final.json",
+    "evidence": "estado-inicial.json; dev-schema-readonly.json; estado-final.json; evidencias/2026-10-22-release-controlada/pipeline-audit.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",

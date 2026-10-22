@@ -1,0 +1,80 @@
+{
+  "updated_utc": "2026-10-22T10:05:10.354136+00:00",
+  "initial_heads": {
+    "api": "fc1e6da92d5027e61ef566457d055853b27a94cf",
+    "web": "5c7bf8c792050cb9ed9d69a4dd73c2062bc5f326"
+  },
+  "remote_heads": {
+    "api": "b1cc220aafcb1f2fef97c026150795fcd5c88906",
+    "web": "4d86829b81737189503eb8b1859477e708dcdb12"
+  },
+  "incoming_commits": {
+    "api": 0,
+    "web": 0
+  },
+  "historical_candidate_hashes": "all matched before new preparation; application runtime source unchanged",
+  "new_tests": {
+    "backfill-classifier-native": {
+      "success": true,
+      "numPassedTests": 24,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "readonly-access-native": {
+      "success": true,
+      "numPassedTests": 1,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "forced_commands": {
+      "passed": 8,
+      "failed": 0,
+      "mode": "Python mocks; no actual ssh/psql/sudo/application execution"
+    }
+  },
+  "existing_evidence_reused": {
+    "api_unit": 878,
+    "api_e2e": 251,
+    "web_unit": 393,
+    "playwright": 114,
+    "responsive": 324,
+    "native_concurrency": 17
+  },
+  "backup_dev": "NOT_CREATED_OR_RESTORED",
+  "real_backfill": "NOT_EXECUTED — restricted SELECT-only access not available",
+  "dev_http": {
+    "web": 200,
+    "api_health": 200
+  },
+  "prod_http": {
+    "web": 200,
+    "api_health": 200
+  },
+  "pids_preserved": {
+    "dev_api": 2465910,
+    "dev_web": 2465827,
+    "prod_pm2_api": 1299,
+    "prod_pm2_web": 1318,
+    "prod_web": 2461,
+    "postgresql": 1067,
+    "redis": 788,
+    "nginx": 1230
+  },
+  "remote_mutations": false,
+  "push": false,
+  "deploy": false,
+  "real_migration": false,
+  "status": "BLOQUEADO",
+  "validation": {
+    "visudo_candidate": "syntax PASS locally; effective VPS rules not modified",
+    "python_templates": "AST PASS; 8 behavior tests PASS",
+    "lint": "PASS; zero warnings",
+    "typecheck": "PASS",
+    "schema_or_runtime_changed": false,
+    "workflow_proposal": "YAML parsed with BaseLoader; workflow_dispatch only; no push trigger; cancellation false"
+  },
+  "test_attempt_notes": [
+    "Initial ACL fixture used pool.query after expected errors; node-pg replaced the connection, restoring the role default read_only. Fixed to hold one explicit session for all denied-write assertions. No role privileges were broadened. Final denial checks use SQLSTATE 42501 even after default_transaction_read_only=off.",
+    "Existing full regression was not repeated: product code and dependencies remain unchanged. The changed backfill fixture and access proposals were tested specifically on native PostgreSQL."
+  ]
+}

@@ -1,0 +1,21 @@
+#!/usr/bin/python3 -I
+"""PROPOSAL: root-owned forced command; no caller-supplied SQL/connection/path."""
+import os
+import pwd
+import sys
+
+if pwd.getpwuid(os.getuid()).pw_name != 'kalend_dev_audit':
+    sys.exit('AUDIT_IDENTITY_REQUIRED')
+if os.environ.get('SSH_ORIGINAL_COMMAND') != 'backfill-audit':
+    sys.exit('COMMAND_NOT_ALLOWED')
+# This SQL must be administrator-owned, immutable to the audit and application users.
+sql = '/usr/local/share/kalend-dev-audit/backfill-audit.sql'
+for path in [__file__, sql]:
+    info = os.stat(path)
+    if info.st_uid != 0 or info.st_mode & 0o022:
+        sys.exit('UNSAFE_AUDIT_FILE')
+os.execve('/usr/bin/psql', ['psql', '-X', '-w', '-v', 'ON_ERROR_STOP=1',
+    '-h', '/var/run/postgresql', '-U', 'kalend_dev_audit', '-d', 'kalend_dev',
+    '-c', 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY', '-f', sql, '-c', 'COMMIT'],
+    {'PATH': '/usr/bin:/bin', 'PGAPPNAME': 'kalend-dev-backfill-audit',
+     'PGOPTIONS': '-c default_transaction_read_only=on -c statement_timeout=30000 -c lock_timeout=3000'})

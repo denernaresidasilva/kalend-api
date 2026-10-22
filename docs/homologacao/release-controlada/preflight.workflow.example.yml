@@ -1,0 +1,51 @@
+# PROPOSAL ONLY. Keep outside .github/workflows until reviewed and access is provisioned.
+# This checks the proposed forced-command access; it does not deploy or migrate.
+name: Kalend DEV restricted access preflight
+on:
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: kalend-dev-release-access-check
+  cancel-in-progress: false
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    environment: dev-release-preflight
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - user: kalend-dev
+            uid: 1021
+            port: 3002
+            key_secret: KALEND_WEB_DEV_RESTRICTED_KEY
+          - user: kalend-api-dev
+            uid: 1022
+            port: 3003
+            key_secret: KALEND_API_DEV_RESTRICTED_KEY
+    steps:
+      - name: Verify fixed identity through restricted SSH key
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets[matrix.key_secret] }}
+          SSH_HOST: ${{ secrets.KALEND_DEV_HOST }}
+          SSH_HOST_KEYS: ${{ secrets.KALEND_DEV_VERIFIED_HOST_KEYS }}
+          DEPLOY_USER: ${{ matrix.user }}
+          EXPECTED_UID: ${{ matrix.uid }}
+          EXPECTED_PORT: ${{ matrix.port }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$SSH_KEY" && test -n "$SSH_HOST_KEYS"
+          case "$SSH_HOST" in ''|*[!a-zA-Z0-9.-]*) exit 1;; esac
+          task_key=$(mktemp "$RUNNER_TEMP/kalend-ci-key.XXXXXXXX")
+          task_hosts=$(mktemp "$RUNNER_TEMP/kalend-ci-hosts.XXXXXXXX")
+          trap 'rm -f "$task_key" "$task_hosts"' EXIT
+          printf '%s\n' "$SSH_KEY" > "$task_key"
+          printf '%s\n' "$SSH_HOST_KEYS" > "$task_hosts"
+          ssh -F /dev/null -i "$task_key" -o IdentitiesOnly=yes -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$task_hosts" \
+            -o ConnectTimeout=10 "$DEPLOY_USER@$SSH_HOST" preflight > "$RUNNER_TEMP/kalend-$DEPLOY_USER.json"
+          jq -e --arg user "$DEPLOY_USER" --argjson uid "$EXPECTED_UID" --argjson port "$EXPECTED_PORT" \
+            '.user == $user and .uid == $uid and .port == $port and .activation == "BLOCKED_PENDING_APPROVAL_BACKUP_AND_AUDIT"' \
+            "$RUNNER_TEMP/kalend-$DEPLOY_USER.json"

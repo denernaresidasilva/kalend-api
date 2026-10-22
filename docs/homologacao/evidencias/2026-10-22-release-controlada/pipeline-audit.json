@@ -1,0 +1,69 @@
+{
+  "date_utc": "2026-10-22T10:02:57.546Z",
+  "latest_remote_runs": {
+    "kalend-api": {
+      "id": 38812563493,
+      "sha": "b1cc220aafcb1f2fef97c026150795fcd5c88906",
+      "conclusion": "success",
+      "url": "https://github.com/denernaresidasilva/kalend-api/actions/runs/38812563493",
+      "event": "push",
+      "uid_in_logs": false,
+      "credential_values": "MASKED_AND_NOT_REQUESTED"
+    },
+    "kalend-web": {
+      "id": 38646549731,
+      "sha": "4d86829b81737189503eb8b1859477e708dcdb12",
+      "conclusion": "success",
+      "url": "https://github.com/denernaresidasilva/kalend-web/actions/runs/38646549731",
+      "event": "push",
+      "uid_in_logs": false,
+      "credential_values": "MASKED_AND_NOT_REQUESTED"
+    }
+  },
+  "access": {
+    "ssh_users_verified": [
+      "root",
+      "kalend-dev",
+      "kalend-api-dev"
+    ],
+    "dev_uids": {
+      "frontend": 1021,
+      "api": 1022
+    },
+    "direct_prod_filesystem_access": false,
+    "cloudpanel_global_sudo_wrapper": true,
+    "wrapper_target_user": "clp",
+    "clp_sudo": "ALL NOPASSWD",
+    "dev_only_command_allowlist": false,
+    "pipeline_effective_uid": "UNKNOWN — secrets masked, id not logged",
+    "remote_readonly_db_identity": "NOT_VERIFIED",
+    "clpctlWrapper_sha256": "ade4459016c372d2ec40d4fa78af62ce661a0b6e1847320663b92fdffcf90551"
+  },
+  "hooks": {
+    "active_git_hooks": [],
+    "api_postinstall": "prisma skills sync || exit 0",
+    "web_lifecycle_hooks": []
+  },
+  "operations": {
+    "remote_mutations": false,
+    "push": false,
+    "deploy": false,
+    "real_database_queries_this_task": false
+  },
+  "gates": {
+    "heads_confirmed": "PASS",
+    "local_work_preserved": "PASS",
+    "pipeline_reviewed": "PASS_WITH_BLOCKERS",
+    "restricted_remote_access": "FAIL",
+    "no_operational_prod_capability": "NOT_PROVEN",
+    "native_postgresql": "PASS_EXISTING_EVIDENCE",
+    "real_backfill_classified": "BLOCKED",
+    "real_migration_safe": "NOT_PROVEN",
+    "verified_dev_backup": "NOT_VERIFIED",
+    "controlled_schema_change": "FAIL_CURRENT_WORKFLOW",
+    "recovery_strategy": "DOCUMENTED_NOT_REHEARSED_ON_REAL_BACKUP",
+    "hooks_external_effects": "KNOWN_POSTINSTALL_REQUIRES_BUILD_ISOLATION",
+    "qa_provider_isolation": "NOT_VERIFIED",
+    "no_unauthorized_messages_or_charges": "PRESERVED_NO_EXECUTION"
+  }
+}

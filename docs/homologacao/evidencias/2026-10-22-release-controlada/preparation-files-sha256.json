@@ -1,0 +1,15 @@
+{
+  "docs/homologacao/release-controlada/readonly-role.sql": "8a7b81f245ab27753667181b827b5da95e080c81784d4b00656761f80af3fcaa",
+  "docs/homologacao/release-controlada/backfill-audit.sql": "1f7acac77e249f109dd971348374a021ec7c9c1ceccb8bd50ce02e86629cefaa",
+  "docs/homologacao/release-controlada/sudoers-dev-only.conf": "dcef192f513ede241430ee5227dbb65aa8424a05ecba4b83465c211826aebca4",
+  "docs/homologacao/release-controlada/kalend-dev-audit": "79e0c81735dd1d571b3824634333f27d8d5c0d0850f698fd548d31f0202e8836",
+  "docs/homologacao/release-controlada/authorized_keys.example": "396858e77b0945353a5e4762713eb38ef8ad5197983fc272b753327acc72c978",
+  "docs/homologacao/release-controlada/kalend-dev-release-gate": "6e7329673bbdccc4d64c86ff4e457119a63152d8010439ceca4f96db7175911e",
+  "docs/homologacao/release-controlada/INTERVENCAO_ADMINISTRATIVA.md": "0f84fe788067ca72d38e0bfc37f72e377c5d03a59b821884087fb0904dc92f25",
+  "docs/homologacao/release-controlada/preflight.workflow.example.yml": "1819d5db49300aeb441e5981caf5060affd382be10798b11a6d0682ca0f46d0e",
+  "docs/homologacao/release-controlada/pg_hba.fragment.conf": "6be00d5b909742ef6c93f2d8e37a09db250d6f7f3a6f322fb739fd3226fce62d",
+  "test/entitlement-backfill.e2e-spec.ts": "ea8d7be16be275fb838f4a2b896461c0e0371cb7b647bb71e7bb34672c999e0f",
+  "test/release-access.native.ts": "02217d4985e076af66ca697a41b43ec4989d5f440ab5cf952ef1d8f138b41513",
+  "scripts/tests/test_release_access_templates.py": "826791affbf151aac4409b91f0d10425ef3f43b7cfb94330ee79f23733d4d53a",
+  "vitest.config.native.ts": "a65f743ceb62dc86c145bc0bda49e57760b3797d0f3dc5e1c592602878db8708"
+}

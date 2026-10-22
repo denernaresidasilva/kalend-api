@@ -33,3 +33,8 @@ Privilégio mínimo: credenciais SSH separadas para kalend-api-dev e kalend-dev;
 ## Recuperação
 
 Antes da troca: cancelar publicação sem afetar os processos atuais. Se a migration abortar, confirmar rollback transacional e estado de _prisma_migrations antes de nova tentativa; não executar resolve/reset cegamente. Se houve commit da migration, rollback de código não a desfaz e as funções comerciais mudaram. Preferir correção forward validada. Restauração de snapshot requer janela DEV, avaliação de escritas posteriores e autorização específica; não executar SQL destrutivo improvisado. Manter artefatos, dumps seguros e backup protegido. Nenhum rollback de produção faz parte deste plano.
+
+
+## Evidência operacional adicional de 22/10
+
+SSH dos usuários DEV existe, porém eles herdam sudo via wrapper CloudPanel sem allowlist DEV. A intervenção necessária deixou de ser apenas hipotética: os arquivos e comandos estão em [release-controlada/INTERVENCAO_ADMINISTRATIVA.md](release-controlada/INTERVENCAO_ADMINISTRATIVA.md). Nada foi aplicado. Há uma proposta SELECT-only validada nativamente para classificar o legado sem usar root como atalho. A publicação continua condicionada aos 14 gates; backup/restore real e classificação não foram executados.

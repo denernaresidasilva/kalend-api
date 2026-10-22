@@ -102,7 +102,24 @@ async function approvedCurrentPeriodPayment(
   return id;
 }
 
+async function auditBackfill(pg: PGlite) {
+  await pg.exec('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+  try {
+    const sql = await readFile(new URL('../docs/homologacao/release-controlada/backfill-audit.sql', import.meta.url), 'utf8');
+    const { rows } = await pg.query<{ report: {
+      migration_guard_would_abort: boolean; subscription_count: number;
+      payment_count: number; inferred_right_count: number;
+      subscriptions: unknown[]; payments: unknown[];
+    } }>(sql);
+    const report = rows[0].report;
+    expect(report.subscriptions).toHaveLength(report.subscription_count);
+    expect(report.payments).toHaveLength(report.payment_count);
+    return report;
+  } finally { await pg.exec('ROLLBACK'); }
+}
+
 async function expectReview(pg: PGlite) {
+  expect((await auditBackfill(pg)).migration_guard_would_abort).toBe(true);
   await expect(pg.exec(await migrationSql())).rejects.toThrow(
     'ENTITLEMENT_BACKFILL_REQUIRES_REVIEW',
   );
@@ -117,7 +134,11 @@ async function expectReview(pg: PGlite) {
 }
 
 async function expectMigrationPass(pg: PGlite, sub: string) {
+  const audit = await auditBackfill(pg);
+  expect(audit.migration_guard_would_abort).toBe(false);
   await pg.exec(await migrationSql());
+  const count = await pg.query<{ count: number }>('SELECT count(*)::int AS count FROM "SubscriptionEntitlement"');
+  expect(count.rows[0].count).toBe(audit.inferred_right_count);
   return pg.query<{
     origin: string;
     legacy: boolean;
@@ -132,7 +153,7 @@ async function expectMigrationPass(pg: PGlite, sub: string) {
   );
 }
 
-describe('conservative entitlement migration (embedded PostgreSQL only)', () => {
+describe('conservative entitlement migration and read-only classifier (isolated PostgreSQL)', () => {
   it('does not invent an independent legacy grant for a MANUAL period already proven by payment', async () => {
     const pg = await legacyDatabase();
     try {
@@ -631,6 +652,7 @@ describe('conservative entitlement migration (embedded PostgreSQL only)', () => 
       const start = maybeStart!;
       const end = new Date(start);
       end.setUTCMonth(end.getUTCMonth() + 1);
+      expect((await auditBackfill(pg)).migration_guard_would_abort).toBe(false);
       await pg.exec(await migrationSql());
       const firstPayment = await approvedPayment(pg, {
         sub,
@@ -684,6 +706,7 @@ describe('conservative entitlement migration (embedded PostgreSQL only)', () => 
       });
       const start = maybeStart!;
       const end = maybeEnd!;
+      expect((await auditBackfill(pg)).migration_guard_would_abort).toBe(false);
       await pg.exec(await migrationSql());
       const actor = randomUUID();
       await pg.query(

@@ -96,3 +96,7 @@ Cobertura local = grupos APROVADO LOCALMENTE / grupos identificados. Não é cob
 | Comunicação | 6/9 | 66.7% |
 | Interface | 5/7 | 71.4% |
 | Infra e segurança | 2/4 | 50.0% |
+
+## Atualização da preparação controlada — 22/10/2026
+
+Os 72 grupos e seus status permanecem preservados (52 locais, 12 parciais, 2 não testados, 6 bloqueados). O JSON registra o gate operacional P1-OPS-01: sudo CloudPanel herdado pelos usuários DEV, identidade SQL somente leitura não provisionada, legado real não classificado e backup sem restore verificado. O classificador passou em 24 casos nativos; a role proposta passou em teste nativo de negação de escrita e os comandos forçados passaram em 8 testes. São evidências locais de preparação, não aprovação DEV. Não houve push, deploy, migration ou mutação remota. Ver [intervenção preparada](release-controlada/INTERVENCAO_ADMINISTRATIVA.md) e [novo resumo](evidencias/2026-10-22-release-controlada/resumo-execucao.json).

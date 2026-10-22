@@ -16,3 +16,11 @@
 !2026-10-22-super-admin/native-final.json
 !2026-10-22-super-admin/web-playwright.json
 !2026-10-22-super-admin/README.md
+
+!2026-10-22-release-controlada/
+2026-10-22-release-controlada/*
+!2026-10-22-release-controlada/resumo-execucao.json
+!2026-10-22-release-controlada/pipeline-audit.json
+!2026-10-22-release-controlada/backfill-classifier-native.json
+!2026-10-22-release-controlada/readonly-access-native.json
+!2026-10-22-release-controlada/preparation-files-sha256.json

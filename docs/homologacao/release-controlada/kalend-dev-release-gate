@@ -1,0 +1,26 @@
+#!/usr/bin/python3 -I
+"""PROPOSAL: inspection only; activation deliberately unavailable until all release gates pass."""
+import json
+import os
+import pwd
+import subprocess
+import sys
+
+contexts = {
+    'kalend-dev': ('/home/kalend-dev/htdocs/dev.kalend.tech/app', 3002),
+    'kalend-api-dev': ('/home/kalend-api-dev/htdocs/api-dev.kalend.tech/app', 3003),
+}
+user = pwd.getpwuid(os.getuid()).pw_name
+if user not in contexts or os.environ.get('SSH_ORIGINAL_COMMAND') != 'preflight':
+    sys.exit('COMMAND_NOT_ALLOWED; deployment requires separately reviewed activation')
+info = os.stat(__file__)
+if info.st_uid != 0 or info.st_mode & 0o022:
+    sys.exit('UNSAFE_GATE_FILE')
+path, port = contexts[user]
+# rev-parse does not execute checkout/reset, hooks, builds, npm or PM2.
+env = {'PATH': '/usr/bin:/bin', 'HOME': '/home/' + user, 'GIT_CONFIG_NOSYSTEM': '1',
+       'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_TERMINAL_PROMPT': '0'}
+head = subprocess.run(['/usr/bin/git', '-C', path, 'rev-parse', '--verify', 'HEAD'],
+    check=True, capture_output=True, text=True, timeout=10, env=env).stdout.strip()
+print(json.dumps({'user': user, 'uid': os.getuid(), 'directory': path,
+    'port': port, 'head': head, 'activation': 'BLOCKED_PENDING_APPROVAL_BACKUP_AND_AUDIT'}))

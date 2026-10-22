@@ -56,3 +56,22 @@ Inclui trabalho anterior preservado e correções desta execução. Sem commit d
 - `docs/homologacao/RELEASE_DEV_CONTROLADA.md`.
 - `docs/homologacao/ARQUIVOS_RELEASE.md`.
 - Resumos, hashes e relatórios JSON selecionados em `docs/homologacao/evidencias/`.
+
+
+## Preparação controlada subsequente (sem deploy)
+
+- `docs/homologacao/release-controlada/readonly-role.sql`
+- `docs/homologacao/release-controlada/backfill-audit.sql`
+- `docs/homologacao/release-controlada/sudoers-dev-only.conf`
+- `docs/homologacao/release-controlada/kalend-dev-audit`
+- `docs/homologacao/release-controlada/authorized_keys.example`
+- `docs/homologacao/release-controlada/kalend-dev-release-gate`
+- `docs/homologacao/release-controlada/INTERVENCAO_ADMINISTRATIVA.md`
+- `docs/homologacao/release-controlada/preflight.workflow.example.yml`
+- `docs/homologacao/release-controlada/pg_hba.fragment.conf`
+- `test/entitlement-backfill.e2e-spec.ts`
+- `test/release-access.native.ts`
+- `scripts/tests/test_release_access_templates.py`
+- `vitest.config.native.ts`
+
+Atualizados também status, matriz, plano de release, regras de exclusão de artefatos e relatórios estruturados de preparação. Código de produto, dependências, migration e Web não foram alterados nesta execução.
