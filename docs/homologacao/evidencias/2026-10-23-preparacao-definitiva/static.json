@@ -1,0 +1,22 @@
+{
+  "ssh_syntax": true,
+  "ssh_binary_version": "OpenSSH_9.2, OpenSSL 3.0.14 4 Jun 2024",
+  "controls_unchanged": 12,
+  "audit_settings": {
+    "forcecommand": "/usr/local/libexec/kalend-dev-audit",
+    "authorizedkeysfile": "/etc/ssh/kalend-dev-keys/%u",
+    "disableforwarding": "yes",
+    "permittty": "no",
+    "permituserrc": "no",
+    "passwordauthentication": "no",
+    "kbdinteractiveauthentication": "no",
+    "authenticationmethods": "publickey",
+    "authorizedkeyscommand": "none",
+    "trustedusercakeys": "none",
+    "permituserenvironment": "no"
+  },
+  "sudoers_syntax": true,
+  "sudoers_parsed_last_rule_deny_all": true,
+  "shell_blocks": 17,
+  "scope": "LOCAL_ONLY_NO_SSH_DAEMON_NO_SUDO_EXECUTION; live sudo -l acceptance remains mandatory"
+}

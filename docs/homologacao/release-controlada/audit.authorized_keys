@@ -1,0 +1,1 @@
+restrict,command="/usr/local/libexec/kalend-dev-audit" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINpA8+mhVkYxG5imMjOM64DwRnYLXq1WvnxxtuqpGC/m kalend_dev_audit@srv1119527:backfill-audit

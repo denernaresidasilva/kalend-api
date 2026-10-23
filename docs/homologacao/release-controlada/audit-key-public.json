@@ -1,0 +1,13 @@
+{
+  "algorithm": "ssh-ed25519",
+  "fingerprint_sha256": "SHA256:MQmrBnZRCRjUppy8C6MC2hnQhA806Kq3bETpMPzmupI",
+  "account": "kalend_dev_audit",
+  "host": "srv1119527",
+  "allowed_command": "backfill-audit",
+  "forced_command": "/usr/local/libexec/kalend-dev-audit",
+  "public_key_file": "audit.authorized_keys",
+  "private_key_in_repository": false,
+  "origin_restriction": "not configured; approved stable source not supplied",
+  "private_key_encrypted": false,
+  "local_protection": "private directory 0700; private key 0600; no agent registration; never sent to VPS"
+}

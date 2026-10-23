@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-23",
+  "scope": "LOCAL_ONLY_NO_REMOTE_CONNECTION",
+  "branch": "develop",
+  "initial_head": "6251f502d6abaa9f23b0cff81060a72906d5f6a1",
+  "console": {
+    "root_hostname_access": "reported by user: root / srv1119527",
+    "official_source": "https://www.hostinger.com/support/how-to-use-the-web-console-in-hostinger/",
+    "ssh_independence_proven": false,
+    "reason": "documentation describes console and serial scenario, not an explicit transport guarantee; session tty/parent-process evidence pending",
+    "read_only_evidence_requested": true,
+    "outage_tested": false
+  },
+  "key": {
+    "fingerprint_sha256": "SHA256:MQmrBnZRCRjUppy8C6MC2hnQhA806Kq3bETpMPzmupI",
+    "algorithm": "Ed25519",
+    "generated_locally": true,
+    "private_outside_repository": true,
+    "private_mode": "0600",
+    "directory_mode": "0700",
+    "no_acl_or_capability": true,
+    "private_matches_public": true,
+    "encrypted": false,
+    "private_transferred": false,
+    "agent_registered": false,
+    "public_file": "audit.authorized_keys",
+    "origin_restriction": "not configured; approved stable CIDR not supplied",
+    "fingerprint_operator_approval": "pending"
+  },
+  "python_tests": {
+    "passed": 27,
+    "failed": 0,
+    "coverage": [
+      "actual public key and fingerprint cross-check",
+      "key option and command injection rejection",
+      "approved from restriction preserved or rejected",
+      "permissions/exclusive group",
+      "real native ACL detection",
+      "symlinks and writable ancestors",
+      "fixed role/database/SQL/environment"
+    ]
+  },
+  "static_tests": {
+    "ssh_syntax": true,
+    "ssh_binary_version": "OpenSSH_9.2, OpenSSL 3.0.14 4 Jun 2024",
+    "controls_unchanged": 12,
+    "audit_settings": {
+      "forcecommand": "/usr/local/libexec/kalend-dev-audit",
+      "authorizedkeysfile": "/etc/ssh/kalend-dev-keys/%u",
+      "disableforwarding": "yes",
+      "permittty": "no",
+      "permituserrc": "no",
+      "passwordauthentication": "no",
+      "kbdinteractiveauthentication": "no",
+      "authenticationmethods": "publickey",
+      "authorizedkeyscommand": "none",
+      "trustedusercakeys": "none",
+      "permituserenvironment": "no"
+    },
+    "sudoers_syntax": true,
+    "sudoers_parsed_last_rule_deny_all": true,
+    "shell_blocks": 17,
+    "scope": "LOCAL_ONLY_NO_SSH_DAEMON_NO_SUDO_EXECUTION; live sudo -l acceptance remains mandatory"
+  },
+  "sql": {
+    "postgres": "16.15",
+    "passed": 1,
+    "failed": 0,
+    "test_role_superuser": false,
+    "isolated_cluster": "/tmp/kalend-native-pg-p0A8lk",
+    "cluster_stopped": true,
+    "scope": "restricted audit role and fixed classifier; no financial regression suite"
+  },
+  "lint": "passed",
+  "typecheck": "passed",
+  "remote_installation": false,
+  "real_migration": false,
+  "push": false,
+  "deploy": false,
+  "phase_a_ready_for_unconditional_authorization": false,
+  "remaining": [
+    "prove console transport independent of affected sshd configuration",
+    "approve public fingerprint before installation",
+    "explicit installation authorization; fresh operational preflight required"
+  ],
+  "risks_unchanged": [
+    "CloudPanel sudo escalation path for existing users",
+    "shared DEV/PROD SQL owner kalend",
+    "backup and deployment remain separate"
+  ]
+}
