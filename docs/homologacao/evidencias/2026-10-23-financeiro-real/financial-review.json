@@ -1,0 +1,16 @@
+{
+  "inferred_rights": 1,
+  "inferred_admin_grants": 0,
+  "blocked_subscriptions": 0,
+  "payments_requiring_review": 0,
+  "original_table_owners": "kalend",
+  "original_table_acl": "owner defaults only; no additional ACL",
+  "restore_owner_mapping": "kalend -> isolated kalend_restore_owner; default owner-only table ACL",
+  "real_migration_executed": false,
+  "first_restore_attempt": {
+    "result": "failed before restore/initdb",
+    "cause": "minimal filesystem did not include /bin for initdb shell",
+    "correction": "read-only /bin mount added locally; fresh private directory; old logs retained"
+  },
+  "restoration_postmaster_stopped": true
+}

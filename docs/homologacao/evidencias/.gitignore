@@ -24,3 +24,14 @@
 !2026-10-22-release-controlada/backfill-classifier-native.json
 !2026-10-22-release-controlada/readonly-access-native.json
 !2026-10-22-release-controlada/preparation-files-sha256.json
+
+!2026-10-23-financeiro-real/
+2026-10-23-financeiro-real/*
+!2026-10-23-financeiro-real/README.md
+!2026-10-23-financeiro-real/resumo.json
+!2026-10-23-financeiro-real/backup-classification.json
+!2026-10-23-financeiro-real/restore.json
+!2026-10-23-financeiro-real/financial-review.json
+!2026-10-23-financeiro-real/migration-review.json
+!2026-10-23-financeiro-real/remote-file-verification.json
+!2026-10-23-financeiro-real/preservation.json

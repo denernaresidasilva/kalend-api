@@ -1,0 +1,29 @@
+{
+  "http_final": {
+    "https://dev.kalend.tech": {
+      "status": "200",
+      "exit": 0
+    },
+    "https://api-dev.kalend.tech/health": {
+      "status": "200",
+      "exit": 0
+    },
+    "https://kalend.tech": {
+      "status": "200",
+      "exit": 0
+    },
+    "https://api.kalend.tech/health": {
+      "status": "200",
+      "exit": 0
+    }
+  },
+  "services": [
+    "active",
+    "active",
+    "active",
+    "active",
+    "active"
+  ],
+  "processes": "    PID                  STARTED COMMAND\n    788 Fri Oct 16 17:03:43 2026 redis-server\n   1067 Fri Oct 16 17:03:45 2026 postgres\n   1140 Fri Oct 16 17:03:46 2026 dockerd\n   1230 Fri Oct 16 17:03:47 2026 nginx\n   1299 Fri Oct 16 17:03:47 2026 PM2 v7.0.4: God\n   1318 Fri Oct 16 17:03:48 2026 PM2 v7.0.4: God\n2465796 Wed Oct 21 20:31:31 2026 PM2 v7.0.4: God\n2465893 Wed Oct 21 20:31:36 2026 PM2 v7.0.4: God\n2465910 Wed Oct 21 20:31:38 2026 node /home/kale\n",
+  "no_remote_service_commands_executed": true
+}

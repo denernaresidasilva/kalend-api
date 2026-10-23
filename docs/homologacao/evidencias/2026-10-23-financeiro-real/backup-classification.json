@@ -1,0 +1,29 @@
+{
+  "directory": "/root/kalend-dev-finance-20261023-ze8nv5eg",
+  "database": "kalend_dev",
+  "sql_user": "kalend",
+  "sql_superuser": false,
+  "snapshot": "00000004-00004F07-1",
+  "postgres": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+  "dump_sha256": "c6be1c513457995495a236ef54230e0163e33d2faacaef4df71c295505da6c09",
+  "dump_bytes": 321916,
+  "table_count": 27,
+  "constraint_count": 53,
+  "index_count": 84,
+  "subscriptions": 7,
+  "payments": 5,
+  "subscription_classes": {
+    "NO_PROVEN_RIGHT_IMPORTED": 6,
+    "IMPORT_PAID_RIGHTS": 1
+  },
+  "payment_classes": {
+    "IMPORT_PAYMENT_EVIDENCE": 1,
+    "NOT_APPROVED_NO_PROOF": 4
+  },
+  "migration_guard_would_abort": false,
+  "partial_or_full_refund_count": 0,
+  "duplicate_paid_period_count": 0,
+  "classifier_sha256": "7c7f7c0f8b690e237694969b94dd097fba3602c0b7af9039f95c34fae8f7bac6",
+  "same_snapshot_for_dump_classifier_and_manifest": true,
+  "created_utc": "2026-10-23T20:06:23.334833+00:00"
+}

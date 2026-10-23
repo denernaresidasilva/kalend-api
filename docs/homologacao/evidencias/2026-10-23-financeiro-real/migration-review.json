@@ -1,0 +1,29 @@
+{
+  "database": "kalend_dev",
+  "subscriptions": 7,
+  "payments": 5,
+  "subscription_states": {
+    "ACTIVE": 1,
+    "PAST_DUE": 2,
+    "PENDING": 2,
+    "EXPIRED": 1,
+    "TRIALING": 1
+  },
+  "payment_states": {
+    "OVERDUE": 1,
+    "APPROVED": 1,
+    "PENDING": 2,
+    "FAILED": 1
+  },
+  "payment_evidence_exists": false,
+  "entitlement_exists": false,
+  "applied_migrations": 18,
+  "local_checksums_match_count": 18,
+  "missing_local_migrations": [],
+  "checksum_mismatches": [],
+  "pending_migration": "20261017090000_subscription_entitlement_evidence",
+  "pending_migration_sha256": "90ecbea69fa323806ccf7e39f73e03e5b544ac958684662808f0503cb2c4e1e6",
+  "pending_migration_applied": false,
+  "source_metadata_collection": "additional READ ONLY snapshot; totals compared to original backup",
+  "totals_match_backup": true
+}

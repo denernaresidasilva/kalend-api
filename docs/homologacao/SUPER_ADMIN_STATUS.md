@@ -113,3 +113,44 @@ O classificador SELECT-only foi confrontado com os 24 casos de backfill em Postg
 As leituras de processos e HTTP confirmaram os quatro endpoints 200 e os PIDs/horários de início anteriores preservados. Não houve mutação remota, mensagem/cobrança, worker manual, alteração de SSH/sudoers/systemd, backup, migration, push ou deploy. Login/tenants/ciclo financeiro/comunicação não foram apresentados como homologação da candidata ausente em DEV. BUG-01 continua aberto e foi solicitado o identificador QA/perfil afetado, sem pedir credenciais.
 
 **Decisão permanece SUPER ADMIN BLOQUEADO.** Próxima autorização necessária: intervenção administrativa estritamente delimitada nos arquivos preparados para retirar o caminho CloudPanel apenas das identidades DEV e prover o comando fixo de auditoria. Depois classificar o legado, criar/restaurar backup protegido e revisar a ativação antes de qualquer publicação. Essa necessidade vem das Fases 3–5 da tarefa atual. Os demais painéis não foram iniciados.
+
+
+## Auditoria financeira real e backup recuperável — 23/10/2026
+
+**Concluídos dois gates antes pendentes:** classificação REAL de kalend_dev e
+backup consistente com restauração integral comprovada. Evidências sanitizadas:
+[evidencias/2026-10-23-financeiro-real/resumo.json](evidencias/2026-10-23-financeiro-real/resumo.json).
+
+Snapshot 00000004-00004F07-1, coletado em 2026-10-23T20:06:23.334833+00:00: 7 assinaturas e 5 pagamentos.
+1 assinatura com direito pago a importar; 6 sem direito comprovado a importar.
+1 pagamento elegível; 4 não aprovados sem prova. Zero classificações ambíguas,
+zero reviews e guard de backfill não bloquearia. Nenhum grant administrativo
+inferido; nenhum estorno/refund/duplicidade sinalizado. Não se concede acesso aos
+registros sem prova. A validade da classificação é do snapshot, não permanente.
+
+Backup: /root/kalend-dev-finance-20261023-ze8nv5eg/kalend_dev.dump (321916 bytes), privado 0600 sob 0700.
+SHA256: c6be1c513457995495a236ef54230e0163e33d2faacaef4df71c295505da6c09.
+Manifesto, classificador e dump usaram o MESMO snapshot REPEATABLE READ READ ONLY.
+SQL source: proprietário existente kalend, NOSUPERUSER via peer, -d kalend_dev
+explícito. Não se criaram roles nem se alteraram permissões. Essa identidade tem
+capacidade ampla e não passa a ser credencial isolada de CI/deploy.
+
+Restore local de dados reais, fora do Git e dentro de sandbox sem rede/sem paths
+HOME/projeto/SSH/sockets reais: PostgreSQL 16.15, NOSUPERUSER, 27 tabelas com todas
+as contagens/fingerprints iguais, 53 constraints, 84 índices, funções e ledger
+iguais; 24 FKs sem órfãos. Sem sequences. Owner/ACL preservados no dump original,
+owner mapeado apenas no teste isolado; cluster local encerrado. A primeira tentativa
+falhou antes de restore por mount /bin ausente; nova tentativa local corrigida
+aprovou, com logs privados preservados.
+
+18 migrations aplicadas coincidem com hashes locais; migration financeira pendente,
+PaymentEvidence/SubscriptionEntitlement ausentes. **Nenhuma migration foi aplicada**
+no DEV ou na cópia nesta tarefa. Modelos/classificador/migration foram confrontados;
+o ensaio de DDL/locks da cópia e a autorização operacional continuam pendentes.
+A migration não está liberada para execução automática pelo pipeline atual.
+
+A autorização desta tarefa permitiu APENAS arquivos novos no diretório privado
+remoto de backup/evidências. Nenhum dado comercial foi alterado; nenhuma configuração,
+conta, role, serviço, timer ou outro sistema foi modificado. Não houve push/deploy.
+Não se repetiram suites funcionais financeiras já aprovadas. Os bloqueios de acesso
+CI/release, migration autorizada e jornadas reais da candidata permanecem.
