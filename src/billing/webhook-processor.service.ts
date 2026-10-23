@@ -1,4 +1,7 @@
-import { retryableBillingConflict } from './transaction-conflict.js';
+import {
+  retryableBillingConflict,
+  withBillingConflictRetry,
+} from './transaction-conflict.js';
 import {
   Inject,
   BadRequestException,
@@ -146,23 +149,27 @@ export class WebhookProcessor {
             ? { externalRefundId: event.externalRefundId }
             : {}),
         };
-    const row = await this.prisma.webhookEvent.upsert({
-      where: {
-        gateway_environment_externalEventId: {
+    // Empty-update upserts may use a read/create path and race on the unique key.
+    // Retry registration before the transaction, then claim the one persisted event.
+    const row = await withBillingConflictRetry(() =>
+      this.prisma.webhookEvent.upsert({
+        where: {
+          gateway_environment_externalEventId: {
+            gateway,
+            environment: event.environment,
+            externalEventId: event.eventId,
+          },
+        },
+        update: {},
+        create: {
           gateway,
           environment: event.environment,
           externalEventId: event.eventId,
+          eventType: event.type,
+          payload,
         },
-      },
-      update: {},
-      create: {
-        gateway,
-        environment: event.environment,
-        externalEventId: event.eventId,
-        eventType: event.type,
-        payload,
-      },
-    });
+      }),
+    );
     if (row.status === 'PROCESSED' || row.status === 'IGNORED')
       return { id: row.id, status: row.status, duplicate: true };
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -190,11 +197,7 @@ export class WebhookProcessor {
           { isolationLevel: 'Serializable' },
         );
       } catch (error) {
-        if (
-          retryableBillingConflict(error) &&
-          attempt < 2
-        )
-          continue;
+        if (retryableBillingConflict(error) && attempt < 2) continue;
         await this.prisma.webhookEvent.updateMany({
           where: { id: row.id, status: { in: ['RECEIVED', 'FAILED'] } },
           data: {
