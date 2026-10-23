@@ -1,0 +1,9 @@
+{
+  "src/billing/webhook-processor.service.ts": "35e3e15f95c0d91f421791893d219fb18ef676559c630a732fcab96b1220c752",
+  "src/billing/webhook-registration.spec.ts": "e9fc9464c550a08691e67ff20555d04bf082fe9d54a89c776942d2ffe7b9dae9",
+  "prisma/schema.prisma": "fecafcba0935c52f61ff96ac2b2bba1ea5fd0eef1ef2c6928238da8db65556f8",
+  "prisma/migrations/20261017090000_subscription_entitlement_evidence/migration.sql": "90ecbea69fa323806ccf7e39f73e03e5b544ac958684662808f0503cb2c4e1e6",
+  "scripts/rehearse-dev-migration.py": "8ee449af8cc80e950c5ea75e5919e3d9e369ecd32629a4df93a73b41afb585ec",
+  "scripts/rehearsal/migration-sandbox.py": "245434c2f03cf86d20f92dd8dae8aec96354145ea554759069609214cab2253f",
+  "scripts/rehearsal/candidate-probe.mjs": "ff3287768a43acdac8fd9a5123ccf2b3506fd5815aaf78e02378304c66f3922b"
+}

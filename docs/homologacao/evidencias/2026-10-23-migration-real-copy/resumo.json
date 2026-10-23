@@ -1,0 +1,271 @@
+{
+  "date": "2026-10-23",
+  "action": "ENSAIO FINAL PAYMENTEVIDENCE E PRE-RELEASE DEV",
+  "api_initial_head": "dae83eabe2d38d8072752fda1d98b4a0d3fda494",
+  "web_head": "5c7bf8c792050cb9ed9d69a4dd73c2062bc5f326",
+  "branch": "develop",
+  "backup_sha256": "c6be1c513457995495a236ef54230e0163e33d2faacaef4df71c295505da6c09",
+  "migration_sha256": "90ecbea69fa323806ccf7e39f73e03e5b544ac958684662808f0503cb2c4e1e6",
+  "snapshot_integrity_verified": true,
+  "schema_before": {
+    "tables": 27,
+    "constraints": 53,
+    "indexes": 84,
+    "completed_migrations": 18
+  },
+  "schema_after": {
+    "tables": 29,
+    "constraints": 69,
+    "indexes": 92,
+    "completed_migrations": 19,
+    "invalid_constraints": 0,
+    "invalid_indexes": 0
+  },
+  "finance": {
+    "evidence": 1,
+    "applied": 1,
+    "entitlements": 1,
+    "admin_grants": 0,
+    "subscriptions_with_right": 1,
+    "subscriptions_without_right": 6,
+    "unproven_evidence": 0,
+    "valid_period_coverage": 1,
+    "tables": 29,
+    "constraints": 69,
+    "invalid_constraints": 0,
+    "indexes": 92,
+    "invalid_indexes": 0
+  },
+  "existing_data": "26 preexisting application tables unchanged by full row fingerprints; original 18 ledger entries unchanged plus one successful migration",
+  "migration_engine_wall_ms": 649.985,
+  "raw_sql_success_wall_ms": 31.195,
+  "prisma_second_deploy_ms": 633.31,
+  "lock_summary": {
+    "existing_tables_share_row_exclusive": [
+      "Company",
+      "Payment",
+      "Subscription",
+      "User"
+    ],
+    "access_exclusive_on_new_objects": true,
+    "read_during_precommit_ms": 8.181,
+    "write_lock_timeout_observed": true,
+    "timeouts": [
+      {
+        "scenario": "lock_timeout",
+        "sqlstate": "55P03",
+        "wall_ms": 218.886,
+        "holder_pid": 403,
+        "complete_rollback_verified": true,
+        "retry_success_ms": 31.918
+      },
+      {
+        "scenario": "statement_timeout",
+        "sqlstate": "57014",
+        "wall_ms": 214.97,
+        "holder_pid": 527,
+        "complete_rollback_verified": true,
+        "retry_success_ms": 30.001
+      }
+    ],
+    "cancel_before_commit_complete_rollback": true,
+    "prisma_failed_ledger_and_p3009_recovery_verified": true,
+    "prisma_error_diagnostic": "lock timeout confirmed in private server log; CLI reported transaction-aborted symptom; failed ledger inspected before resolve",
+    "production_duration_estimate": "not inferred from sandbox; maintenance window recommended"
+  },
+  "candidate_api": {
+    "candidateServicesUsed": true,
+    "prismaCrud": true,
+    "noAppBootstrap": true,
+    "noWorkers": true,
+    "providerCalls": 0,
+    "tests": [
+      {
+        "name": "real_backfill_candidate_policy_1_paid_6_without_paid_right_trial_not_misclassified",
+        "passed": true
+      },
+      {
+        "name": "initial_FAILED_cannot_grant_grace_or_access",
+        "passed": true
+      },
+      {
+        "name": "initial_OVERDUE_cannot_grant_grace_or_access",
+        "passed": true
+      },
+      {
+        "name": "concurrent_duplicate_webhooks_and_overlapping_proofs_do_not_multiply_periods",
+        "passed": true
+      },
+      {
+        "name": "tenant_cross_scope_evidence_mutation_rejected",
+        "passed": true
+      },
+      {
+        "name": "partial_refund_full_refund_suspension_and_new_payment_reactivation",
+        "passed": true
+      },
+      {
+        "name": "chargeback_removes_remaining_paid_access",
+        "passed": true
+      },
+      {
+        "name": "explicit_admin_grant_survives_refund_concurrent_revocation_removes_it",
+        "passed": true
+      },
+      {
+        "name": "legitimate_paid_grace_and_administrative_block",
+        "passed": true
+      },
+      {
+        "name": "candidate_verified_cancellation_revokes_access",
+        "passed": true
+      },
+      {
+        "name": "independent_native_backends_with_observed_for_update_wait",
+        "passed": true
+      }
+    ],
+    "nativeBackendPids": [
+      1275,
+      1276
+    ]
+  },
+  "tests": {
+    "unit": {
+      "numTotalTests": 881,
+      "numPassedTests": 881,
+      "numFailedTests": 0,
+      "success": true
+    },
+    "e2e": {
+      "numTotalTests": 251,
+      "numPassedTests": 251,
+      "numFailedTests": 0,
+      "success": true
+    },
+    "regression_before": {
+      "numTotalTests": 3,
+      "numPassedTests": 1,
+      "numFailedTests": 2,
+      "success": false,
+      "assertions": [
+        {
+          "name": "recovers a registration unique conflict by re-reading the existing event",
+          "status": "failed"
+        },
+        {
+          "name": "stops after three failed registration attempts without processing a payment",
+          "status": "failed"
+        },
+        {
+          "name": "does not retry unrelated registration errors",
+          "status": "passed"
+        }
+      ]
+    },
+    "regression_after": {
+      "numTotalTests": 13,
+      "numPassedTests": 13,
+      "numFailedTests": 0,
+      "success": true,
+      "assertions": [
+        {
+          "name": "keeps bounded retry support for P2002",
+          "status": "passed"
+        },
+        {
+          "name": "keeps bounded retry support for P2034",
+          "status": "passed"
+        },
+        {
+          "name": "recognizes native raw-query SQLSTATE 40001",
+          "status": "passed"
+        },
+        {
+          "name": "recognizes native raw-query SQLSTATE 40P01",
+          "status": "passed"
+        },
+        {
+          "name": "does not retry unrelated SQLSTATE 23503",
+          "status": "passed"
+        },
+        {
+          "name": "does not retry unrelated SQLSTATE 42501",
+          "status": "passed"
+        },
+        {
+          "name": "does not retry unrelated SQLSTATE 42601",
+          "status": "passed"
+        },
+        {
+          "name": "does not retry unrelated SQLSTATE 08006",
+          "status": "passed"
+        },
+        {
+          "name": "rejects unknown errors and spoofed adapter conflict labels",
+          "status": "passed"
+        },
+        {
+          "name": "retries the entire operation at most three times",
+          "status": "passed"
+        },
+        {
+          "name": "recovers a registration unique conflict by re-reading the existing event",
+          "status": "passed"
+        },
+        {
+          "name": "stops after three failed registration attempts without processing a payment",
+          "status": "passed"
+        },
+        {
+          "name": "does not retry unrelated registration errors",
+          "status": "passed"
+        }
+      ]
+    }
+  },
+  "build": "passed",
+  "lint": "passed",
+  "typecheck": "passed",
+  "prisma_validate": "passed inside sandbox, explicit datasource, no private .env",
+  "new_bug": {
+    "id": "SA-08",
+    "severity": "P1",
+    "cause": "empty-update WebhookEvent upsert may race on compound unique key before transaction retry",
+    "reproduced": "native candidate services on migrated real snapshot returned P2002; deterministic regressions failed before fix",
+    "fix": "bounded registration retry using existing withBillingConflictRetry; no provider action in retry",
+    "status": "fixed locally; not published"
+  },
+  "harness_adjustments": [
+    "private /tmp mount required by Prisma CLI",
+    "synthetic contract periods use nextPeriod, not fixed 30 days",
+    "grace fixture first persists approved paid frontier and then advances observation time",
+    "administrative block uses real enum DISABLED"
+  ],
+  "initial_unit_environment_attempt": {
+    "passed": 847,
+    "failed": 34,
+    "reason": "inert DATABASE_URL with unrecognized DB name conflicted with Evolution environment guard",
+    "correction": "unset DATABASE_URL/BILLING_PUBLIC_API_URL; DOTENV_CONFIG_PATH=/dev/null; final full suite passed without changing guards"
+  },
+  "source_code_corrections": [
+    "src/billing/webhook-processor.service.ts",
+    "src/billing/webhook-registration.spec.ts"
+  ],
+  "scope": "local namespace sandbox only; no remote connections this task",
+  "provider_calls": 0,
+  "real_migration": false,
+  "push": false,
+  "deploy": false,
+  "migration_technical_verdict": "APTA PARA RELEASE DEV CONTROLADA, subject to unresolved operational gates; not authorization to execute",
+  "operational_isolation": "NOT PROVEN; historical CloudPanel escalation and shared SQL owner remain; no remote changes allowed",
+  "remaining": [
+    "restricted runtime/deploy/migration identities proven effective",
+    "unsafe develop auto-deploy disabled through authorized GitHub administration before push",
+    "fresh financial snapshot and backup immediately before DDL",
+    "approved maintenance window, recovery channel and explicit migration/activation authorization",
+    "real DEV authenticated/sandbox/communication/browser acceptance after publication"
+  ],
+  "api_fix_commit": "ff1865537f8633d661b47f76e9864f3ec4a9cbc6",
+  "real_worker_runs": 0
+}

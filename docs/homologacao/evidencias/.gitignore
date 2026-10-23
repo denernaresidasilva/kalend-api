@@ -35,3 +35,10 @@
 !2026-10-23-financeiro-real/migration-review.json
 !2026-10-23-financeiro-real/remote-file-verification.json
 !2026-10-23-financeiro-real/preservation.json
+
+!2026-10-23-migration-real-copy/
+2026-10-23-migration-real-copy/*
+!2026-10-23-migration-real-copy/README.md
+!2026-10-23-migration-real-copy/resumo.json
+!2026-10-23-migration-real-copy/rehearsal.json
+!2026-10-23-migration-real-copy/candidate-hashes.json

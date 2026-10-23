@@ -154,3 +154,42 @@ remoto de backup/evidências. Nenhum dado comercial foi alterado; nenhuma config
 conta, role, serviço, timer ou outro sistema foi modificado. Não houve push/deploy.
 Não se repetiram suites funcionais financeiras já aprovadas. Os bloqueios de acesso
 CI/release, migration autorizada e jornadas reais da candidata permanecem.
+
+
+## Ensaio final sobre cópia real — 23/10/2026
+
+**Migration tecnicamente APTA para release DEV controlada; publicação operacional
+continua BLOQUEADA.** Ver [plano final](RELEASE_PAYMENTEVIDENCE_CONTROLADA.md) e
+[evidências](evidencias/2026-10-23-migration-real-copy/resumo.json).
+
+Prisma aplicou a migration em clone fiel do snapshot privado, NOSUPERUSER, sem rede
+externa/apps/workers. Ledger passou de 18 para 19, checksum correto; segunda execução
+sem alterações. Schema: 27 -> 29 tabelas, 53 -> 69 constraints, 84 -> 92 índices,
+zero inválidos. Dados das 26 tabelas antigas de aplicação e 18 entradas originais
+do ledger preservados por fingerprints. Backfill: 1 PaymentEvidence APPLIED,
+1 entitlement PAYMENT, 6 assinaturas sem direito pago, 0 ADMIN_GRANT inventado.
+
+Wall local Prisma ~0,65s, SQL separado ~31ms; não é estimativa de duração DEV.
+Locks existentes ShareRowExclusive bloquearam DML enquanto leitura simples passou.
+Timeouts 55P03/57014 e cancelamento pré-COMMIT reverteram dados/DDL/funções; retries
+após rollback comprovado passaram. Caso Prisma real deixou ledger falhado e P3009;
+resolve --rolled-back só foi usado NO SANDBOX após comprovar rollback. Janela DEV
+controlada é necessária, sem API antiga processando pagamentos após schema novo.
+
+**SA-08 P1 corrigido localmente:** cadastro inicial concorrente de webhook podia
+lançar P2002 antes do retry transacional. Registro agora usa retry limitado existente,
+sem repetir chamadas de provedor. Commit ff1865537f8633d661b47f76e9864f3ec4a9cbc6.
+Três regressões novas; 881/881 unitários API e 251/251 E2E atuais; build/lint/typecheck
+e Prisma validate aprovados. 11 grupos dirigidos com serviços candidatos no schema
+migrado passaram (GRACE, estornos/refunds, grant/revogação, recuperação, cancelamento,
+tenant e concorrência). Sem bootstrap da aplicação, HTTP real ou provedor externo.
+Resultados Web/Playwright seguem históricos; não houve mudança Web.
+
+Falhas de harness/fixtures e primeira execução unitária com URL inerte incompatível
+foram registradas; corrigiu-se o ambiente/fixture, não o guard ou regra comercial.
+Migration SQL/modelo não foram alterados para obter aprovação. Sem conexão remota,
+migration real, push, deploy, alteração PROD ou outros sistemas nesta tarefa.
+
+Restam isolamento CloudPanel/runtime e SQL proprietário DEV/PROD, pipeline automático
+inseguro, recuperação/janela/autorização e revalidação do snapshot antes do DDL real.
+Não instalar auditor como etapa artificial para repetir evidências já obtidas.

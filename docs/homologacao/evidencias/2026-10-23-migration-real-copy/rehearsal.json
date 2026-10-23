@@ -1,0 +1,593 @@
+{
+  "scope": "LOCAL_PRIVATE_NETWORK_NAMESPACE_ONLY",
+  "source_dump_sha256": "c6be1c513457995495a236ef54230e0163e33d2faacaef4df71c295505da6c09",
+  "sql_role_superuser": false,
+  "tests": {
+    "prisma_ledger_exactly_one_completed_migration": true,
+    "prisma_second_deploy_no_changes": true,
+    "prisma_failed_ledger_blocks_retry_until_verified_rollback_and_resolve": true,
+    "write_waits_while_existing_reads_continue": true,
+    "cancel_before_commit_rolls_back_all_ddl_and_financial_data": true,
+    "retry_after_cancel_succeeds": true,
+    "raw_sql_replay_rejected_without_duplicate_rights": true
+  },
+  "original_snapshot_restored_and_fingerprints_match": true,
+  "prisma_validate_ms": 704.382,
+  "migration_engine_wall_ms": 649.985,
+  "finance": {
+    "evidence": 1,
+    "applied": 1,
+    "entitlements": 1,
+    "admin_grants": 0,
+    "subscriptions_with_right": 1,
+    "subscriptions_without_right": 6,
+    "unproven_evidence": 0,
+    "valid_period_coverage": 1,
+    "tables": 29,
+    "constraints": 69,
+    "invalid_constraints": 0,
+    "indexes": 92,
+    "invalid_indexes": 0
+  },
+  "prisma_second_deploy_ms": 633.31,
+  "timeouts": [
+    {
+      "scenario": "lock_timeout",
+      "sqlstate": "55P03",
+      "wall_ms": 218.886,
+      "holder_pid": 403,
+      "complete_rollback_verified": true,
+      "retry_success_ms": 31.918
+    },
+    {
+      "scenario": "statement_timeout",
+      "sqlstate": "57014",
+      "wall_ms": 214.97,
+      "holder_pid": 527,
+      "complete_rollback_verified": true,
+      "retry_success_ms": 30.001
+    }
+  ],
+  "prisma_failure_diagnostic": "lock timeout confirmed in private server log; CLI reported transaction-aborted symptom; failed ledger inspected before resolve",
+  "migration_locks": [
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Company\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Company\""
+    },
+    {
+      "type": "relation",
+      "mode": "ShareRowExclusiveLock",
+      "granted": true,
+      "relation": "\"Company\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Payment\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Payment\""
+    },
+    {
+      "type": "relation",
+      "mode": "ShareRowExclusiveLock",
+      "granted": true,
+      "relation": "\"Payment\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Subscription\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Subscription\""
+    },
+    {
+      "type": "relation",
+      "mode": "ShareRowExclusiveLock",
+      "granted": true,
+      "relation": "\"Subscription\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"User\""
+    },
+    {
+      "type": "relation",
+      "mode": "ShareRowExclusiveLock",
+      "granted": true,
+      "relation": "\"User\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Company_pkey\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Company_pkey\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Payment_pkey\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Payment_pkey\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Subscription_pkey\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Subscription_pkey\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"User_pkey\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Company_slug_key\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Payment_companyId_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Payment_companyId_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Payment_externalPaymentId_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Payment_externalPaymentId_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Payment_gateway_environment_externalPaymentId_key\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Payment_gateway_environment_externalPaymentId_key\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Payment_gateway_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Payment_gateway_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Payment_idempotencyKey_key\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Payment_idempotencyKey_key\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Payment_status_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Payment_status_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Payment_subscriptionId_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Payment_subscriptionId_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Subscription_companyId_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Subscription_companyId_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Subscription_externalSubscriptionId_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Subscription_externalSubscriptionId_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Subscription_gateway_environment_externalSubscriptionId_key\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Subscription_gateway_environment_externalSubscriptionId_key\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Subscription_planId_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Subscription_planId_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "\"Subscription_status_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "\"Subscription_status_idx\""
+    },
+    {
+      "type": "relation",
+      "mode": "AccessExclusiveLock",
+      "granted": true,
+      "relation": "17593"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "17593"
+    },
+    {
+      "type": "relation",
+      "mode": "RowExclusiveLock",
+      "granted": true,
+      "relation": "17593"
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "17593"
+    },
+    {
+      "type": "relation",
+      "mode": "ShareLock",
+      "granted": true,
+      "relation": "17593"
+    },
+    {
+      "type": "relation",
+      "mode": "ShareRowExclusiveLock",
+      "granted": true,
+      "relation": "17593"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessExclusiveLock",
+      "granted": true,
+      "relation": "17603"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "17603"
+    },
+    {
+      "type": "relation",
+      "mode": "RowExclusiveLock",
+      "granted": true,
+      "relation": "17603"
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "17603"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessExclusiveLock",
+      "granted": true,
+      "relation": "17620"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "17620"
+    },
+    {
+      "type": "relation",
+      "mode": "RowExclusiveLock",
+      "granted": true,
+      "relation": "17620"
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "17620"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessExclusiveLock",
+      "granted": true,
+      "relation": "17621"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "17621"
+    },
+    {
+      "type": "relation",
+      "mode": "RowExclusiveLock",
+      "granted": true,
+      "relation": "17621"
+    },
+    {
+      "type": "relation",
+      "mode": "RowShareLock",
+      "granted": true,
+      "relation": "17621"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessExclusiveLock",
+      "granted": true,
+      "relation": "17622"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "17622"
+    },
+    {
+      "type": "relation",
+      "mode": "RowExclusiveLock",
+      "granted": true,
+      "relation": "17622"
+    },
+    {
+      "type": "relation",
+      "mode": "ShareLock",
+      "granted": true,
+      "relation": "17622"
+    },
+    {
+      "type": "relation",
+      "mode": "ShareRowExclusiveLock",
+      "granted": true,
+      "relation": "17622"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessExclusiveLock",
+      "granted": true,
+      "relation": "17631"
+    },
+    {
+      "type": "relation",
+      "mode": "ShareLock",
+      "granted": true,
+      "relation": "17631"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessExclusiveLock",
+      "granted": true,
+      "relation": "17632"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessExclusiveLock",
+      "granted": true,
+      "relation": "17633"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "17633"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessExclusiveLock",
+      "granted": true,
+      "relation": "17635"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "17635"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessExclusiveLock",
+      "granted": true,
+      "relation": "17657"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "17657"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessExclusiveLock",
+      "granted": true,
+      "relation": "17658"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "17658"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessExclusiveLock",
+      "granted": true,
+      "relation": "17659"
+    },
+    {
+      "type": "relation",
+      "mode": "AccessShareLock",
+      "granted": true,
+      "relation": "17659"
+    }
+  ],
+  "read_during_precommit_wall_ms": 8.181,
+  "raw_sql_retry_wall_ms": 31.195,
+  "candidate_api": {
+    "candidateServicesUsed": true,
+    "prismaCrud": true,
+    "noAppBootstrap": true,
+    "noWorkers": true,
+    "providerCalls": 0,
+    "tests": [
+      {
+        "name": "real_backfill_candidate_policy_1_paid_6_without_paid_right_trial_not_misclassified",
+        "passed": true
+      },
+      {
+        "name": "initial_FAILED_cannot_grant_grace_or_access",
+        "passed": true
+      },
+      {
+        "name": "initial_OVERDUE_cannot_grant_grace_or_access",
+        "passed": true
+      },
+      {
+        "name": "concurrent_duplicate_webhooks_and_overlapping_proofs_do_not_multiply_periods",
+        "passed": true
+      },
+      {
+        "name": "tenant_cross_scope_evidence_mutation_rejected",
+        "passed": true
+      },
+      {
+        "name": "partial_refund_full_refund_suspension_and_new_payment_reactivation",
+        "passed": true
+      },
+      {
+        "name": "chargeback_removes_remaining_paid_access",
+        "passed": true
+      },
+      {
+        "name": "explicit_admin_grant_survives_refund_concurrent_revocation_removes_it",
+        "passed": true
+      },
+      {
+        "name": "legitimate_paid_grace_and_administrative_block",
+        "passed": true
+      },
+      {
+        "name": "candidate_verified_cancellation_revokes_access",
+        "passed": true
+      },
+      {
+        "name": "independent_native_backends_with_observed_for_update_wait",
+        "passed": true
+      }
+    ],
+    "nativeBackendPids": [
+      1275,
+      1276
+    ]
+  },
+  "postgres": "postgres (PostgreSQL) 16.15 (Debian 16.15-1.pgdg12+2)",
+  "migration_sha256": "90ecbea69fa323806ccf7e39f73e03e5b544ac958684662808f0503cb2c4e1e6",
+  "no_external_routes": true,
+  "source_legacy_copy_untouched": true,
+  "cluster_stopped": true,
+  "private_work_directory": "/home/guest/kalend-private-migration-v0kdxxkj"
+}
