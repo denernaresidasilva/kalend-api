@@ -1,0 +1,49 @@
+{
+  "hostname": "srv1119527",
+  "scope": "read-only metadata; no remote admin writes",
+  "nft_path": "/usr/sbin/nft",
+  "nft_version": "1.0.9",
+  "dev_uids": {
+    "kalend-dev": 1021,
+    "kalend-api-dev": 1022
+  },
+  "prod_uids": {
+    "kalend": 1019,
+    "kalend-api": 1020
+  },
+  "dev_subuid_ranges": {
+    "kalend-dev": [
+      1148576,
+      65536
+    ],
+    "kalend-api-dev": [
+      1214112,
+      65536
+    ]
+  },
+  "subgid_same_ranges": true,
+  "overlap_with_other_accounts": false,
+  "migrator_os_identity": "absent",
+  "api_env_uses_shared_sql_role": true,
+  "dev_pm2_dump_apps": {
+    "kalend-dev": [
+      "kalend-web-dev"
+    ],
+    "kalend-api-dev": [
+      "kalend-api-dev"
+    ]
+  },
+  "pm2_controls": {
+    "max_restarts": 1,
+    "min_uptime": 60000,
+    "watch": false,
+    "api_direct_node": true,
+    "web_npm_start": true
+  },
+  "ufw": "active/enabled",
+  "nftables_service": "inactive/disabled",
+  "dev_pm2_units": "enabled but inactive; live daemons outside these units",
+  "communication_timer": "active/enabled; runs every minute; service inactive when observed",
+  "private_credential_scope_review": "unverified: no comparable auth/encryption fields located in the intersected .env files; no values/hashes printed",
+  "new_netfilter_table_installed": false
+}

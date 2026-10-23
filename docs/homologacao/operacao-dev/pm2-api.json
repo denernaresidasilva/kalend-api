@@ -1,0 +1,23 @@
+{
+  "apps": [
+    {
+      "name": "kalend-api-dev",
+      "cwd": "/home/kalend-api-dev/htdocs/api-dev.kalend.tech/app",
+      "script": "/home/kalend-api-dev/htdocs/api-dev.kalend.tech/app/dist/main.js",
+      "interpreter": "/home/kalend-api-dev/.nvm/versions/node/v24.21.0/bin/node",
+      "args": [],
+      "node_args": [],
+      "exec_mode": "fork",
+      "max_restarts": 1,
+      "min_uptime": 60000,
+      "autorestart": true,
+      "watch": false,
+      "env": {
+        "NODE_ENV": "production",
+        "PORT": "3003",
+        "PATH": "/home/kalend-api-dev/.nvm/versions/node/v24.21.0/bin/:/usr/bin:/bin",
+        "DATABASE_URL": "postgresql://kalend_dev_runtime@localhost:5432/kalend_dev?host=%2Fvar%2Frun%2Fpostgresql"
+      }
+    }
+  ]
+}

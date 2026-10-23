@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-23",
+  "action": "PREPARACAO EXECUTAVEL DA RELEASE DEV",
+  "application_versions": {
+    "api": "db182667ca565bdb18370dc1c209d129e6e139a0",
+    "web": "5c7bf8c792050cb9ed9d69a4dd73c2062bc5f326"
+  },
+  "chosen": "A bounded permanent identity/SQL isolation, then supervised publication without CI SSH",
+  "rejected_shortcut": "B does not remove privileged runtime/legacy SQL credential reachability; requires same controls or larger sandbox/proxy redesign",
+  "concrete_controls": [
+    "specific sudo !ALL for DEV actors only after accepted CloudPanel inventory",
+    "dedicated nonlogin migrator OS identity, no SSH key",
+    "NOSUPERUSER DEV-only SQL owner/migrator and runtime roles",
+    "peer HBA/ident exact OS-to-SQL mapping; reject other DB and TCP for new roles",
+    "dedicated nft output TCP5432 reject for DEV UIDs and subordinate ranges; no ruleset flush",
+    "dedicated fence service and only DEV PM2/worker drop-ins",
+    "manual/inert workflows without secrets/SSH or automatic events",
+    "nonroot fixed-path promotion; prior artifact retained; no service/database side effects"
+  ],
+  "tests": {
+    "unit_groups_passed": 18,
+    "native_network_checks": 5,
+    "native_sql_checks": 11,
+    "financial_suites_repeated": false,
+    "sudoers_parser": "passed",
+    "systemd_verify": "passed",
+    "workflow_yaml_and_shell": "passed; manual only; hostile refs rejected",
+    "shell_blocks": 11,
+    "current_gate_cli": "expected BLOCKED; no commands executed",
+    "fixed_prisma_config": "parsed with installed Prisma defineConfig without database connection"
+  },
+  "remote_admin_changes": false,
+  "github_changes": false,
+  "remote_readonly_metadata": true,
+  "no_push": true,
+  "no_deploy": true,
+  "no_real_migration": true,
+  "operational_isolation_current": "NOT APPROVED: proposed controls are not installed",
+  "github_admin_limits": "connector does not expose actions settings, hooks or all app/CI consumers; no gh binary; authenticated owner review required",
+  "remaining_objective_controls": [
+    "accepted CloudPanel per-user dependency inventory",
+    "owner inventory/pause of repository Actions, webhooks, Apps and external CI",
+    "live fence/peer/sudo validation including UFW preservation; existing PM2 daemons not covered by inactive unit drop-ins alone",
+    "private DEV-only runtime credential review and independent recovery proof",
+    "fresh backup and legacy revalidation in approved window"
+  ],
+  "package_purpose": "single scoped proposal for human authorization with mandatory abort gates; NOT a live deployment permission",
+  "production_modified": false
+}

@@ -1,0 +1,24 @@
+{
+  "apps": [
+    {
+      "name": "kalend-web-dev",
+      "cwd": "/home/kalend-dev/htdocs/dev.kalend.tech/app",
+      "script": "/home/kalend-dev/.nvm/versions/node/v24.21.0/bin/npm",
+      "interpreter": "/home/kalend-dev/.nvm/versions/node/v24.21.0/bin/node",
+      "args": [
+        "start"
+      ],
+      "node_args": [],
+      "exec_mode": "fork",
+      "max_restarts": 1,
+      "min_uptime": 60000,
+      "autorestart": true,
+      "watch": false,
+      "env": {
+        "NODE_ENV": "production",
+        "PORT": "3002",
+        "PATH": "/home/kalend-dev/.nvm/versions/node/v24.21.0/bin/:/usr/bin:/bin"
+      }
+    }
+  ]
+}

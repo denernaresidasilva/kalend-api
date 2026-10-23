@@ -1,0 +1,48 @@
+{
+  "kalend-api": {
+    "repo": "kalend-api",
+    "default_branch": "main",
+    "workflow_directories": [
+      {
+        "ref": "develop",
+        "paths": [
+          ".github/workflows/deploy-dev.yml"
+        ]
+      },
+      {
+        "ref": "main",
+        "paths": []
+      }
+    ],
+    "total_runs": 29,
+    "returned_runs": 29,
+    "non_completed": [],
+    "hooks_apps_and_actions_permissions": "not exposed by connector administration capabilities",
+    "default_branch_workflows": [],
+    "default_branch_tree_truncated": false,
+    "remote_develop": "b1cc220aafcb1f2fef97c026150795fcd5c88906"
+  },
+  "kalend-web": {
+    "repo": "kalend-web",
+    "default_branch": "main",
+    "workflow_directories": [
+      {
+        "ref": "develop",
+        "paths": [
+          ".github/workflows/deploy-dev.yml"
+        ]
+      },
+      {
+        "ref": "main",
+        "paths": []
+      }
+    ],
+    "total_runs": 22,
+    "returned_runs": 22,
+    "non_completed": [],
+    "hooks_apps_and_actions_permissions": "not exposed by connector administration capabilities",
+    "default_branch_workflows": [],
+    "default_branch_tree_truncated": false,
+    "remote_develop": "4d86829b81737189503eb8b1859477e708dcdb12"
+  }
+}

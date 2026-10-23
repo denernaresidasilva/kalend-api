@@ -1,0 +1,30 @@
+{
+  "database": "kalend_dev",
+  "api_sha": "db182667ca565bdb18370dc1c209d129e6e139a0",
+  "web_sha": "5c7bf8c792050cb9ed9d69a4dd73c2062bc5f326",
+  "cloudpanel_dependencies_accepted": false,
+  "effective_sudo_denied": false,
+  "filesystem_prod_denied": false,
+  "all_uid_aliases_fenced": false,
+  "fence_live_and_persistent": false,
+  "firewall_manager_preserves_fence": false,
+  "peer_roles_verified": false,
+  "old_sql_credentials_cannot_reach_tcp": false,
+  "runtime_credentials_dev_only": false,
+  "github_actions_disabled_both_repos": false,
+  "webhooks_apps_and_external_ci_paused": false,
+  "no_remote_runs_or_deploy_sessions": false,
+  "recovery_independent_verified": false,
+  "worker_timer_in_window_manifest": false,
+  "maintenance_authorized": false,
+  "fresh_backup_restore_verified": false,
+  "fresh_legacy_unambiguous": false,
+  "artifact_hashes_and_versions_verified": true,
+  "scope": "current observations, not an approval; false includes not yet proven",
+  "notes": [
+    "API env still uses shared kalend SQL role",
+    "DEV users have subordinate UID ranges",
+    "UFW active; dedicated fence persistence not installed/tested on VPS",
+    "remote Actions permissions/hooks/Apps are not exposed by connector administration scope"
+  ]
+}

@@ -1,0 +1,11 @@
+[Unit]
+Description=Kalend DEV UID PostgreSQL TCP fence
+After=ufw.service nftables.service
+Before=pm2-kalend-dev.service pm2-kalend-api-dev.service kalend-communication-worker-dev.service
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/nft -f /etc/kalend-dev-release/sql-fence.nft
+RemainAfterExit=yes
+# No ExecStop removing the fence while a daemon may still run outside systemd.
+[Install]
+WantedBy=multi-user.target

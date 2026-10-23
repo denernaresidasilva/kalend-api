@@ -118,3 +118,31 @@ migration real, push, deploy, alteração PROD ou outros sistemas nesta tarefa.
 Restam isolamento CloudPanel/runtime e SQL proprietário DEV/PROD, pipeline automático
 inseguro, recuperação/janela/autorização e revalidação do snapshot antes do DDL real.
 Não instalar auditor como etapa artificial para repetir evidências já obtidas.
+
+
+## Preparação operacional executável — 23/10/2026
+
+Comparadas A/B: escolhida A delimitada, seguida de publicação supervisionada sem
+SSH de CI. B não elimina o risco do runtime sob usuários com sudo CloudPanel ou
+da credencial SQL legada. [Procedimento único](operacao-dev/PROCEDIMENTO_UNICO.md)
+e [evidências](evidencias/2026-10-23-operacao-dev/resumo.json).
+
+Novo controle necessário: API DEV ainda usa role kalend compartilhada; trocar env
+não revoga a credencial antiga. Proposta testada combina deny sudo específico,
+roles DEV/peer, rejeição HBA e fence TCP5432 por UID/sub-UID, preservando PROD.
+Sub-UIDs DEV existem; não podem ser ignorados. nft instalado e UFW ativo; ordem e
+preservação da tabela dedicada são gates reais antes de liberar execução.
+
+Workflows dos dois repositórios convertidos SOMENTE LOCALMENTE em verificadores
+manuais sem SSH/secrets/deploy/migration. Remotos permanecem nos commits antigos;
+Settings/Actions e consumidores externos devem ser pausados por administrador.
+Main sem workflows e fora do escopo; não depender do despacho manual fora da default
+branch. Identidade CI não recebe acesso VPS nesta opção. Build/hooks como conta
+sem role SQL; Prisma como migrador não root/NOSUPERUSER; promoção e PM2 nos UIDs DEV.
+
+18 grupos unitários e 16 verificações nativas de rede/SQL passaram; sem repetir a
+bateria financeira. Gates false/unknown bloqueiam; falhas de acesso, migration,
+inicialização/health e promoção não restauram DB ou iniciam API antiga automaticamente.
+Nenhuma configuração/conta/role/timer/serviço remoto foi alterado, sem push/deploy.
+O pacote permite revisão de uma intervenção delimitada; isolamento operacional
+AINDA NÃO APROVADO enquanto não instalado/verificado e inventários aceitos.

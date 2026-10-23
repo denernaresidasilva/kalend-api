@@ -1,0 +1,28 @@
+{
+  "network_namespace": [
+    "baseline_tcp_fixture_reachable_ipv4_ipv6",
+    "actual_rendered_uid_and_subuid_configuration_parsed",
+    "matching_uid_tcp_rejected_ipv4_ipv6",
+    "unrelated_port_unaffected",
+    "unmatched_uid_unaffected"
+  ],
+  "sql": {
+    "checks": [
+      "wrong_database_guard_transactional_no_role_created",
+      "pre_schema_ownership_rollback_removes_only_new_roles_and_restores_dev_owner",
+      "runtime_no_cluster_privileges",
+      "runtime_app_select_and_update_allowed",
+      "runtime_ddl_setrole_createdb_truncate_rejected",
+      "future_migration_default_privileges_work",
+      "other_database_owner_and_data_unchanged",
+      "migrator_cannot_read_other_database_data",
+      "runtime_peer_dev_allowed",
+      "runtime_other_database_connection_rejected_by_hba",
+      "runtime_os_identity_cannot_authenticate_as_migrator"
+    ],
+    "cluster_stopped": true,
+    "private_fixture_directory": "/tmp/kalend-ops-sql-9ozakmfj",
+    "scope": "synthetic metadata/privileges only; no financial backfill rerun"
+  },
+  "no_remote_operations": true
+}
