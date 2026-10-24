@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-23",
+  "scope": "LOCAL_ONLY_NO_REMOTE_ACCESS",
+  "initial_head": "6251f502d6abaa9f23b0cff81060a72906d5f6a1",
+  "key": {
+    "directory": "root:root 0755",
+    "file": "root:kalend_dev_audit 0640",
+    "group": "exclusive primary group",
+    "validation": "mode/group/ancestor regressions; official OpenSSH 9.6p1 source; no real root-owned key installed"
+  },
+  "acl": {
+    "tests": 22,
+    "passed": 22,
+    "native_default_acl_created_and_detected": true,
+    "tool_dependency": "Python stdlib os.lstat/os.listxattr; fail closed on ACL, capability or query error"
+  },
+  "ssh": {
+    "ssh_syntax": true,
+    "ssh_binary_version": "OpenSSH_9.2, OpenSSL 3.0.14 4 Jun 2024",
+    "controls_unchanged": 12,
+    "audit_settings": {
+      "forcecommand": "/usr/local/libexec/kalend-dev-audit",
+      "authorizedkeysfile": "/etc/ssh/kalend-dev-keys/%u",
+      "disableforwarding": "yes",
+      "permittty": "no",
+      "permituserrc": "no",
+      "passwordauthentication": "no",
+      "kbdinteractiveauthentication": "no",
+      "authenticationmethods": "publickey",
+      "authorizedkeyscommand": "none",
+      "trustedusercakeys": "none",
+      "permituserenvironment": "no"
+    },
+    "sudoers_syntax": true,
+    "sudoers_parsed_last_rule_deny_all": true,
+    "shell_blocks": 14,
+    "scope": "LOCAL_ONLY_NO_SSH_DAEMON_NO_SUDO_EXECUTION; live sudo -l acceptance remains mandatory"
+  },
+  "sql": {
+    "postgres": "16.15",
+    "tests": 1,
+    "passed": 1,
+    "failed": 0,
+    "isolated_cluster": "/tmp/kalend-native-pg-g6x2RW",
+    "cluster_stopped": true,
+    "test_identity_superuser": false,
+    "coverage": [
+      "wrong database transactional rejection",
+      "fixed SELECT classifier",
+      "five privileged role flags false",
+      "NOINHERIT and connection limit",
+      "write denied even when default read_only off",
+      "User read denied",
+      "SET ROLE denied",
+      "schema CREATE denied",
+      "RLS partial result rejected"
+    ]
+  },
+  "lint": "passed",
+  "typecheck": "passed",
+  "git_diff_check": "passed",
+  "initial_attempt": {
+    "result": "test runner startup failed under default Node 18; no assertions ran",
+    "cause": "node:util styleText unavailable",
+    "corrected": "rerun passed with Node 24.21.0; first disposable cluster stopped too"
+  },
+  "functional_api_web_suites": "not repeated: no product changes",
+  "sudo_effective_vps": "NOT TESTED HERE; mandatory sudo -l full policy and wrapper-specific listing before installing access",
+  "recovery_administrative_verified": false,
+  "installation_operationally_authorized": false,
+  "remote_writes": false,
+  "push": false,
+  "deploy": false,
+  "real_migrations": false,
+  "remaining": [
+    "administrative recovery proof",
+    "fresh real VPS prechecks and sudo/SSH/HBA effective-policy acceptance",
+    "operator-reviewed public key and optional origin restriction",
+    "phase B existing DEV isolation remains separate",
+    "shared SQL owner remains separate",
+    "backup/restore/classification/deploy not authorized"
+  ]
+}

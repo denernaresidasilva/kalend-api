@@ -1,0 +1,29 @@
+{
+  "http": {
+    "https://dev.kalend.tech": {
+      "status": "200",
+      "exit": 0
+    },
+    "https://api-dev.kalend.tech/health": {
+      "status": "200",
+      "exit": 0
+    },
+    "https://kalend.tech": {
+      "status": "200",
+      "exit": 0
+    },
+    "https://api.kalend.tech/health": {
+      "status": "200",
+      "exit": 0
+    }
+  },
+  "hashes": {
+    "/etc/ssh/sshd_config": "0816779e89e1a1f4e4ade3f37d276eeb3514e4c0331c5bcddbc56adddcb80f20",
+    "/etc/sudoers": "5bac27ce5ff1a78ace8f3ef81bfd60cbd44810ac3f3d280da9d7649fe90c18f8",
+    "/etc/sudoers.d/cloudpanel": "8b6deb7cb4da3c42312e415ce7b751a839db6ff8d9f49ea59e5e1a1cd0b69547",
+    "/etc/postgresql/16/main/pg_hba.conf": "ad0df9635890926d79a12d5627b68af6b85b6254fa23cace2bbe077838969c9e",
+    "/etc/postgresql/16/main/pg_ident.conf": "b4dfef08731a7d20a3bb724ad4cf3e1cd91ec01fbe51349c6a3acc5704072965"
+  },
+  "processes": "    PID                  STARTED COMMAND\n    788 Fri Oct 16 17:03:43 2026 redis-server\n   1067 Fri Oct 16 17:03:45 2026 postgres\n   1140 Fri Oct 16 17:03:46 2026 dockerd\n   1230 Fri Oct 16 17:03:47 2026 nginx\n   1299 Fri Oct 16 17:03:47 2026 PM2 v7.0.4: God\n   1318 Fri Oct 16 17:03:48 2026 PM2 v7.0.4: God\n2465796 Wed Oct 21 20:31:31 2026 PM2 v7.0.4: God\n2465893 Wed Oct 21 20:31:36 2026 PM2 v7.0.4: God\n2465910 Wed Oct 21 20:31:38 2026 node /home/kale\n",
+  "services": "active\nactive\nactive\nactive\nactive\n"
+}

@@ -1,0 +1,279 @@
+{
+  "hostname": "srv1119527",
+  "syntax": {
+    "existing": {
+      "exit": 0,
+      "stderr": ""
+    },
+    "original_top_dropin": {
+      "exit": 0,
+      "stderr": ""
+    },
+    "corrected_tail_include_equivalent": {
+      "exit": 0,
+      "stderr": ""
+    }
+  },
+  "contexts": {
+    "root@loopback": {
+      "old_exit": 0,
+      "new_exit": 0,
+      "unchanged": true
+    },
+    "root@operator": {
+      "old_exit": 0,
+      "new_exit": 0,
+      "unchanged": true
+    },
+    "clp@loopback": {
+      "old_exit": 0,
+      "new_exit": 0,
+      "unchanged": true
+    },
+    "clp@operator": {
+      "old_exit": 0,
+      "new_exit": 0,
+      "unchanged": true
+    },
+    "kalend@loopback": {
+      "old_exit": 0,
+      "new_exit": 0,
+      "unchanged": true
+    },
+    "kalend@operator": {
+      "old_exit": 0,
+      "new_exit": 0,
+      "unchanged": true
+    },
+    "kalend-api@loopback": {
+      "old_exit": 0,
+      "new_exit": 0,
+      "unchanged": true
+    },
+    "kalend-api@operator": {
+      "old_exit": 0,
+      "new_exit": 0,
+      "unchanged": true
+    },
+    "kalend-dev@loopback": {
+      "old_exit": 0,
+      "new_exit": 0,
+      "unchanged": true
+    },
+    "kalend-dev@operator": {
+      "old_exit": 0,
+      "new_exit": 0,
+      "unchanged": true
+    },
+    "kalend-api-dev@loopback": {
+      "old_exit": 0,
+      "new_exit": 0,
+      "unchanged": true
+    },
+    "kalend-api-dev@operator": {
+      "old_exit": 0,
+      "new_exit": 0,
+      "unchanged": true
+    },
+    "kalend_dev_audit@loopback": {
+      "old_exit": 0,
+      "new_exit": 0,
+      "unchanged": false,
+      "proposed": [
+        "passwordauthentication no",
+        "kbdinteractiveauthentication no",
+        "permittty no",
+        "permituserrc no",
+        "disableforwarding yes",
+        "forcecommand /usr/local/libexec/kalend-dev-audit",
+        "trustedusercakeys none",
+        "authorizedkeyscommand none",
+        "authorizedkeysfile /etc/ssh/kalend-dev-keys/%u",
+        "acceptenv LANG",
+        "acceptenv LC_*",
+        "authenticationmethods publickey",
+        "permituserenvironment no"
+      ]
+    },
+    "kalend_dev_audit@operator": {
+      "old_exit": 0,
+      "new_exit": 0,
+      "unchanged": false,
+      "proposed": [
+        "passwordauthentication no",
+        "kbdinteractiveauthentication no",
+        "permittty no",
+        "permituserrc no",
+        "disableforwarding yes",
+        "forcecommand /usr/local/libexec/kalend-dev-audit",
+        "trustedusercakeys none",
+        "authorizedkeyscommand none",
+        "authorizedkeysfile /etc/ssh/kalend-dev-keys/%u",
+        "acceptenv LANG",
+        "acceptenv LC_*",
+        "authenticationmethods publickey",
+        "permituserenvironment no"
+      ]
+    }
+  },
+  "paths": {
+    "/": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "0o755",
+      "symlink": false,
+      "acl_or_capability": []
+    },
+    "/home": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "0o755",
+      "symlink": false,
+      "acl_or_capability": []
+    },
+    "/usr": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "0o755",
+      "symlink": false,
+      "acl_or_capability": []
+    },
+    "/usr/local": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "0o755",
+      "symlink": false,
+      "acl_or_capability": []
+    },
+    "/usr/local/libexec": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "0o755",
+      "symlink": false,
+      "acl_or_capability": []
+    },
+    "/usr/local/share": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "0o755",
+      "symlink": false,
+      "acl_or_capability": []
+    },
+    "/etc": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "0o755",
+      "symlink": false,
+      "acl_or_capability": []
+    },
+    "/etc/ssh": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "0o755",
+      "symlink": false,
+      "acl_or_capability": []
+    },
+    "/etc/ssh/sshd_config.d": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "0o755",
+      "symlink": false,
+      "acl_or_capability": []
+    },
+    "/etc/sudoers.d": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "0o750",
+      "symlink": false,
+      "acl_or_capability": []
+    },
+    "/usr/lib/postgresql/16/bin/psql": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "0o755",
+      "symlink": false,
+      "acl_or_capability": []
+    },
+    "/etc/postgresql/16/main/pg_hba.conf": {
+      "uid": 119,
+      "gid": 120,
+      "mode": "0o640",
+      "symlink": false,
+      "acl_or_capability": []
+    },
+    "/etc/postgresql/16/main/pg_ident.conf": {
+      "uid": 119,
+      "gid": 120,
+      "mode": "0o640",
+      "symlink": false,
+      "acl_or_capability": []
+    },
+    "/home/kalend_dev_audit": {
+      "absent": true
+    },
+    "/etc/ssh/kalend-dev-keys": {
+      "absent": true
+    },
+    "/etc/ssh/sshd_config.d/90-kalend-audit.conf": {
+      "absent": true
+    },
+    "/etc/ssh/kalend-dev-audit.conf": {
+      "absent": true
+    },
+    "/etc/sudoers.d/zz-kalend-audit-deny": {
+      "absent": true
+    },
+    "/usr/local/libexec/kalend-dev-audit": {
+      "absent": true
+    },
+    "/usr/local/share/kalend-dev-audit": {
+      "absent": true
+    }
+  },
+  "account_absent": true,
+  "group_absent": true,
+  "sudo_policy": {
+    "/etc/sudoers": [
+      "Defaults\tenv_reset",
+      "Defaults\tmail_badpass",
+      "Defaults\tsecure_path=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin\"",
+      "Defaults\tuse_pty",
+      "root\tALL=(ALL:ALL) ALL",
+      "%admin ALL=(ALL) ALL",
+      "%sudo\tALL=(ALL:ALL) ALL",
+      "@includedir /etc/sudoers.d"
+    ],
+    "/etc/sudoers.d/90-cloud-init-users": [
+      "ubuntu ALL=(ALL) NOPASSWD:ALL"
+    ],
+    "/etc/sudoers.d/README": [],
+    "/etc/sudoers.d/cloudpanel": [
+      "Defaults !mail_badpass",
+      "clp ALL=(ALL) NOPASSWD: ALL",
+      "ALL ALL=(ALL) NOPASSWD: /usr/bin/clpctlWrapper"
+    ]
+  },
+  "recovery": {
+    "console_units": "Id=serial-getty@ttyS0.service\nActiveState=active\nSubState=running\n\nId=getty@tty1.service\nActiveState=active\nSubState=running\n",
+    "independent_provider_console_verified": false,
+    "reason": "guest OS cannot attest provider control-plane entitlement or operational login"
+  },
+  "http": {
+    "https://dev.kalend.tech": {
+      "status": "200",
+      "exit": 0
+    },
+    "https://api-dev.kalend.tech/health": {
+      "status": "200",
+      "exit": 0
+    },
+    "https://kalend.tech": {
+      "status": "200",
+      "exit": 0
+    },
+    "https://api.kalend.tech/health": {
+      "status": "200",
+      "exit": 0
+    }
+  }
+}

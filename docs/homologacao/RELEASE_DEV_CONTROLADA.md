@@ -1,3 +1,5 @@
+> Revisão administrativa vigente: [procedimento final](release-controlada/INTERVENCAO_ADMINISTRATIVA.md). Fase A é exclusiva do novo auditor; fase B não pode retirar sudo de contas existentes antes do inventário CloudPanel. Backup/restore e deploy têm gates separados.
+
 # Release DEV candidata — procedimento pendente, não executado
 
 Data: 22/10/2026. Repositórios API e Web em develop. Nenhum push foi feito.
@@ -38,6 +40,24 @@ Antes da troca: cancelar publicação sem afetar os processos atuais. Se a migra
 ## Evidência operacional adicional de 22/10
 
 SSH dos usuários DEV existe, porém eles herdam sudo via wrapper CloudPanel sem allowlist DEV. A intervenção necessária deixou de ser apenas hipotética: os arquivos e comandos estão em [release-controlada/INTERVENCAO_ADMINISTRATIVA.md](release-controlada/INTERVENCAO_ADMINISTRATIVA.md). Nada foi aplicado. Há uma proposta SELECT-only validada nativamente para classificar o legado sem usar root como atalho. A publicação continua condicionada aos 14 gates; backup/restore real e classificação não foram executados.
+
+
+## Correção local do pacote auditor — 23/10/2026
+
+Corrigida a chave pública central para root:kalend_dev_audit 0640, grupo exclusivo,
+com diretório root:root 0755. Substituída a dependência de getfacl por lstat/listxattr
+com recusa de qualquer ACL/capability e de erros de consulta; symlinks e ancestrais
+inseguros bloqueiam. Ver procedimento revisado e evidências em
+[evidencias/2026-10-23-pacote-auditor/resumo.json](evidencias/2026-10-23-pacote-auditor/resumo.json).
+A recuperação administrativa real NÃO foi comprovada. Pré-checks operacionais e
+sshd/sudo/HBA efetivos continuam obrigatórios imediatamente antes da instalação.
+Contas DEV com caminho CloudPanel e proprietário SQL kalend compartilhado entre
+DEV/PROD continuam riscos separados; esta correção não modifica essas identidades.
+Nenhum acesso/intervenção VPS, push, deploy ou migration real nesta execução.
+Os estados funcionais dos 72 grupos e os bloqueios de homologação permanecem.
+
+
+Preflight remoto somente leitura de 23/10: parser OpenSSH 9.6p1 aceitou proposta em memória, contextos não alvo preservados; sudo/HBA e paths compatíveis. Recuperação independente e chave definitiva não comprovadas. Fase A NÃO liberada. Ver [plano consolidado](release-controlada/PREFLIGHT_FASE_A_2026-10-23.md). Nenhuma instalação/reload ou teste financeiro nesta etapa.
 
 
 ## Auditoria financeira real e backup recuperável — 23/10/2026

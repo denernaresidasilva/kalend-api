@@ -1,0 +1,92 @@
+{
+  "updated_utc": "2026-10-22T19:51:17.813362+00:00",
+  "original_plan": "REQUIRES_CORRECTIONS",
+  "decision": "READY_FOR_SPECIFIC_PHASE_A_AUTHORIZATION_ONLY",
+  "phase_b": "BLOCKED_PENDING_CLOUDPANEL_DEPENDENCY_INVENTORY",
+  "remote_access": false,
+  "remote_changes": false,
+  "real_migration": false,
+  "push": false,
+  "deploy": false,
+  "commit": false,
+  "functional_matrix_status_changes": false,
+  "tests": {
+    "native-nonsuper": {
+      "success": true,
+      "numPassedTests": 42,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "readonly-guard-final": {
+      "success": true,
+      "numPassedTests": 1,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "python_forced_commands": {
+      "passed": 10,
+      "failed": 0
+    },
+    "sshd": {
+      "syntax_pass": true,
+      "unrelated_contexts_equal": [
+        "root",
+        "clp",
+        "kalend",
+        "kalend-api",
+        "kalend-dev",
+        "kalend-api-dev"
+      ],
+      "audit_settings": {
+        "forcecommand": "/usr/local/libexec/kalend-dev-audit",
+        "authorizedkeysfile": "/etc/ssh/kalend-dev-keys/%u",
+        "disableforwarding": "yes",
+        "permituserrc": "no",
+        "passwordauthentication": "no",
+        "trustedusercakeys": "none",
+        "permituserenvironment": "no"
+      },
+      "scope": "LOCAL_MODEL_ONLY_NO_DAEMON_STARTED"
+    },
+    "hba": {
+      "scope": "ISOLATED_LOCAL_ONLY",
+      "peer_test_uses_explicit_local_os_user_map": "test only; real proposal uses identical OS/SQL username without map",
+      "peer_allowed": true,
+      "other_database_rejected": true,
+      "tcp_rejected": true,
+      "unrelated_owner_connection_preserved": true,
+      "postgres_pid_preserved": true,
+      "superuser_test_connections": false
+    },
+    "backup_restore": {
+      "source_role_superuser": false,
+      "dump_role_superuser": false,
+      "restore_role_superuser": false,
+      "dump_refuses_rls_omission": true,
+      "public_tables_equal": 29,
+      "financial_and_evidence_rows_restored": true,
+      "constraints_equal": true,
+      "archive_sha256": "9d63087d61bc118ee0c25e3bc380a77ea96079726cd11ec0a86ee6dc0d6bc1bb",
+      "scope": "SYNTHETIC_LOCAL_ONLY",
+      "artifact": "/tmp/kalend-backup-review-qlqmt83a"
+    },
+    "isolated_network_nnp": "local unshare --net + NoNewPrivs=1 passed; VPS must validate support",
+    "syntax_and_types": {
+      "visudo_audit": "PASS",
+      "visudo_dev": "PASS",
+      "lint": "PASS",
+      "typecheck": "PASS",
+      "manual_bash_blocks_checked": 13,
+      "python_ast": "PASS"
+    }
+  },
+  "bootstrap_note": "initdb bootstrap only provisions isolated test roles; bootstrap NOLOGIN before automated tests; test/dump/restore roles NOSUPERUSER",
+  "backup_real_dev": "NOT_VERIFIED",
+  "cloudpanel_all_dependencies": "UNKNOWN_FROM_LOCAL_RECORDS; mandatory operator inventory prepared",
+  "limitations": [
+    "No live CloudPanel dependency inventory or effective SSH/sudo/HBA comparison in this task.",
+    "No SSH runtime/PM2/systemd modification.",
+    "Existing develop push workflows remain unsafe and unchanged; no enablement of deployment.",
+    "Snapshot-based restore method validated only with synthetic local data; real backup and recovery require phase C authorization."
+  ]
+}

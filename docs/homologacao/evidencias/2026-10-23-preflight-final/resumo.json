@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-23",
+  "hostname": "srv1119527",
+  "branch": "develop",
+  "head": "6251f502d6abaa9f23b0cff81060a72906d5f6a1",
+  "initial_package_hashes": "17/17 matched",
+  "openssh_real": "9.6p1 Ubuntu-3ubuntu13.18",
+  "ssh_in_memory_actual_include": {
+    "syntax_passed": true,
+    "non_target_contexts_unchanged": 12,
+    "auditor_restrictions_passed": true,
+    "files_installed": false,
+    "daemon_started": false
+  },
+  "sudo_real": "current visudo passed; DEV wrapper allowed; clp ALL; proposed last deny parsed in memory only",
+  "postgres": "16.15",
+  "database_queries": "catalog metadata only, BEGIN READ ONLY/ROLLBACK",
+  "hba": {
+    "parse_errors": 0,
+    "local": "peer",
+    "tcp_loopback": "scram-sha-256",
+    "role_absent": true,
+    "new_rule_not_installed": true
+  },
+  "acl": {
+    "filesystem": "ext4",
+    "inspected_ancestors": "root owned, no group/other write, no symlinks, ACL or capability",
+    "method": "lstat/listxattr read only",
+    "post_install_checker": "not run: target account/files do not exist"
+  },
+  "public_key": "only placeholder example; final key not attested",
+  "recovery": {
+    "getty_active": true,
+    "provider_console_operationally_verified": false,
+    "independent_channel_available_to_agent": false,
+    "two_ssh_sessions_sufficient": false
+  },
+  "http": {
+    "dev_web": 200,
+    "dev_api_health": 200,
+    "prod_web": 200,
+    "prod_api_health": 200
+  },
+  "preserved_pids": [
+    788,
+    1067,
+    1140,
+    1230,
+    1299,
+    1318,
+    2465796,
+    2465893,
+    2465910
+  ],
+  "financial_tests_repeated": false,
+  "remote_configuration_writes": false,
+  "reload_restart": false,
+  "migration": false,
+  "push": false,
+  "deploy": false,
+  "phase_a_ready": false,
+  "blockers": [
+    "independent administrative recovery not operationally proven",
+    "definitive auditor public key not provided/attested",
+    "explicit installation authorization and fresh prechecks still required"
+  ],
+  "limits": [
+    "effective sudo/SQL/SSH identity acceptance requires future account/role creation; not claimed here",
+    "no control-plane console session was available; guest getty is not proof"
+  ]
+}

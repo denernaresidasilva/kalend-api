@@ -32,7 +32,7 @@ run('initdb', [
   '-D',
   directory,
   '-U',
-  'kalend_audit',
+  'kalend_bootstrap',
   '--auth=trust',
   '--no-locale',
   '-E',
@@ -54,6 +54,21 @@ try {
     'start',
   ]);
   started = true;
+  // Bootstrap provisions the isolated cluster only. No test gets this identity.
+  run('psql', [
+    '-h',
+    '127.0.0.1',
+    '-p',
+    String(port),
+    '-U',
+    'kalend_bootstrap',
+    '-d',
+    'postgres',
+    '-v',
+    'ON_ERROR_STOP=1',
+    '-c',
+    'CREATE ROLE kalend_audit LOGIN NOSUPERUSER CREATEDB CREATEROLE NOREPLICATION NOBYPASSRLS; GRANT pg_read_all_settings TO kalend_audit; ALTER ROLE kalend_bootstrap NOLOGIN;',
+  ]);
   run('createdb', [
     '-h',
     '127.0.0.1',
@@ -82,7 +97,11 @@ try {
     { stdio: 'inherit', env },
   );
   process.exitCode = child.status ?? 1;
-  if (existsSync(join(directory, 'lock-evidence.json'))) console.log('NATIVE_LOCK_EVIDENCE', readFileSync(join(directory, 'lock-evidence.json'), 'utf8'));
+  if (existsSync(join(directory, 'lock-evidence.json')))
+    console.log(
+      'NATIVE_LOCK_EVIDENCE',
+      readFileSync(join(directory, 'lock-evidence.json'), 'utf8'),
+    );
 } finally {
   if (started) run('pg_ctl', ['-D', directory, '-m', 'fast', '-w', 'stop']);
   console.log(`Ephemeral data and logs retained: ${directory}`);

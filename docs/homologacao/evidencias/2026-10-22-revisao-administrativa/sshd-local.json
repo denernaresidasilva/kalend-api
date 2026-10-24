@@ -1,0 +1,21 @@
+{
+  "syntax_pass": true,
+  "unrelated_contexts_equal": [
+    "root",
+    "clp",
+    "kalend",
+    "kalend-api",
+    "kalend-dev",
+    "kalend-api-dev"
+  ],
+  "audit_settings": {
+    "forcecommand": "/usr/local/libexec/kalend-dev-audit",
+    "authorizedkeysfile": "/etc/ssh/kalend-dev-keys/%u",
+    "disableforwarding": "yes",
+    "permituserrc": "no",
+    "passwordauthentication": "no",
+    "trustedusercakeys": "none",
+    "permituserenvironment": "no"
+  },
+  "scope": "LOCAL_MODEL_ONLY_NO_DAEMON_STARTED"
+}

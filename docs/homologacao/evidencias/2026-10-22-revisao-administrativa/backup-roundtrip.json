@@ -1,0 +1,12 @@
+{
+  "source_role_superuser": false,
+  "dump_role_superuser": false,
+  "restore_role_superuser": false,
+  "dump_refuses_rls_omission": true,
+  "public_tables_equal": 29,
+  "financial_and_evidence_rows_restored": true,
+  "constraints_equal": true,
+  "archive_sha256": "9d63087d61bc118ee0c25e3bc380a77ea96079726cd11ec0a86ee6dc0d6bc1bb",
+  "scope": "SYNTHETIC_LOCAL_ONLY",
+  "artifact": "/tmp/kalend-backup-review-qlqmt83a"
+}

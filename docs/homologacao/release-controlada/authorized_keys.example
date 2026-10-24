@@ -1,7 +1,11 @@
-# PROPOSAL ONLY. One independently validated key per context; no private key here.
-# For /home/kalend-dev/.ssh/authorized_keys (CI key only):
-restrict,command="/usr/local/libexec/kalend-dev-release-gate" ssh-ed25519 REPLACE_WEB_PUBLIC_KEY kalend-web-dev-ci
-# For /home/kalend-api-dev/.ssh/authorized_keys (separate CI key):
-restrict,command="/usr/local/libexec/kalend-dev-release-gate" ssh-ed25519 REPLACE_API_PUBLIC_KEY kalend-api-dev-ci
-# For /home/kalend_dev_audit/.ssh/authorized_keys:
+# PROPOSAL ONLY. Central root-owned files, not beneath user-writable homes.
+# Phase A file root:kalend_dev_audit 0640; exclusive primary group; parent root:root 0755.
+# Preserve an approved from="..." restriction when configured.
+# Phase A: /etc/ssh/kalend-dev-keys/kalend_dev_audit
 restrict,command="/usr/local/libexec/kalend-dev-audit" ssh-ed25519 REPLACE_AUDIT_PUBLIC_KEY kalend-dev-readonly-audit
+# Phase B candidates only; do not activate before runtime sudo and shell-startup gates pass:
+# /etc/ssh/kalend-dev-keys/kalend-dev
+restrict,command="/usr/local/libexec/kalend-dev-release-gate" ssh-ed25519 REPLACE_WEB_PUBLIC_KEY kalend-web-dev-ci
+# /etc/ssh/kalend-dev-keys/kalend-api-dev
+restrict,command="/usr/local/libexec/kalend-dev-release-gate" ssh-ed25519 REPLACE_API_PUBLIC_KEY kalend-api-dev-ci
+# Existing authorized_keys under a writable home are not a command restriction boundary.

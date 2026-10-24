@@ -4,7 +4,7 @@ WITH RECURSIVE
 observed AS (SELECT CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AS at),
 proven AS (
  SELECT p.*, s."graceEndsAt" AS sub_grace, s."currentPeriodEnd" AS frontier
- FROM "Payment" p JOIN "Subscription" s ON s.id=p."subscriptionId"
+ FROM public."Payment" p JOIN public."Subscription" s ON s.id=p."subscriptionId"
    AND p."companyId"=s."companyId" AND p."planId"=s."planId"
    AND p."billingInterval"=s."billingInterval" AND p.currency=s.currency
  WHERE p.status='APPROVED' AND p."paidAt" IS NOT NULL
@@ -21,17 +21,17 @@ paid_rights AS (
 manual_rights AS (
  SELECT s.id AS sub_id, s."currentPeriodStart" AS starts_at, s."currentPeriodEnd" AS ends_at,
    NULL::timestamp AS grace_at, 'ADMIN_GRANT' AS origin
- FROM "Subscription" s WHERE s.gateway='MANUAL' AND s."currentPeriodEnd">s."currentPeriodStart"
+ FROM public."Subscription" s WHERE s.gateway='MANUAL' AND s."currentPeriodEnd">s."currentPeriodStart"
    AND NOT EXISTS (SELECT 1 FROM paid_rights r WHERE r.sub_id=s.id
      AND r.starts_at=s."currentPeriodStart" AND r.ends_at=s."currentPeriodEnd")
 ),
 rights AS (SELECT * FROM paid_rights UNION ALL SELECT * FROM manual_rights),
 coverage(sub_id,frontier) AS (
- SELECT s.id,r.ends_at FROM "Subscription" s JOIN rights r ON r.sub_id=s.id
+ SELECT s.id,r.ends_at FROM public."Subscription" s JOIN rights r ON r.sub_id=s.id
  WHERE r.starts_at<=s."currentPeriodStart" AND r.ends_at>s."currentPeriodStart"
  UNION
  SELECT c.sub_id,r.ends_at FROM coverage c JOIN rights r ON r.sub_id=c.sub_id
- JOIN "Subscription" s ON s.id=c.sub_id
+ JOIN public."Subscription" s ON s.id=c.sub_id
  WHERE r.starts_at<=c.frontier AND r.ends_at>c.frontier AND c.frontier<s."currentPeriodEnd"
 ),
 subscriptions AS (
@@ -46,7 +46,7 @@ subscriptions AS (
      AND NOT EXISTS (SELECT 1 FROM paid_rights r WHERE r.sub_id=s.id
        AND r.ends_at=s."currentPeriodEnd" AND r.grace_at>=s."graceEndsAt") AS unproven_grace,
    EXISTS (SELECT 1 FROM manual_rights r WHERE r.sub_id=s.id) AS legacy_grant
- FROM "Subscription" s CROSS JOIN observed o
+ FROM public."Subscription" s CROSS JOIN observed o
 ),
 classified_subscriptions AS (
  SELECT *, CASE
@@ -72,7 +72,7 @@ classified_payments AS (
    p."refundedAmountCents">0 AS partial_or_full_refund,
    EXISTS (SELECT 1 FROM proven q WHERE q.id<>p.id AND q."subscriptionId"=p."subscriptionId"
      AND q."periodStart"=p."periodStart" AND q."periodEnd"=p."periodEnd") AS duplicate_paid_period
- FROM "Payment" p LEFT JOIN "Subscription" s ON s.id=p."subscriptionId"
+ FROM public."Payment" p LEFT JOIN public."Subscription" s ON s.id=p."subscriptionId"
 )
 SELECT jsonb_build_object(
  'database',current_database(),'snapshot_utc',(SELECT at FROM observed),

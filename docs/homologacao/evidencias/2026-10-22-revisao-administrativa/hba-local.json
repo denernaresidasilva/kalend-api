@@ -1,0 +1,10 @@
+{
+  "scope": "ISOLATED_LOCAL_ONLY",
+  "peer_test_uses_explicit_local_os_user_map": "test only; real proposal uses identical OS/SQL username without map",
+  "peer_allowed": true,
+  "other_database_rejected": true,
+  "tcp_rejected": true,
+  "unrelated_owner_connection_preserved": true,
+  "postgres_pid_preserved": true,
+  "superuser_test_connections": false
+}

@@ -1,0 +1,23 @@
+{
+  "docs/homologacao/release-controlada/sshd-audit.fragment.conf": "e201e7821175dfc7c08dd4cd4f22561bd00a170a1f4faad61174271e08fd8b0c",
+  "docs/homologacao/release-controlada/backup-role.sql": "0fbf0bdc39398eafbff7aed22332f8063753e46f572894cf12bed29de09c3d9c",
+  "docs/homologacao/release-controlada/readonly-role.sql": "87941a376f50a2920bea7a7f4fb85e85e8e972948578ccf4327955b0476701ab",
+  "docs/homologacao/release-controlada/sudoers-audit-only.conf": "36dbf1f073ac6836865ddf89156d08667813479b2001d2cff35590da4ea1c837",
+  "docs/homologacao/release-controlada/backfill-audit.sql": "7c7f7c0f8b690e237694969b94dd097fba3602c0b7af9039f95c34fae8f7bac6",
+  "docs/homologacao/release-controlada/SANDBOX_RESTORE.md": "e7e8bdf572e944cd7571dd26e1c9a8b91e431595a4e6c877b2515b21e0370871",
+  "docs/homologacao/release-controlada/sudoers-dev-only.conf": "a787938aaa5c5dd3efd97700b367086581d21248744b863c52844420ae1ba4f7",
+  "docs/homologacao/release-controlada/kalend-dev-audit": "90e3c69f47bc3cdf3ffcd1db7889b49101e5f79987edcdbc88f4ec9c95f1d0bd",
+  "docs/homologacao/release-controlada/pg_hba-backup.fragment.conf": "7fee860a8d23ae288e4d84189125e6638858ce30d84d49ea40a76f2b8c9864db",
+  "docs/homologacao/release-controlada/authorized_keys.example": "c67305937086945f46af87f96dac7f17bc2c883a3c2333f2b71d647129d0a24f",
+  "docs/homologacao/release-controlada/pg_ident-backup.fragment.conf": "fa3b2a0b53de376657d0896c71e383f4f44ab6384f10acaabe8fba0ea08219a6",
+  "docs/homologacao/release-controlada/kalend-dev-release-gate": "0d2a10aa878a8f0a2eb10f6f69748fefc1ff404fc6cb4cb49ce76b5964c42804",
+  "docs/homologacao/release-controlada/INTERVENCAO_ADMINISTRATIVA_V1_HISTORICO.md": "453c58d7e9adc468e65cacf17bfac214b472b5a3243616563f03f4b6df63ea11",
+  "docs/homologacao/release-controlada/DEPENDENCIAS_CLOUDPANEL.md": "9add5b72468fe9dc971e36bce506560451c933c9bbcbc27fbd63ed8317d77be1",
+  "docs/homologacao/release-controlada/INTERVENCAO_ADMINISTRATIVA.md": "771c222ee75dde068b23598815ffd8ba372bb6b18eeb62cb72c99b31d53b1d9a",
+  "docs/homologacao/release-controlada/preflight.workflow.example.yml": "1819d5db49300aeb441e5981caf5060affd382be10798b11a6d0682ca0f46d0e",
+  "docs/homologacao/release-controlada/pg_hba.fragment.conf": "6be00d5b909742ef6c93f2d8e37a09db250d6f7f3a6f322fb739fd3226fce62d",
+  "scripts/tests/test_release_access_templates.py": "060aa7728268da3a31c931395c1730d815529edae5d527b44f9e4dbbab7e41bb",
+  "scripts/tests/review_backup_roundtrip.py": "15359d35ac9e96fd3d647eadd488f88d77a25b3f4856bd159fb790d7fafe2366",
+  "scripts/test-native-postgres.mjs": "a52772af64cc9d8a3c70d3807817965af6aaeb0dd158751746f63e648289b953",
+  "test/release-access.native.ts": "7d24b3841c1a6cc072bb778c32b9c0a6af5f4d2aef00b4aa84197e42619cbc07"
+}

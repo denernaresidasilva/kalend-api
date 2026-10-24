@@ -115,6 +115,34 @@ As leituras de processos e HTTP confirmaram os quatro endpoints 200 e os PIDs/ho
 **Decisão permanece SUPER ADMIN BLOQUEADO.** Próxima autorização necessária: intervenção administrativa estritamente delimitada nos arquivos preparados para retirar o caminho CloudPanel apenas das identidades DEV e prover o comando fixo de auditoria. Depois classificar o legado, criar/restaurar backup protegido e revisar a ativação antes de qualquer publicação. Essa necessidade vem das Fases 3–5 da tarefa atual. Os demais painéis não foram iniciados.
 
 
+## Revisão administrativa final — sem acesso à VPS
+
+Plano original requereu correções. A revisão restringiu a fase A à nova identidade auditora, preservando usuários/serviços CloudPanel existentes. O inventário completo de dependências do wrapper permanece obrigatório antes da fase B; o arquivo local não permite identificar todos os consumidores reais e nenhuma completude foi presumida. Ver [procedimento final](release-controlada/INTERVENCAO_ADMINISTRATIVA.md) e [inventário](release-controlada/DEPENDENCIAS_CLOUDPANEL.md).
+
+Corrigidos: chave central fora de home gravável; home nova root-owned com shell sem rc de login; fragmento SSH somente do auditor; diretiva inválida PermitUserEnvironment removida de Match e tratada como precondição global; validação de symlinks/ancestrais; caminhos PostgreSQL 16 fixos e ambiente sanitizado; role transacional com guard de banco, NOINHERIT, limite de conexões e row_security=off para falhar em RLS parcial. Instalação por stdin evita tentar ler um staging /root como postgres; pais compartilhados não recebem chmod/chown. Sudoers foi dividido em auditor novo e contas DEV condicionadas. Nenhuma regra global clp/ALL é retirada.
+
+Backup foi revisto para preservar owner/ACL no arquivo original, manifesto do mesmo snapshot, restore completo em cluster privado sem egress, destino novo e NOSUPERUSER, sem --create/--clean. Método validado com dados sintéticos: 29 tabelas iguais, evidências e constraints preservadas; dump recusou RLS impeditiva. Isso NÃO comprova backup real de DEV.
+
+Testes locais desta revisão: 10 Python de comandos forçados; 42 nativos com conexões NOSUPERUSER após ajuste do runner (bootstrap de initdb apenas para provisionamento, NOLOGIN antes dos testes); caso de role novamente validado com rejeição de banco errado; visudo de ambos os fragmentos; sshd -t/-T preservando seis contextos não alvo no modelo local; HBA peer/outro banco/TCP com conexão não alvo e PID preservados; dump/restore sintético; lint/typecheck aprovados. Não se repetiu auditoria funcional completa, build ou suítes Web/API sem necessidade. Todos os resultados são locais e o servidor real precisa dos pré-checks do plano.
+
+Preparação da fase A pronta para revisão/autorização administrativa específica; fase B, backup real, classificação real, publicação e homologação continuam condicionados aos gates. Não houve SSH, alteração remota, migration real, commit, push ou deploy nesta revisão. Código de produto, dependências, main, PROD e outros sistemas preservados. Os 72 estados funcionais não foram promovidos.
+
+
+## Correção local do pacote auditor — 23/10/2026
+
+Corrigida a chave pública central para root:kalend_dev_audit 0640, grupo exclusivo,
+com diretório root:root 0755. Substituída a dependência de getfacl por lstat/listxattr
+com recusa de qualquer ACL/capability e de erros de consulta; symlinks e ancestrais
+inseguros bloqueiam. Ver procedimento revisado e evidências em
+[evidencias/2026-10-23-pacote-auditor/resumo.json](evidencias/2026-10-23-pacote-auditor/resumo.json).
+A recuperação administrativa real NÃO foi comprovada. Pré-checks operacionais e
+sshd/sudo/HBA efetivos continuam obrigatórios imediatamente antes da instalação.
+Contas DEV com caminho CloudPanel e proprietário SQL kalend compartilhado entre
+DEV/PROD continuam riscos separados; esta correção não modifica essas identidades.
+Nenhum acesso/intervenção VPS, push, deploy ou migration real nesta execução.
+Os estados funcionais dos 72 grupos e os bloqueios de homologação permanecem.
+
+
 ## Auditoria financeira real e backup recuperável — 23/10/2026
 
 **Concluídos dois gates antes pendentes:** classificação REAL de kalend_dev e
