@@ -1,6 +1,6 @@
 # Super Admin KALEND — acompanhamento de homologação
 
-Atualizado em 22/10/2026. **SUPER ADMIN BLOQUEADO para homologação definitiva e liberação dos demais painéis.** A release local está preparada e versionada; faltam publicação segura, migration e evidência dos fluxos críticos em DEV real. Não foram iniciados outros painéis.
+Atualizado em 24/10/2026. **SUPER ADMIN BLOQUEADO para homologação definitiva.** API a49f6a5 e Web c4f84d5 publicadas; migration aplicada e verificada. Falta homologação autenticada com identidades QA, não novo deploy.
 
 O [histórico integral de 21/10](SUPER_ADMIN_STATUS_2026-10-21.md) foi preservado. A [matriz de 72 requisitos](SUPER_ADMIN_MATRIZ.md) e o [JSON](SUPER_ADMIN_MATRIZ.json) detalham implementação, testes, evidência, ambiente, resultado, bloqueador e próximo passo para cada grupo.
 
@@ -277,3 +277,15 @@ aprovado: 27 tabelas por contagem/fingerprint, 53 constraints, 84 índices, 24 F
 zero órfãos. Esses resultados não homologam a candidata ainda não publicada.
 Evidências: [execução Actions existente](EXECUCAO_ACTIONS_EXISTENTE_2026-10-24.json).
 Os 72 requisitos mantêm os estados; HTTP 200 e backup não promovem testes funcionais.
+
+
+## Homologação real pós-publicação — 24/10/2026
+
+12 testes públicos + 15 de proteção anônima passaram em Chromium desktop/tablet/mobile.
+Nenhuma credencial QA encontrada nos locais verificados; inventário READ ONLY encontrou
+zero usuários QA/Super Admin QA/Owner QA. Não usar conta administrativa real. Preparador
+local de novas identidades passou em três testes e salvou arquivo privado 0700/0600;
+nenhum registro provisionado. SMTP está em PRODUCTION, portanto não houve teste de envio.
+PagBank SANDBOX configurado não significa checkout exercitado. Nenhuma cobrança/mensagem.
+KA-043 aprovado em DEV real; jornadas de login/tenant/financeiro/comunicação seguem
+bloqueadas. Gateways serão revisados somente após homologação crítica. Evidência: evidencias/2026-10-24-homologacao-real/resumo.json.

@@ -194,3 +194,12 @@ aprovado: 27 tabelas por contagem/fingerprint, 53 constraints, 84 índices, 24 F
 zero órfãos. Esses resultados não homologam a candidata ainda não publicada.
 Evidências: [execução Actions existente](EXECUCAO_ACTIONS_EXISTENTE_2026-10-24.json).
 Os 72 requisitos mantêm os estados; HTTP 200 e backup não promovem testes funcionais.
+
+
+## Pós-publicação — 24/10/2026
+
+Versões a49f6a5/c4f84d5 já publicadas; não repetir deploy nesta homologação.
+Migration confirmada por ledger/checksum; 1 evidência e 1 PAYMENT, nenhum ADMIN_GRANT.
+27 testes reais públicos/anônimos aprovados, nenhum autenticado positivo. Credenciais
+e usuários QA ausentes nos critérios/locais inspecionados; provisionamento apenas
+preparado. SMTP PRODUCTION não acionado. Ver evidencias/2026-10-24-homologacao-real/resumo.json.

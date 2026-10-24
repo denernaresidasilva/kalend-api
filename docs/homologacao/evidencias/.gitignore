@@ -82,3 +82,8 @@
 !2026-10-23-operacao-dev/native-controls.json
 !2026-10-23-operacao-dev/github-readonly.json
 !2026-10-23-operacao-dev/vps-readonly.json
+
+!2026-10-24-homologacao-real/
+2026-10-24-homologacao-real/*
+!2026-10-24-homologacao-real/resumo.json
+!2026-10-24-homologacao-real/README.md

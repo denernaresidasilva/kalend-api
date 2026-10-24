@@ -14,8 +14,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Formulário/catálogo ou proteção anônima/redirecionamento exercitados em Chromium; jornada autenticada não exercitada. evidencias/2026-10-24-homologacao-real/resumo.json"
   },
   {
     "id": "KA-002",
@@ -32,8 +38,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-003",
@@ -50,8 +62,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-004",
@@ -68,8 +86,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-005",
@@ -87,7 +111,13 @@
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "PARCIAL",
     "blocker": "CORS/cookies entre hosts com navegador autenticado DEV ainda sem prova atual.",
-    "next_step": "CORS/cookies entre hosts com navegador autenticado DEV ainda sem prova atual."
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Formulário/catálogo ou proteção anônima/redirecionamento exercitados em Chromium; jornada autenticada não exercitada. evidencias/2026-10-24-homologacao-real/resumo.json"
   },
   {
     "id": "KA-006",
@@ -104,8 +134,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-007",
@@ -123,7 +159,13 @@
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "PARCIAL",
     "blocker": "Definir e implementar fluxo seguro com tokens, expiração, rate limit e transporte autorizado; não foi inventado nesta auditoria.",
-    "next_step": "Definir e implementar fluxo seguro com tokens, expiração, rate limit e transporte autorizado; não foi inventado nesta auditoria."
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-008",
@@ -141,7 +183,13 @@
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "PARCIAL",
     "blocker": "Funcionalidade ausente; invalidação de sessão não equivale a fluxo de alteração de senha.",
-    "next_step": "Funcionalidade ausente; invalidação de sessão não equivale a fluxo de alteração de senha."
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-009",
@@ -159,7 +207,13 @@
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "NÃO TESTADO",
     "blocker": "MFA não implementado; necessidade deve ser decidida antes de exposição administrativa ampla.",
-    "next_step": "MFA não implementado; necessidade deve ser decidida antes de exposição administrativa ampla."
+    "next_step": "MFA não implementado; necessidade deve ser decidida antes de exposição administrativa ampla.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-010",
@@ -176,8 +230,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Formulário/catálogo ou proteção anônima/redirecionamento exercitados em Chromium; jornada autenticada não exercitada. evidencias/2026-10-24-homologacao-real/resumo.json"
   },
   {
     "id": "KA-011",
@@ -194,8 +254,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-012",
@@ -212,8 +278,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-013",
@@ -230,8 +302,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-014",
@@ -248,26 +326,38 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-015",
     "module": "Permissões",
     "requirement": "Isolamento autenticado em DEV da release candidata",
-    "frontend": "Contratos locais cobertos",
-    "backend": "Guards locais cobertos",
-    "database": "Sem fixture remota alterada",
+    "frontend": "Web c4f84d5 publicada",
+    "backend": "API a49f6a5 publicada",
+    "database": "Schema financeiro aplicado",
     "implementation": "BLOQUEADO POR DEPENDÊNCIA EXTERNA",
     "tests": "dev-schema-readonly.json; homologacao/LIMITACOES.md",
     "evidence": "dev-schema-readonly.json; homologacao/LIMITACOES.md",
     "status": "BLOQUEADO",
     "severity": "P1",
     "pending": "Exige contas QA autorizadas A/B e versão candidata publicada; não executar testes com efeitos no DEV atual.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — autenticação QA ainda bloqueada",
     "result": "BLOQUEADO",
-    "blocker": "Exige contas QA autorizadas A/B e versão candidata publicada; não executar testes com efeitos no DEV atual.; publicação bloqueada pelos gates de acesso/backup/legado (P1-OPS-01)",
-    "next_step": "Exige contas QA autorizadas A/B e versão candidata publicada; não executar testes com efeitos no DEV atual."
+    "blocker": "Zero identidades QA A/B; credenciais QA não encontradas.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "BLOQUEADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-016",
@@ -284,8 +374,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-017",
@@ -302,8 +398,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-018",
@@ -320,8 +422,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-019",
@@ -338,8 +446,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-020",
@@ -356,8 +470,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-021",
@@ -374,8 +494,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-022",
@@ -393,7 +519,13 @@
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "PARCIAL",
     "blocker": "Criação comercial automática e roteamento real por subdomínio não certificados; não desenvolver novos painéis aqui.",
-    "next_step": "Criação comercial automática e roteamento real por subdomínio não certificados; não desenvolver novos painéis aqui."
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-023",
@@ -411,7 +543,13 @@
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "PARCIAL",
     "blocker": "Concessões têm ator; edições gerais carecem de trilha abrangente e política de retenção.",
-    "next_step": "Concessões têm ator; edições gerais carecem de trilha abrangente e política de retenção."
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-024",
@@ -428,8 +566,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-025",
@@ -446,8 +590,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-026",
@@ -464,8 +614,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-027",
@@ -483,7 +639,13 @@
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "PARCIAL",
     "blocker": "Serviços de produto futuros ainda não existem; limites não estão homologados nos painéis que não foram iniciados.",
-    "next_step": "Serviços de produto futuros ainda não existem; limites não estão homologados nos painéis que não foram iniciados."
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-028",
@@ -500,8 +662,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-029",
@@ -518,8 +686,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-030",
@@ -536,8 +710,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-031",
@@ -554,8 +734,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-032",
@@ -572,8 +758,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-033",
@@ -591,7 +783,13 @@
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "PARCIAL",
     "blocker": "Backend testado; falta exposição operacional completa de grants/revogação na interface.",
-    "next_step": "Backend testado; falta exposição operacional completa de grants/revogação na interface."
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-034",
@@ -608,8 +806,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-035",
@@ -626,8 +830,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-036",
@@ -644,8 +854,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-037",
@@ -662,8 +878,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-038",
@@ -680,8 +902,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-039",
@@ -699,7 +927,13 @@
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "PARCIAL",
     "blocker": "Revisão persistida não tem workflow completo de triagem financeira no Super Admin.",
-    "next_step": "Revisão persistida não tem workflow completo de triagem financeira no Super Admin."
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-040",
@@ -716,8 +950,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-041",
@@ -734,8 +974,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-042",
@@ -753,25 +999,37 @@
     "environment": "LOCAL — PostgreSQL 16.15 nativo efêmero",
     "result": "APROVADO LOCALMENTE",
     "blocker": "Sem bloqueador local nos cenários ensaiados",
-    "next_step": "Aplicar a release e validar os fluxos QA em DEV; concorrência nativa local comprovada para os 17 cenários listados."
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-043",
     "module": "PaymentEvidence",
     "requirement": "Migration e backfill na base DEV real",
-    "frontend": "DEV ainda no código publicado anterior",
-    "backend": "Candidato apenas local",
-    "database": "Tabelas novas ausentes no DEV",
-    "implementation": "BLOQUEADO POR DEPENDÊNCIA EXTERNA",
-    "tests": "dev-schema-readonly.json; classificador SELECT-only confrontado com migration em 24 casos PostgreSQL nativos",
-    "evidence": "dev-schema-readonly.json; evidencias/2026-10-22-release-controlada/backfill-classifier-native.json",
-    "status": "BLOQUEADO",
-    "severity": "P1",
-    "pending": "Aplicar intervenção administrativa específica, validar permissões efetivas, classificar todo legado DEV, restaurar backup em cópia isolada e só então avaliar migration.",
-    "environment": "DEV REAL — apenas schema READ ONLY em 22/10; sem aplicação",
-    "result": "BLOQUEADO",
-    "blocker": "P1-OPS-01: usuários DEV alcançam wrapper administrativo CloudPanel; identidade SQL SELECT-only não provisionada; legado real não classificado; backup real não restaurado",
-    "next_step": "Aplicar intervenção administrativa específica, validar permissões efetivas, classificar todo legado DEV, restaurar backup em cópia isolada e só então avaliar migration."
+    "frontend": "Web publicada; este requisito verifica migration/backfill",
+    "backend": "API publicada compatível com schema",
+    "database": "Ledger concluído/checksum igual ao SQL local; 29 tabelas/69 constraints/92 índices; 1 evidência/1 PAYMENT; 6 sem direito pago; 0 grants",
+    "implementation": "IMPLEMENTADO E TESTADO",
+    "tests": "Inventário pós-deploy SQL READ ONLY; ensaio financeiro anterior preservado",
+    "evidence": "evidencias/2026-10-24-homologacao-real/resumo.json",
+    "status": "APROVADO EM DEV REAL",
+    "severity": "—",
+    "pending": "Homologar jornadas financeiras autenticadas nos requisitos próprios.",
+    "environment": "DEV REAL — ledger/checksum/schema/backfill; não é jornada autenticada",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum para aplicação/schema/backfill observados.",
+    "next_step": "Manter evidência; não repetir migration.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "evidencias/2026-10-24-homologacao-real/resumo.json"
   },
   {
     "id": "KA-044",
@@ -788,8 +1046,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-045",
@@ -806,8 +1070,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-046",
@@ -824,8 +1094,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-047",
@@ -842,8 +1118,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-048",
@@ -860,8 +1142,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-049",
@@ -879,7 +1167,13 @@
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "BLOQUEADO",
     "blocker": "Exige operação sandbox autorizada, callbacks correlacionados e evidência por pagamento; mocks não aprovam fornecedor.; publicação bloqueada pelos gates de acesso/backup/legado (P1-OPS-01)",
-    "next_step": "Exige operação sandbox autorizada, callbacks correlacionados e evidência por pagamento; mocks não aprovam fornecedor."
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-050",
@@ -896,8 +1190,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-051",
@@ -914,8 +1214,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-052",
@@ -933,7 +1239,13 @@
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "PARCIAL",
     "blocker": "Adicionar paginação/busca de servidor nas listas; não confundir recorte com histórico integral.",
-    "next_step": "Adicionar paginação/busca de servidor nas listas; não confundir recorte com histórico integral."
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-053",
@@ -950,8 +1262,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-054",
@@ -968,8 +1286,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-055",
@@ -986,8 +1310,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-056",
@@ -1004,8 +1334,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-057",
@@ -1022,8 +1358,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-058",
@@ -1040,8 +1382,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-059",
@@ -1059,7 +1407,13 @@
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "PARCIAL",
     "blocker": "BUG-01 histórico continua aberto até prova no perfil DEV afetado; não encerrar por mocks.; publicação bloqueada pelos gates de acesso/backup/legado (P1-OPS-01)",
-    "next_step": "BUG-01 histórico continua aberto até prova no perfil DEV afetado; não encerrar por mocks."
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-060",
@@ -1077,7 +1431,13 @@
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "PARCIAL",
     "blocker": "Entrega crítica real e recibos/dispositivo destinatário não foram demonstrados nesta auditoria.; publicação bloqueada pelos gates de acesso/backup/legado (P1-OPS-01)",
-    "next_step": "Entrega crítica real e recibos/dispositivo destinatário não foram demonstrados nesta auditoria."
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-061",
@@ -1094,8 +1454,14 @@
     "pending": "Restaurar sink só com autorização; obter evidência sandbox e entrega por canal sem atingir usuários reais.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "BLOQUEADO",
-    "blocker": "Restaurar sink só com autorização; obter evidência sandbox e entrega por canal sem atingir usuários reais.; publicação bloqueada pelos gates de acesso/backup/legado (P1-OPS-01)",
-    "next_step": "Restaurar sink só com autorização; obter evidência sandbox e entrega por canal sem atingir usuários reais."
+    "blocker": "Contas QA ausentes; SMTP configurado PRODUCTION, sem prova de caixa sandbox; WhatsApp/Push sem entrega QA comprovada.",
+    "next_step": "Disponibilizar identidades e sink/destinatários/dispositivo QA seguros; não acionar transporte real para clientes.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "BLOQUEADO",
+    "current_dev_evidence": "evidencias/2026-10-24-homologacao-real/resumo.json"
   },
   {
     "id": "KA-062",
@@ -1112,8 +1478,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Formulário/catálogo ou proteção anônima/redirecionamento exercitados em Chromium; jornada autenticada não exercitada. evidencias/2026-10-24-homologacao-real/resumo.json"
   },
   {
     "id": "KA-063",
@@ -1130,8 +1502,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Formulário/catálogo ou proteção anônima/redirecionamento exercitados em Chromium; jornada autenticada não exercitada. evidencias/2026-10-24-homologacao-real/resumo.json"
   },
   {
     "id": "KA-064",
@@ -1148,8 +1526,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-065",
@@ -1166,8 +1550,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Formulário/catálogo ou proteção anônima/redirecionamento exercitados em Chromium; jornada autenticada não exercitada. evidencias/2026-10-24-homologacao-real/resumo.json"
   },
   {
     "id": "KA-066",
@@ -1184,26 +1574,38 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Formulário/catálogo ou proteção anônima/redirecionamento exercitados em Chromium; jornada autenticada não exercitada. evidencias/2026-10-24-homologacao-real/resumo.json"
   },
   {
     "id": "KA-067",
     "module": "Interface",
     "requirement": "Integração autenticada navegador→API→PostgreSQL da release DEV",
-    "frontend": "Não validada com candidato",
-    "backend": "Release local difere do DEV",
-    "database": "Migration ausente",
+    "frontend": "Web c4f84d5 publicada",
+    "backend": "API a49f6a5 publicada",
+    "database": "Migration aplicada e checksum conferido",
     "implementation": "BLOQUEADO POR DEPENDÊNCIA EXTERNA",
     "tests": "dev-schema-readonly.json",
     "evidence": "dev-schema-readonly.json",
     "status": "BLOQUEADO",
     "severity": "P1",
     "pending": "Testar fluxos principais em DEV autorizado após publicação/migration; aprovação local não equivale a E2E real.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — somente público/anônimo verificado",
     "result": "BLOQUEADO",
-    "blocker": "Testar fluxos principais em DEV autorizado após publicação/migration; aprovação local não equivale a E2E real.; publicação bloqueada pelos gates de acesso/backup/legado (P1-OPS-01)",
-    "next_step": "Testar fluxos principais em DEV autorizado após publicação/migration; aprovação local não equivale a E2E real."
+    "blocker": "Jornada autenticada bloqueada por zero usuários/credenciais QA disponíveis.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "BLOQUEADO",
+    "current_dev_evidence": "evidencias/2026-10-24-homologacao-real/resumo.json"
   },
   {
     "id": "KA-068",
@@ -1221,7 +1623,13 @@
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "NÃO TESTADO",
     "blocker": "Chromium e testes básicos não são certificação de acessibilidade nem de dispositivos reais.",
-    "next_step": "Chromium e testes básicos não são certificação de acessibilidade nem de dispositivos reais."
+    "next_step": "Chromium e testes básicos não são certificação de acessibilidade nem de dispositivos reais.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-069",
@@ -1238,8 +1646,14 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Homologar a release candidata em DEV autorizado.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-070",
@@ -1257,7 +1671,13 @@
     "environment": "LOCAL — instalação íntegra e lockfiles",
     "result": "PARCIAL",
     "blocker": "Alerta residual exclusivo da ferramenta de lint; zero advisories no runtime/API completo",
-    "next_step": "braces 3.0.3 sem patch publicado: 5 entradas high em tooling ESLint; não processar padrões não confiáveis. Atualizar quando upstream publicar patch; reavaliar se surgir exposição em runtime."
+    "next_step": "braces 3.0.3 sem patch publicado: 5 entradas high em tooling ESLint; não processar padrões não confiáveis. Atualizar quando upstream publicar patch; reavaliar se surgir exposição em runtime.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-071",
@@ -1275,7 +1695,13 @@
     "environment": "HISTÓRICO OPERACIONAL DEV — sem teste dinâmico nesta tarefa",
     "result": "BLOQUEADO",
     "blocker": "Fase 2 exige autorização própria; não alterar systemd/PM2 nesta auditoria.",
-    "next_step": "Fase 2 exige autorização própria; não alterar systemd/PM2 nesta auditoria."
+    "next_step": "Fase 2 exige autorização própria; não alterar systemd/PM2 nesta auditoria.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   },
   {
     "id": "KA-072",
@@ -1292,7 +1718,13 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Integração da release em DEV ainda não homologada",
-    "next_step": "Homologar a release candidata em DEV autorizado."
+    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
+    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "dev_release": {
+      "api": "a49f6a5",
+      "web": "c4f84d5"
+    },
+    "current_dev_result": "NÃO TESTADO",
+    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
   }
 ]

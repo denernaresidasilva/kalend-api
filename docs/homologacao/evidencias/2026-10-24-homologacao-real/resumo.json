@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-24",
+  "deployed_api": "a49f6a513da62b1c52da2caf51bdcea3acbed509",
+  "deployed_web": "c4f84d5db30e4150eedac876b9701fec2ba0bb86",
+  "release_source": "published SHAs provided by owner; local HEADs matched; no redeploy performed",
+  "credential_discovery": {
+    "qa_auth_env_present": false,
+    "qa_files_found_in_checked_locations": 0,
+    "search_scope": "QA environment names; env filenames in repos; QA-named credential files under bounded project/tmp/config/home and DEV/root directories, excluding SSH/PM2/NVM and dependencies",
+    "qa_users": 0,
+    "qa_superadmins": 0,
+    "qa_owner_memberships": 0,
+    "real_superadmins": 1,
+    "existing_qa_companies": 3,
+    "existing_accounts_modified": false
+  },
+  "tests": {
+    "public_real": {
+      "passed": 12,
+      "failed": 0,
+      "spec": "kalend-web/homologacao/specs/public.real.spec.ts"
+    },
+    "admin_boundary_real": {
+      "passed": 15,
+      "failed": 0,
+      "spec": "kalend-web/homologacao/specs/admin-boundary.real.spec.ts"
+    },
+    "viewports": [
+      "1440x900",
+      "768x1024",
+      "390x844"
+    ],
+    "coverage_limits": "Chromium emulation and anonymous routes only; no authenticated dashboard/responsiveness certification",
+    "qa_preparation_local": {
+      "passed": 3,
+      "spec": "scripts/tests/qa-identity-plan.test.mjs"
+    },
+    "spec_lint": "passed",
+    "initial_local_runner_issue": "Node 18 unsupported; rerun using existing Node 24.21.0; no application defect",
+    "web_typecheck": "passed",
+    "matrix_md_json_consistency": "72 rows, statuses consistent"
+  },
+  "migration_dev": {
+    "applied": true,
+    "checksum": "90ecbea69fa323806ccf7e39f73e03e5b544ac958684662808f0503cb2c4e1e6",
+    "checksum_matches_local": true,
+    "tables": 29,
+    "constraints": 69,
+    "all_constraints_validated": true,
+    "indexes": 92,
+    "subscriptions": 7,
+    "payments": 5,
+    "evidence": 1,
+    "payment_entitlements": 1,
+    "admin_grants": 0,
+    "subscriptions_without_paid_right": 6,
+    "proofs_without_approved_payment": 0,
+    "method": "targeted SQL READ ONLY inventory, not authenticated financial journey"
+  },
+  "safe_provider_prerequisites": {
+    "pagbank": {
+      "environment": "SANDBOX",
+      "enabled": true,
+      "status": "CONNECTED",
+      "has_credentials": true,
+      "provider_exercised": false
+    },
+    "smtp": {
+      "environment": "PRODUCTION",
+      "enabled": true,
+      "status": "CONNECTED",
+      "sandbox_delivery_tested": false
+    },
+    "evolution": {
+      "environment": "SANDBOX",
+      "enabled": true,
+      "status": "CONNECTED",
+      "delivery_tested": false
+    },
+    "push": {
+      "environment": "SANDBOX",
+      "enabled": true,
+      "status": "CONNECTED",
+      "delivery_tested": false
+    },
+    "qa_allowlist_configured": true,
+    "device_or_recipient_delivery_proof": false,
+    "messages_sent": 0,
+    "charges_made": 0
+  },
+  "qa_creation": {
+    "prepared": true,
+    "provisioned": false,
+    "planned_accounts": 5,
+    "planned_new_companies": 2,
+    "private_file_outside_git": true,
+    "private_directory_mode": "0700",
+    "private_file_mode": "0600",
+    "passwords_or_hashes_in_git": false,
+    "authorization_question": "pending answer; user asked to prepare creation if missing"
+  },
+  "authenticated_journeys": "BLOCKED: no existing QA users/credentials in checked locations",
+  "gateway_review": "not started; Super Admin critical journeys not homologated",
+  "push": false,
+  "deploy": false,
+  "migration_executed": false,
+  "real_accounts_changed": false,
+  "production_changed": false
+}
