@@ -221,3 +221,15 @@ inicialização/health e promoção não restauram DB ou iniciam API antiga auto
 Nenhuma configuração/conta/role/timer/serviço remoto foi alterado, sem push/deploy.
 O pacote permite revisão de uma intervenção delimitada; isolamento operacional
 AINDA NÃO APROVADO enquanto não instalado/verificado e inventários aceitos.
+
+
+## Execução autorizada — gate inicial em 24/10/2026
+
+Autorização recebida; execução interrompida no gate de controle remoto do GitHub.
+Sem capacidade disponível para desabilitar workflows nem inventariar webhooks/Apps,
+não houve push, alteração administrativa VPS, manutenção, migration ou deploy.
+Leituras confirmaram os quatro HTTP 200 e, em kalend_dev, 7 assinaturas/5 pagamentos,
+migration e tabelas financeiras novas ainda ausentes. Contagem não substitui
+reclassificação. Os 72 requisitos conservam 52 locais, 12 parciais, 6 bloqueados e
+2 não testados; nenhuma aprovação funcional DEV foi acrescentada.
+Evidências, limites do conector e retomada: [execução 24/10](EXECUCAO_RELEASE_DEV_2026-10-24.md).

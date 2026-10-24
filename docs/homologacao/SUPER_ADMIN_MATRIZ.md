@@ -110,3 +110,15 @@ Classificação de 7 assinaturas/5 pagamentos sem ambiguidades, dump consistente
 ## Ensaio final da migration — cópia real em 23/10
 
 KA-043 tem ensaio Prisma/backfill/locks/rollback aprovado em cópia fiel; segue BLOQUEADO para execução real. SA-08 corrigido localmente, 881 unitários/251 E2E atuais e 11 grupos de serviço sobre schema migrado aprovados. Nenhuma promoção automática dos 72 estados funcionais a DEV real. Ver evidencias/2026-10-23-migration-real-copy/resumo.json e RELEASE_PAYMENTEVIDENCE_CONTROLADA.md.
+
+
+## Execução autorizada — gate inicial em 24/10/2026
+
+Autorização recebida; execução interrompida no gate de controle remoto do GitHub.
+Sem capacidade disponível para desabilitar workflows nem inventariar webhooks/Apps,
+não houve push, alteração administrativa VPS, manutenção, migration ou deploy.
+Leituras confirmaram os quatro HTTP 200 e, em kalend_dev, 7 assinaturas/5 pagamentos,
+migration e tabelas financeiras novas ainda ausentes. Contagem não substitui
+reclassificação. Os 72 requisitos conservam 52 locais, 12 parciais, 6 bloqueados e
+2 não testados; nenhuma aprovação funcional DEV foi acrescentada.
+Evidências, limites do conector e retomada: [execução 24/10](EXECUCAO_RELEASE_DEV_2026-10-24.md).
