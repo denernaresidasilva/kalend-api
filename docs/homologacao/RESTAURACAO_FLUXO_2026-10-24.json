@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-24",
+  "policy": "automatic develop deploy, scoped SQL correction",
+  "backup": {
+    "directory": "/root/kalend-dev-release-20261024-3dtx5_w3",
+    "database": "kalend_dev",
+    "sql_user": "kalend",
+    "sql_superuser": false,
+    "snapshot": "00000004-000075D3-1",
+    "postgres": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+    "dump_sha256": "baeb11074f4c80dad05b69a0b930b1a5e1b7566010a16c30fc7c2a4eef64f53d",
+    "dump_bytes": 323232,
+    "table_count": 27,
+    "constraint_count": 53,
+    "index_count": 84,
+    "subscriptions": 7,
+    "payments": 5,
+    "subscription_classes": {
+      "NO_PROVEN_RIGHT_IMPORTED": 6,
+      "IMPORT_PAID_RIGHTS": 1
+    },
+    "payment_classes": {
+      "IMPORT_PAYMENT_EVIDENCE": 1,
+      "NOT_APPROVED_NO_PROOF": 4
+    },
+    "migration_guard_would_abort": false,
+    "partial_or_full_refund_count": 0,
+    "duplicate_paid_period_count": 0,
+    "classifier_sha256": "7c7f7c0f8b690e237694969b94dd097fba3602c0b7af9039f95c34fae8f7bac6",
+    "same_snapshot_for_dump_classifier_and_manifest": true,
+    "created_utc": "2026-10-24T21:08:46.765982+00:00"
+  },
+  "restore": {
+    "database": "kalend_restore_financial",
+    "postgres": "postgres (PostgreSQL) 16.15 (Debian 16.15-1.pgdg12+2)",
+    "restore_user_superuser": false,
+    "network_namespace_no_routes": true,
+    "home_project_ssh_and_real_sockets_not_mounted": true,
+    "table_count": 27,
+    "all_table_counts_and_fingerprints_match": true,
+    "financial_tables_match": true,
+    "migration_ledger_match": true,
+    "constraint_count": 53,
+    "all_constraints_validated": true,
+    "index_count": 84,
+    "all_index_definitions_match": true,
+    "foreign_keys_checked": 24,
+    "orphan_count": 0,
+    "functions_match": true,
+    "sequence_count": 0,
+    "owners_acl": "original preserved in dump and source manifest; restore maps ownership to isolated NOSUPERUSER, ACL omitted intentionally",
+    "schema_restored": "pre-migration schema; no PaymentEvidence/SubscriptionEntitlement expected",
+    "real_migration_executed": false,
+    "local_private_directory": "/tmp/kalend-release-restore-20261024-1j0c5plr",
+    "source_dump_sha256": "baeb11074f4c80dad05b69a0b930b1a5e1b7566010a16c30fc7c2a4eef64f53d",
+    "cluster_stopped": true
+  },
+  "migration_role": "kalend_dev_migrator",
+  "database": "kalend_dev",
+  "role_flags": "NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT",
+  "other_database_connections_rejected": [
+    "kalend",
+    "postgres"
+  ],
+  "configuration_backup": "/root/kalend-dev-migrator-config-ov472r51",
+  "runtime_credentials_changed": false,
+  "ssh_sudoers_firewall_changed": false,
+  "global_services_restarted": false,
+  "postgres_configuration_reload": "HBA rules match only new migration role; original bytes retained after prefix",
+  "historical_risks": [
+    "runtime kalend credential remains shared; it is not used for migration",
+    "DEV users retain CloudPanel sudo; no wrapper invoked"
+  ],
+  "checks": [
+    "12 operational Python tests passed",
+    "DEV migration destination rejection tests passed",
+    "Prisma schema validate passed with new config",
+    "preflight passed under API DEV SSH identity",
+    "fresh real backup restored and all fingerprints matched"
+  ],
+  "status": "prepared before push; deployment results recorded separately"
+}

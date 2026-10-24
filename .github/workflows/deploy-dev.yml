@@ -29,6 +29,9 @@ jobs:
           script: |
             set -e
 
+            test "$(hostname -s)" = srv1119527
+            test "$(id -un)" = kalend-api-dev
+
             echo "========================================="
             echo "   KALEND API DEV - DEPLOY"
             echo "========================================="
@@ -78,7 +81,8 @@ jobs:
             echo ""
             echo "=== Prisma Migrations ==="
 
-            npx prisma migrate deploy
+            node scripts/ops/check-dev-migration.mjs
+            npx prisma migrate deploy --config prisma.dev.config.mjs
 
             echo ""
             echo "=== Build ==="

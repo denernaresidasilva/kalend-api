@@ -1,3 +1,14 @@
+> **Política vigente após simplificação de 24/10/2026:** este documento é
+> histórico de uma intervenção mais ampla e não deve ser executado em bloco.
+> Instalação de fence, negação sudo e console independente não são gates gerais
+> para desenvolvimento, Git ou release DEV pelo Actions. Console/recuperação
+> continuam pertinentes às mudanças de SSH/sudoers/autenticação administrativa.
+> A release exige somente os controles objetivos da política vigente: destino e
+> comandos DEV, migration SQL restrita, backup recuperável e ausência de operações
+> em PROD/outros sistemas. Publicação já autorizada; não solicitar nova aprovação
+> rotineira, desabilitar Actions ou usar o procedimento manual antigo.
+> O conteúdo abaixo foi preservado como evidência histórica e proposta técnica.
+
 # Intervenção administrativa DEV — escopo e gate de recuperação
 
 ## Estado: BLOQUEADA antes de qualquer instalação
