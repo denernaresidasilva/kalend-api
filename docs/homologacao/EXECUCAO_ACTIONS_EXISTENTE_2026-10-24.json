@@ -1,0 +1,92 @@
+{
+  "action": "EXISTING_GITHUB_ACTIONS_DEV_RELEASE_CHECK",
+  "date": "2026-10-24",
+  "api_local_head_before": "2794d93df4f0d8bd05cc090f6083ce1e2fb2cf93",
+  "web_local_head": "d1b549d4ec4072741f5b84420e279c5c4226413e",
+  "remote_workflows_equal_last_success": true,
+  "last_success_api": {
+    "run": 38812563493,
+    "sha": "b1cc220aafcb1f2fef97c026150795fcd5c88906"
+  },
+  "last_success_web": {
+    "run": 38646549731,
+    "sha": "4d86829b81737189503eb8b1859477e708dcdb12"
+  },
+  "pending_runs": 0,
+  "workflow_changes_this_execution": false,
+  "actions_disabled": false,
+  "source_database": "kalend_dev",
+  "datasource_role": "kalend",
+  "owner_shared_with_prod": true,
+  "api_prisma_config": "dotenv/config then env DATABASE_URL; no independent DEV database/role assertion in workflow",
+  "sudo_dev": "NOPASSWD clpctlWrapper",
+  "sudo_clp": "NOPASSWD ALL",
+  "ci_ssh_identity": "masked logs; no explicit id/uid proof",
+  "backup": {
+    "hostname": "srv1119527",
+    "database": "kalend_dev",
+    "snapshot": "00000003-00033FAC-1",
+    "snapshot_utc": "2026-10-24T09:32:36.983305",
+    "subscriptions": 7,
+    "payments": 5,
+    "subscription_classes": {
+      "NO_PROVEN_RIGHT_IMPORTED": 6,
+      "IMPORT_PAID_RIGHTS": 1
+    },
+    "payment_classes": {
+      "IMPORT_PAYMENT_EVIDENCE": 1,
+      "NOT_APPROVED_NO_PROOF": 4
+    },
+    "backfill_guard_would_abort": false,
+    "review_payments": 0,
+    "inferred_rights": 1,
+    "inferred_admin_grants": 0,
+    "backup_sha256": "c86dbd9ed2b714890490d894f55bed8c5a8c3caa0d871ef079d286fc372ff405",
+    "bytes": 323232,
+    "private_remote_directory": "/root/kalend-dev-actions-20261024-uahsjf0i",
+    "same_readonly_snapshot": true,
+    "source_application_writes": false,
+    "remote_writes": "only new root-private backup files"
+  },
+  "restore": {
+    "database": "kalend_restore_financial",
+    "postgres": "postgres (PostgreSQL) 16.15 (Debian 16.15-1.pgdg12+2)",
+    "restore_user_superuser": false,
+    "network_namespace_no_routes": true,
+    "home_project_ssh_and_real_sockets_not_mounted": true,
+    "table_count": 27,
+    "all_table_counts_and_fingerprints_match": true,
+    "financial_tables_match": true,
+    "migration_ledger_match": true,
+    "constraint_count": 53,
+    "all_constraints_validated": true,
+    "index_count": 84,
+    "all_index_definitions_match": true,
+    "foreign_keys_checked": 24,
+    "orphan_count": 0,
+    "functions_match": true,
+    "sequence_count": 0,
+    "owners_acl": "original preserved in dump and source manifest; restore maps ownership to isolated NOSUPERUSER, ACL omitted intentionally",
+    "schema_restored": "pre-migration schema; no PaymentEvidence/SubscriptionEntitlement expected",
+    "real_migration_executed": false
+  },
+  "no_push": true,
+  "no_deploy": true,
+  "real_migration": false,
+  "dev_and_prod_http": 200,
+  "prod_pm2_pids_preserved": [
+    1299,
+    1318
+  ],
+  "dev_app_pids_preserved": [
+    2465810,
+    2465910
+  ],
+  "runtime_tests": "availability only, candidate not deployed",
+  "remaining": [
+    "DEV migration must use an exclusive DEV SQL role and target assertion",
+    "remove privileged reachability from DEV code executors without changing global CloudPanel policy",
+    "attest actual SSH identity and effective privileges used by CI",
+    "local heads contain prior inert workflow replacement; do not push unchanged heads when existing workflow must be preserved"
+  ]
+}

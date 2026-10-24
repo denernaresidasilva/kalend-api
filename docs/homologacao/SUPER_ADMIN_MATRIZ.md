@@ -122,3 +122,19 @@ migration e tabelas financeiras novas ainda ausentes. Contagem não substitui
 reclassificação. Os 72 requisitos conservam 52 locais, 12 parciais, 6 bloqueados e
 2 não testados; nenhuma aprovação funcional DEV foi acrescentada.
 Evidências, limites do conector e retomada: [execução 24/10](EXECUCAO_RELEASE_DEV_2026-10-24.md).
+
+
+## Fluxo Actions existente — execução de 24/10/2026
+
+Workflows remotos comparados aos últimos deploys bem-sucedidos: iguais, nenhum run
+pendente. Nenhum workflow alterado/desativado nesta execução. Bloqueio confirmado:
+API .env aponta a kalend_dev mas usa role kalend também proprietária de PROD;
+Prisma lê DATABASE_URL sem guard independente no job. Contas DEV continuam com
+sudo clpctlWrapper e clp com ALL; identidade SSH CI permanece mascarada nos logs.
+Não houve push/deploy/migration. Backup DEV atualizado em snapshot READ ONLY,
+classificador reexecutado (7 assinaturas/5 pagamentos; 1 direito legítimo, 6 sem
+direito importável, nenhum grant inferido/ambiguidade). Restore nativo isolado
+aprovado: 27 tabelas por contagem/fingerprint, 53 constraints, 84 índices, 24 FKs,
+zero órfãos. Esses resultados não homologam a candidata ainda não publicada.
+Evidências: [execução Actions existente](EXECUCAO_ACTIONS_EXISTENTE_2026-10-24.json).
+Os 72 requisitos mantêm os estados; HTTP 200 e backup não promovem testes funcionais.
