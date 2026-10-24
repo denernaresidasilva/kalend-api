@@ -3,7 +3,6 @@ import importlib.util
 from pathlib import Path
 import unittest
 import subprocess
-import textwrap
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location('safety', ROOT/'scripts/ops/release_safety.py')
@@ -69,24 +68,31 @@ class ReleaseSafetyTests(unittest.TestCase):
             with self.subTest(key=key):
                 with self.assertRaises(ValueError):S.validate_activation(bad)
 
-    def test_manual_workflow_shell_rejects_push_and_injected_refs(self):
-        for repo in [ROOT,ROOT.parent/'kalend-web']:
-            text=(repo/'.github/workflows/deploy-dev.yml').read_text()
-            script=textwrap.dedent(text.split('        run: |\n',1)[1])
-            good={'PATH':'/usr/bin:/bin','GITHUB_EVENT_NAME':'workflow_dispatch','API_SHA':S.API_SHA,'WEB_SHA':S.WEB_SHA}
-            self.assertEqual(subprocess.run(['bash','-c',script],env=good,capture_output=True).returncode,0)
-            for key,value in [('GITHUB_EVENT_NAME','push'),('API_SHA','$(exit 0)'),('WEB_SHA','main')]:
-                self.assertNotEqual(subprocess.run(['bash','-c',script],env={**good,key:value},capture_output=True).returncode,0)
+    def test_existing_workflow_ssh_scripts_are_syntax_checked_never_executed(self):
+        import yaml
+        for repo in [ROOT, ROOT.parent/'kalend-web']:
+            workflow=yaml.load((repo/'.github/workflows/deploy-dev.yml').read_text(), Loader=yaml.BaseLoader)
+            steps=workflow['jobs']['deploy']['steps']
+            scripts=[step['with']['script'] for step in steps if 'with' in step and 'script' in step['with']]
+            self.assertEqual(len(scripts),1)
+            result=subprocess.run(['bash','-n'],input=scripts[0],text=True,capture_output=True)
+            self.assertEqual(result.returncode,0)
+            for forbidden in ['pm2 restart all', 'pm2 kill', '/home/kalend/htdocs/', '/home/kalend-api/htdocs/']:
+                self.assertNotIn(forbidden,scripts[0])
 
-    def test_both_actual_local_workflows_are_manual_without_ssh_or_secrets(self):
-        for repo in [ROOT,ROOT.parent/'kalend-web']:
-            paths=list((repo/'.github/workflows').glob('*'))
-            self.assertEqual(len(paths),1)
-            text=paths[0].read_text()
-            self.assertIn('workflow_dispatch:',text)
-            for forbidden in ['push:', 'repository_dispatch:', 'workflow_run:', 'schedule:', 'secrets.', 'ssh-action', 'migrate deploy', 'pm2 restart']:
-                self.assertNotIn(forbidden,text)
-            self.assertIn('cancel-in-progress: false',text)
+    def test_workflows_preserve_existing_successful_deploy_not_manual_replacement(self):
+        import yaml
+        baselines=[(ROOT,'b1cc220aafcb1f2fef97c026150795fcd5c88906'),
+                   (ROOT.parent/'kalend-web','4d86829b81737189503eb8b1859477e708dcdb12')]
+        for repo,ref in baselines:
+            paths=list((repo/'.github/workflows').glob('*'));self.assertEqual(len(paths),1)
+            raw=paths[0].read_bytes()
+            original=subprocess.check_output(['git','show',ref+':.github/workflows/deploy-dev.yml'],cwd=repo)
+            self.assertEqual(raw,original)
+            workflow=yaml.load(raw,Loader=yaml.BaseLoader)
+            self.assertEqual(workflow['on'],{'push':{'branches':['develop']}})
+            self.assertNotIn('workflow_dispatch',workflow['on'])
+        # Static target checks do not attest the actual CI identity or SQL privileges.
 
 
 if __name__=='__main__':unittest.main()

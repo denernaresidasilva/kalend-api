@@ -1,3 +1,10 @@
+> **Atualização de 24/10/2026:** a proposta de publicação manual deste documento
+> foi superada pela decisão do proprietário de manter GitHub Actions por push em
+> develop. Preservado como histórico técnico; não executar a sequência de publicação
+> manual nem desabilitar Actions com base neste documento. Os verificadores offline
+> associados não são um executor nem uma aprovação do fluxo atual. As restrições
+> DEV/PROD e os achados de privilégios continuam válidos.
+
 # Intervenção mínima e release DEV — proposta única para revisão humana
 
 **NÃO EXECUTADA. Não autoriza push ou escrita remota nesta tarefa.**

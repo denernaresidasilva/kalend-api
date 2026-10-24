@@ -1,37 +1,119 @@
-name: DEV manual version gate (no deployment)
+name: Deploy Kalend API DEV
 
 on:
-  workflow_dispatch:
-    inputs:
-      api_sha:
-        description: Approved API application commit (40 hex)
-        required: true
-        type: string
-      web_sha:
-        description: Approved Web application commit (40 hex)
-        required: true
-        type: string
-
-permissions:
-  contents: read
+  push:
+    branches:
+      - develop
 
 concurrency:
-  group: kalend-dev-manual-version-gate
-  cancel-in-progress: false
+  group: kalend-api-dev
+  cancel-in-progress: true
 
 jobs:
-  verify-inputs-only:
+  deploy:
+    name: Deploy para DEV
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+
     steps:
-      - name: Validate version references only
-        env:
-          API_SHA: ${{ inputs.api_sha }}
-          WEB_SHA: ${{ inputs.web_sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$GITHUB_EVENT_NAME" = workflow_dispatch
-          [[ "$API_SHA" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$WEB_SHA" =~ ^[0-9a-f]{40}$ ]]
-          echo "Input syntax valid. No backup, migration, SSH, build or deployment executed."
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.DEV_SSH_HOST }}
+          username: ${{ secrets.DEV_SSH_USER }}
+          key: ${{ secrets.DEV_SSH_KEY }}
+          port: 22
+
+          script: |
+            set -e
+
+            echo "========================================="
+            echo "   KALEND API DEV - DEPLOY"
+            echo "========================================="
+
+            export NVM_DIR="$HOME/.nvm"
+
+            if [ -s "$NVM_DIR/nvm.sh" ]; then
+              . "$NVM_DIR/nvm.sh"
+            fi
+
+            nvm use 24.21.0
+
+            echo ""
+            echo "=== Ambiente ==="
+            echo "Node: $(node --version)"
+            echo "NPM:  $(npm --version)"
+            echo "PM2:  $(pm2 --version)"
+
+            echo ""
+            echo "=== Diretório do projeto ==="
+
+            cd /home/kalend-api-dev/htdocs/api-dev.kalend.tech/app
+
+            pwd
+
+            echo ""
+            echo "=== Git ==="
+
+            git fetch origin develop
+            git checkout develop
+            git reset --hard origin/develop
+
+            echo ""
+            echo "Commit atual:"
+            git log -1 --oneline
+
+            echo ""
+            echo "=== Dependências ==="
+
+            npm ci
+
+            echo ""
+            echo "=== Prisma Generate ==="
+
+            npx prisma generate
+
+            echo ""
+            echo "=== Prisma Migrations ==="
+
+            npx prisma migrate deploy
+
+            echo ""
+            echo "=== Build ==="
+
+            npm run build
+
+            echo ""
+            echo "=== Reiniciando PM2 ==="
+
+            /home/kalend-api-dev/.nvm/versions/node/v24.21.0/bin/pm2 restart kalend-api-dev
+
+            echo ""
+            echo "=== Status PM2 ==="
+
+            /home/kalend-api-dev/.nvm/versions/node/v24.21.0/bin/pm2 status
+
+            echo ""
+            echo "=== Health Check ==="
+
+            for i in {1..15}; do
+              if curl -fsS https://api-dev.kalend.tech/health; then
+                echo ""
+                echo "Health check OK!"
+                exit 0
+              fi
+
+              echo "API ainda iniciando... tentativa $i/15"
+              sleep 2
+            done
+
+            echo ""
+            echo "API não respondeu após 30 segundos."
+            exit 1
+
+            echo ""
+            echo "========================================="
+            echo "       DEPLOY API DEV CONCLUÍDO"
+            echo "========================================="
