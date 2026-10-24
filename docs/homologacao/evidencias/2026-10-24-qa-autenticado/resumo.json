@@ -40,7 +40,8 @@
     ],
     "engine": "Chromium",
     "no_admin_overflow_or_page_exceptions": true,
-    "physical_push_delivery_proven": false
+    "physical_push_delivery_proven": false,
+    "evidence": "browser-cases.json"
   },
   "test_harness_corrections": [
     "cancel body uses atPeriodEnd, not cancelAtPeriodEnd",
@@ -107,7 +108,8 @@
     "web_new_scripts_and_specs_eslint": "PASS",
     "web_typecheck": "PASS",
     "historical_financial_batteries_repeated": false,
-    "previous_27_public_tests_repeated": false
+    "previous_27_public_tests_repeated": false,
+    "qa_identity_plan_node_tests": 3
   },
   "remaining": [
     "provider-signed successful sandbox payment callback/refund and recurrence",

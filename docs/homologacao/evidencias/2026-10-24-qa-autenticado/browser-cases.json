@@ -1,0 +1,97 @@
+{
+  "uniqueCases": 15,
+  "passed": 15,
+  "cases": [
+    {
+      "case": "DEV-authenticated-admin: actual login form, pages, API integration and responsive shell",
+      "project": "desktop",
+      "status": "passed",
+      "sourceAttempt": "browser-theme-retest"
+    },
+    {
+      "case": "DEV-authenticated-owner: tenant selection works and Super Admin shell is denied",
+      "project": "desktop",
+      "status": "passed",
+      "sourceAttempt": "browser-auth"
+    },
+    {
+      "case": "DEV-authenticated-admin: actual login form, pages, API integration and responsive shell",
+      "project": "tablet",
+      "status": "passed",
+      "sourceAttempt": "browser-theme-retest"
+    },
+    {
+      "case": "DEV-authenticated-owner: tenant selection works and Super Admin shell is denied",
+      "project": "tablet",
+      "status": "passed",
+      "sourceAttempt": "browser-auth"
+    },
+    {
+      "case": "DEV-authenticated-admin: actual login form, pages, API integration and responsive shell",
+      "project": "mobile",
+      "status": "passed",
+      "sourceAttempt": "browser-auth"
+    },
+    {
+      "case": "DEV-authenticated-owner: tenant selection works and Super Admin shell is denied",
+      "project": "mobile",
+      "status": "passed",
+      "sourceAttempt": "browser-auth"
+    },
+    {
+      "case": "DEV-expired-QA-trial: authenticated recovery modal survives direct routes and reload",
+      "project": "desktop",
+      "status": "passed",
+      "sourceAttempt": "browser-expired-retest"
+    },
+    {
+      "case": "DEV-expired-QA-trial: authenticated recovery modal survives direct routes and reload",
+      "project": "tablet",
+      "status": "passed",
+      "sourceAttempt": "browser-expired-retest"
+    },
+    {
+      "case": "DEV-expired-QA-trial: authenticated recovery modal survives direct routes and reload",
+      "project": "mobile",
+      "status": "passed",
+      "sourceAttempt": "browser-expired-retest"
+    },
+    {
+      "case": "DEV-PUSH-granted: incidente BUG-01 em sessão QA real",
+      "project": "desktop",
+      "status": "passed",
+      "sourceAttempt": "browser-push"
+    },
+    {
+      "case": "DEV-PUSH-permission-transition: default→granted sem observer, dados QA reais",
+      "project": "desktop",
+      "status": "passed",
+      "sourceAttempt": "browser-push"
+    },
+    {
+      "case": "DEV-PUSH-granted: incidente BUG-01 em sessão QA real",
+      "project": "tablet",
+      "status": "passed",
+      "sourceAttempt": "browser-push"
+    },
+    {
+      "case": "DEV-PUSH-permission-transition: default→granted sem observer, dados QA reais",
+      "project": "tablet",
+      "status": "passed",
+      "sourceAttempt": "browser-push"
+    },
+    {
+      "case": "DEV-PUSH-granted: incidente BUG-01 em sessão QA real",
+      "project": "mobile",
+      "status": "passed",
+      "sourceAttempt": "browser-push"
+    },
+    {
+      "case": "DEV-PUSH-permission-transition: default→granted sem observer, dados QA reais",
+      "project": "mobile",
+      "status": "passed",
+      "sourceAttempt": "browser-push"
+    }
+  ],
+  "earlierHarnessFailuresPreservedInPrivateReports": true
+}

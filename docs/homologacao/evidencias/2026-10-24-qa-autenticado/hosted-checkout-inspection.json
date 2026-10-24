@@ -1,0 +1,23 @@
+{
+  "layer": "provider sandbox hosted checkout inspection only; no form submitted",
+  "http": 200,
+  "finalHost": "pagamento.sandbox.pagbank.com.br",
+  "inputs": [
+    {
+      "name": "payment.paymentMethod",
+      "type": "radio",
+      "required": false
+    },
+    {
+      "name": "payment.paymentMethod",
+      "type": "radio",
+      "required": false
+    },
+    {
+      "name": "payment.paymentMethod",
+      "type": "radio",
+      "required": false
+    }
+  ],
+  "followup": "Selecting hosted card control did not complete within browser timeout; no payment form submitted, callback remains untested."
+}
