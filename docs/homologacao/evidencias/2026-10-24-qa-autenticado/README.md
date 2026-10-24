@@ -37,3 +37,7 @@ Worker foi invocado com IDs exatos das seis empresas novas. Não se executou wor
 4. Teste dinâmico de startup PM2 é uma tarefa operacional separada.
 
 PROD e DEV frontend/API terminaram HTTP 200. PM2 PROD (1299/1318), Nginx (1230), PostgreSQL (1067), Redis (788) e Docker (1140) preservados. Nenhuma alteração CloudPanel/SSH/sudoers/HBA/PROD, nenhuma cobrança real ou comunicação externa.
+
+## Seguimento Web — correção P2 publicada
+
+Após os testes do core acima, bce7e57 foi publicado via Actions existente (run 40138472884, sucesso). Apenas formulários de gateways mudaram: campo público sem uso removido, rótulos específicos e metadados/segredos preservados. 36 integrações locais passaram, lint/typecheck/build aprovados. Mais três casos browser reais (12 formulários, sem submissão de configuração) passaram no novo commit. Total browser único da tarefa: 18. API/DB não foram republicados/migrados. Nenhum teste público anterior repetido.

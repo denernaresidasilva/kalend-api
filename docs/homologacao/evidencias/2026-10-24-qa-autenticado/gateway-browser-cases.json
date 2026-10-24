@@ -1,0 +1,22 @@
+{
+  "cases": [
+    {
+      "case": "DEV gateway forms show only hosted-provider credential fields without changing configuration",
+      "project": "desktop",
+      "status": "passed"
+    },
+    {
+      "case": "DEV gateway forms show only hosted-provider credential fields without changing configuration",
+      "project": "tablet",
+      "status": "passed"
+    },
+    {
+      "case": "DEV gateway forms show only hosted-provider credential fields without changing configuration",
+      "project": "mobile",
+      "status": "passed"
+    }
+  ],
+  "passed": 3,
+  "forms_checked": 12,
+  "writes_performed": 0
+}

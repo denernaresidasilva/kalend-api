@@ -301,3 +301,9 @@ SMTP DEV encaminhou exclusivamente ao sink local: 31 mensagens armazenadas/31 AC
 Matriz atual: 24 APROVADO EM DEV REAL, 32 APROVADO LOCALMENTE, 13 PARCIAL, 2 NÃO TESTADO, 1 BLOQUEADO (startup). São estados por grupo inteiro; detalhes parciais DEV também estão no JSON. P1 de homologação restantes: callback/recorrência sandbox de provedor (KA-049) e comunicação multicanal final (KA-061). Nenhum P0 novo comprovado. Não liberar oficialmente os demais painéis ainda.
 
 Não houve novo deploy, push ou migration. Houve somente preparação de fixtures QA, configuração sandbox DEV e um restart específico da API DEV. PROD e serviços compartilhados preservados. Revisão inicial dos quatro gateways iniciada contra documentação oficial; evidências completas: [QA autenticado](evidencias/2026-10-24-qa-autenticado/README.md) e [gateways](GATEWAYS_REVISAO_2026-10-24.md).
+
+## Seguimento: correção Web dos formulários de gateway publicada
+
+P2 corrigido e publicado em bce7e57c4864e509fb565b3f2d580e7abf1da6bf pelo Actions existente, run [40138472884](https://github.com/denernaresidasilva/kalend-web/actions/runs/40138472884), sucesso. Removido campo público sem uso nos quatro adapters; rótulos específicos de credencial e metadados antigos preservados. 36 integrações locais, ESLint, tipos e build webpack aprovados. Três casos autenticados pós-deploy (12 formulários em três viewports) passaram, sem gravar configuração dos provedores. Total desta tarefa: 18 casos browser reais únicos; os 15 do core precederam esta mudança restrita de formulário.
+
+Somente Web foi republicado/reiniciado pelo pipeline. API permanece a49f6a5, sem nova migration nem push API. PIDs PROD 1848/1921 e serviços compartilhados preservados; quatro HTTP finais 200. Ferramentas/documentos API e teste pós-deploy adicional permanecem em commits locais para evitar deploy de API ou Web sem necessidade funcional. Os dois P1 de homologação externa permanecem explícitos na matriz.

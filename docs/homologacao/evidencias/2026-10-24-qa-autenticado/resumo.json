@@ -2,7 +2,7 @@
   "date": "2026-10-24",
   "environment": "DEV REAL",
   "api": "a49f6a513da62b1c52da2caf51bdcea3acbed509",
-  "web": "c4f84d5db30e4150eedac876b9701fec2ba0bb86",
+  "web": "bce7e57c4864e509fb565b3f2d580e7abf1da6bf",
   "fixtures": {
     "new_users": 5,
     "new_companies": 6,
@@ -41,7 +41,9 @@
     "engine": "Chromium",
     "no_admin_overflow_or_page_exceptions": true,
     "physical_push_delivery_proven": false,
-    "evidence": "browser-cases.json"
+    "evidence": "browser-cases.json",
+    "additional_gateway_cases": 3,
+    "total_unique_cases_including_followup": 18
   },
   "test_harness_corrections": [
     "cancel body uses atPeriodEnd, not cancelAtPeriodEnd",
@@ -99,7 +101,8 @@
       "postgresql": 1067,
       "redis": 788,
       "docker": 1140
-    }
+    },
+    "phase": "core QA phase; later Web-only publication recorded separately in gateway_followup"
   },
   "local_checks": {
     "qa_provision_node_tests": 3,
@@ -119,5 +122,30 @@
     "full real-device/accessibility certification",
     "PM2 startup dynamic test outside this task"
   ],
-  "status": "PARTIAL: authenticated core validated; final end-to-end provider/channel homologation pending"
+  "status": "PARTIAL: authenticated core validated; final end-to-end provider/channel homologation pending",
+  "core_web_before_gateway_fix": "c4f84d5db30e4150eedac876b9701fec2ba0bb86",
+  "gateway_followup": {
+    "defect": "unused generic public ID and unspecific credential label",
+    "severity": "P2",
+    "fixed": true,
+    "web_commit": "bce7e57c4864e509fb565b3f2d580e7abf1da6bf",
+    "actions_run": 40138472884,
+    "actions_conclusion": "success",
+    "push_web": true,
+    "push_api": false,
+    "migration_executed": false,
+    "api_restarted": false,
+    "web_named_restart_by_existing_workflow": true,
+    "integration_tests_passed": 36,
+    "eslint": "PASS",
+    "typecheck": "PASS",
+    "webpack_build": "PASS",
+    "real_browser_cases_passed": 3,
+    "forms_checked": 12,
+    "provider_configuration_writes": 0,
+    "prod_app_pids_preserved": [
+      1848,
+      1921
+    ]
+  }
 }
