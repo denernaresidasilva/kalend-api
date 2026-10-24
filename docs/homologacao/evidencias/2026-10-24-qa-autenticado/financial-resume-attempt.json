@@ -1,0 +1,20 @@
+{
+  "passed": 2,
+  "failed": 1,
+  "results": [
+    {
+      "name": "administrative_recovery_requires_new_login",
+      "status": "PASS"
+    },
+    {
+      "name": "sandbox_gateway_is_explicit_before_checkout",
+      "status": "PASS"
+    },
+    {
+      "name": "actual_sandbox_checkout_no_charge",
+      "status": "FAIL",
+      "code": "HTTP_404_EXPECTED_201"
+    }
+  ],
+  "scope": "QA_SIMULATION; external checkout requires SANDBOX precondition; no real charge"
+}

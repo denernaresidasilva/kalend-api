@@ -1,0 +1,11 @@
+{
+  "stage": "partial",
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "name": "partial_refund_or_reversal_state_visible_through_authenticated_API",
+      "status": "PASS"
+    }
+  ]
+}

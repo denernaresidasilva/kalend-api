@@ -1,0 +1,21 @@
+{
+  "cross_tenant_cancel": {
+    "original_status": 400,
+    "cause": "invalid test request field",
+    "corrected_field": "atPeriodEnd",
+    "retest_status": 404,
+    "result": "PASS"
+  },
+  "administrative_recovery": {
+    "original_status": 401,
+    "cause": "expected revocation of prior session",
+    "retest": "normal QA owner login then recovery succeeded",
+    "result": "PASS"
+  },
+  "private_plan_checkout": {
+    "actual_status": 404,
+    "result": "expected rejection; initial positive expectation corrected",
+    "positive_sandbox_checkout": "checkout.json, distinct authorized QA public plan"
+  },
+  "product_defect_proven": false
+}

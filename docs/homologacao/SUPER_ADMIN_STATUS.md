@@ -289,3 +289,15 @@ nenhum registro provisionado. SMTP está em PRODUCTION, portanto não houve test
 PagBank SANDBOX configurado não significa checkout exercitado. Nenhuma cobrança/mensagem.
 KA-043 aprovado em DEV real; jornadas de login/tenant/financeiro/comunicação seguem
 bloqueadas. Gateways serão revisados somente após homologação crítica. Evidência: evidencias/2026-10-24-homologacao-real/resumo.json.
+
+## Estado vigente — homologação autenticada QA autorizada, 24/10/2026
+
+O bloqueio de ausência de identidades QA foi resolvido: cinco contas fictícias e seis empresas novas, credenciais privadas fora do Git. Login Super Admin/Owner/Professional, negações administrativas, isolamento A/B, revogação/desativação/logout-all, expiração real do JWT e refresh aprovados. Inbox IDOR/read/preferências aprovados. Checkout PagBank SANDBOX real criado sem cobrança; grant explícito/revogação e ciclo financeiro QA exercitados. Nenhuma evidência APPLIED sem pagamento APPROVED ao fim.
+
+Quinze casos browser autenticados passaram em Chromium desktop/tablet/mobile, incluindo 42 visitas administrativas, temas e recovery. Os 27 casos públicos anteriores não foram repetidos. Testes históricos financeiros e de concorrência também não foram repetidos sem causa técnica.
+
+SMTP DEV encaminhou exclusivamente ao sink local: 31 mensagens armazenadas/31 ACCEPTED, nenhum destinatário externo. Doze eventos comerciais mais QA_COMMUNICATION_TEST; SECURITY_PASSWORD_CHANGED não exercitado. WhatsApp e Push não possuem destinatário/dispositivo QA nesta rodada. Estornos foram comprovados no domínio compilado com consulta HTTP, não por callback de provedor.
+
+Matriz atual: 24 APROVADO EM DEV REAL, 32 APROVADO LOCALMENTE, 13 PARCIAL, 2 NÃO TESTADO, 1 BLOQUEADO (startup). São estados por grupo inteiro; detalhes parciais DEV também estão no JSON. P1 de homologação restantes: callback/recorrência sandbox de provedor (KA-049) e comunicação multicanal final (KA-061). Nenhum P0 novo comprovado. Não liberar oficialmente os demais painéis ainda.
+
+Não houve novo deploy, push ou migration. Houve somente preparação de fixtures QA, configuração sandbox DEV e um restart específico da API DEV. PROD e serviços compartilhados preservados. Revisão inicial dos quatro gateways iniciada contra documentação oficial; evidências completas: [QA autenticado](evidencias/2026-10-24-qa-autenticado/README.md) e [gateways](GATEWAYS_REVISAO_2026-10-24.md).

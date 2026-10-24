@@ -1,0 +1,113 @@
+{
+  "qaCompanies": 6,
+  "trialExpiryCaptured": true,
+  "temporalFirst": 0,
+  "temporalSecond": 0,
+  "scopedTemporalIdempotent": true,
+  "runs": [
+    {
+      "expanded": 5,
+      "processed": 5,
+      "deliveriesCreated": 15
+    },
+    {
+      "expanded": 5,
+      "processed": 5,
+      "deliveriesCreated": 15
+    },
+    {
+      "expanded": 5,
+      "processed": 5,
+      "deliveriesCreated": 15
+    },
+    {
+      "expanded": 1,
+      "processed": 1,
+      "deliveriesCreated": 3
+    },
+    {
+      "expanded": 0,
+      "processed": 0,
+      "deliveriesCreated": 0
+    }
+  ],
+  "processedF": 0,
+  "deliveryStates": [
+    {
+      "_count": 34,
+      "channel": "WHATSAPP",
+      "status": "UNSENDABLE"
+    },
+    {
+      "_count": 31,
+      "channel": "EMAIL",
+      "status": "ACCEPTED"
+    },
+    {
+      "_count": 34,
+      "channel": "PUSH",
+      "status": "UNSENDABLE"
+    },
+    {
+      "_count": 4,
+      "channel": "EMAIL",
+      "status": "UNSENDABLE"
+    }
+  ],
+  "eventCounts": [
+    {
+      "_count": 1,
+      "event": "TRIAL_EXPIRING"
+    },
+    {
+      "_count": 1,
+      "event": "QA_COMMUNICATION_TEST"
+    },
+    {
+      "_count": 3,
+      "event": "SUBSCRIPTION_SUSPENDED"
+    },
+    {
+      "_count": 4,
+      "event": "PAYMENT_APPROVED"
+    },
+    {
+      "_count": 5,
+      "event": "PAYMENT_PENDING"
+    },
+    {
+      "_count": 1,
+      "event": "PAYMENT_OVERDUE"
+    },
+    {
+      "_count": 5,
+      "event": "TRIAL_STARTED"
+    },
+    {
+      "_count": 3,
+      "event": "SUBSCRIPTION_REACTIVATED"
+    },
+    {
+      "_count": 2,
+      "event": "PAYMENT_FAILED"
+    },
+    {
+      "_count": 6,
+      "event": "OWNER_WELCOME"
+    },
+    {
+      "_count": 1,
+      "event": "SUBSCRIPTION_GRACE_PERIOD"
+    },
+    {
+      "_count": 2,
+      "event": "SUBSCRIPTION_CANCELLED"
+    },
+    {
+      "_count": 1,
+      "event": "TRIAL_EXPIRED"
+    }
+  ],
+  "pending": 0,
+  "globalWorkerOrReconcileExecuted": false
+}

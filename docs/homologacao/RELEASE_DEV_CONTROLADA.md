@@ -203,3 +203,9 @@ Migration confirmada por ledger/checksum; 1 evidência e 1 PAYMENT, nenhum ADMIN
 27 testes reais públicos/anônimos aprovados, nenhum autenticado positivo. Credenciais
 e usuários QA ausentes nos critérios/locais inspecionados; provisionamento apenas
 preparado. SMTP PRODUCTION não acionado. Ver evidencias/2026-10-24-homologacao-real/resumo.json.
+
+## Pós-publicação: QA autenticado — 24/10/2026
+
+A release a49f6a5/c4f84d5 foi exercitada com fixtures QA autorizadas. Não se repetiu o deploy: apenas ferramentas/testes de homologação e documentação foram adicionados localmente. Preparação real: cinco usuários, seis tenants, sandbox SMTP local, um restart específico API DEV. Confira [resultados e rollback QA](evidencias/2026-10-24-qa-autenticado/README.md).
+
+Core autenticado e financeiro simulado aprovados; homologação integral continua pendente de callback de provedor sandbox/recorrência, destinatário WhatsApp e dispositivo Push QA. Nenhuma cobrança real, envio externo ou alteração PROD. Não converter o teste de domínio de estorno em evidência de webhook real.

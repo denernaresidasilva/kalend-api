@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-24",
+  "environment": "DEV REAL",
+  "api": "a49f6a513da62b1c52da2caf51bdcea3acbed509",
+  "web": "c4f84d5db30e4150eedac876b9701fec2ba0bb86",
+  "fixtures": {
+    "new_users": 5,
+    "new_companies": 6,
+    "emails_reserved": true,
+    "private_credentials_outside_git": true,
+    "existing_customer_accounts_modified": false
+  },
+  "authenticated_http": {
+    "initial_suite_unique_passed": 41,
+    "initial_attempt_passed": 40,
+    "initial_attempt_request_field_error": 1,
+    "targeted_retest_passed": 1,
+    "financial_initial_passed": 15,
+    "financial_resume_passed": 2,
+    "checkout_passed": 7,
+    "grant_passed": 7,
+    "lifecycle_passed": 14,
+    "notifications_revocation_passed": 5,
+    "signed_token_expiry": {
+      "expiredRejected": true,
+      "refreshAccepted": true,
+      "newAccessAccepted": true
+    }
+  },
+  "browser": {
+    "unique_cases_passed": 15,
+    "admin_owner": 6,
+    "expired_trial": 3,
+    "push_permission_continuity": 6,
+    "admin_page_visits": 42,
+    "viewports": [
+      "1440x900",
+      "768x1024",
+      "390x844"
+    ],
+    "engine": "Chromium",
+    "no_admin_overflow_or_page_exceptions": true,
+    "physical_push_delivery_proven": false
+  },
+  "test_harness_corrections": [
+    "cancel body uses atPeriodEnd, not cancelAtPeriodEnd",
+    "administrative block revokes session; re-login is required",
+    "private QA plan is intentionally not publicly check-outable; positive checkout uses distinct public QA fixture hidden afterwards",
+    "Nest cancellation response is HTTP 201",
+    "theme toggle must await hydration",
+    "expired owner landing uses approved compact recovery, not removed modal",
+    "operator-only outbox namespace collision fixed; failed transactions rolled back"
+  ],
+  "financial_layers": {
+    "checkout": "real PagBank SANDBOX HTTP, no charge",
+    "payment_states": "authenticated QA_SIMULATION HTTP on actual DEV API/PostgreSQL",
+    "partial_full_refund_chargeback": "compiled BillingDomain integration on new simulated QA money, followed by authenticated HTTP assertions",
+    "provider_paid_signed_callback": "NOT TESTED",
+    "database_evidence_immutability": "trigger rejected attempted QA period change; transaction rolled back",
+    "applied_evidence_without_approved_payment": 0,
+    "active_new_admin_grants": 0
+  },
+  "communication": {
+    "sink_host": "127.0.0.1:1025",
+    "stored_messages": 31,
+    "all_recipients_in_new_qa_allowlist": true,
+    "smtp_external_connections": 0,
+    "smtp_provider_production_config_changed": false,
+    "event_types_observed": 13,
+    "commercial_event_types_observed": 12,
+    "security_password_changed_not_generated": true,
+    "pending_scoped_deliveries": 0,
+    "email_unsendable_before_allowlist": 4,
+    "whatsapp_push": "UNSENDABLE: no QA phone/device",
+    "global_worker_executed": false,
+    "email_delivery_claim": "31 messages persisted in local sink, not external mailbox"
+  },
+  "operations": {
+    "new_sink_process": "isolated private PM2_HOME, no startup/save, loopback only",
+    "dev_api_restarted_once_for_qa_env": true,
+    "dev_env_keys_changed": [
+      "QA_COMMUNICATION_COMPANY_IDS",
+      "QA_COMMUNICATION_EMAIL_ALLOWLIST",
+      "COMMUNICATION_DEV_SMTP_SANDBOX_ENABLED"
+    ],
+    "push": false,
+    "deploy": false,
+    "migration": false,
+    "production_services_restarted": false,
+    "production_http": 200,
+    "dev_http": 200,
+    "production_pm2_daemon_pids": [
+      1299,
+      1318
+    ],
+    "service_main_pids": {
+      "nginx": 1230,
+      "postgresql": 1067,
+      "redis": 788,
+      "docker": 1140
+    }
+  },
+  "local_checks": {
+    "qa_provision_node_tests": 3,
+    "qa_domain_guard_node_tests": 2,
+    "smtp_python_tests": 3,
+    "web_new_scripts_and_specs_eslint": "PASS",
+    "web_typecheck": "PASS",
+    "historical_financial_batteries_repeated": false,
+    "previous_27_public_tests_repeated": false
+  },
+  "remaining": [
+    "provider-signed successful sandbox payment callback/refund and recurrence",
+    "authorized QA WhatsApp recipient and physical Push browser/device",
+    "historical Push BUG-01 affected profile/device identification",
+    "password reset/change absent; SECURITY_PASSWORD_CHANGED not exercised",
+    "full real-device/accessibility certification",
+    "PM2 startup dynamic test outside this task"
+  ],
+  "status": "PARTIAL: authenticated core validated; final end-to-end provider/channel homologation pending"
+}

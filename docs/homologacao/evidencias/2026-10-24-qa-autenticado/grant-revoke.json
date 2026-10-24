@@ -1,0 +1,27 @@
+{
+  "stage": "revoke",
+  "passed": 5,
+  "failed": 0,
+  "results": [
+    {
+      "name": "owner_cannot_revoke_grant",
+      "status": "PASS"
+    },
+    {
+      "name": "QA_admin_revocation_is_audited",
+      "status": "PASS"
+    },
+    {
+      "name": "revocation_removes_only_the_revoked_access",
+      "status": "PASS"
+    },
+    {
+      "name": "duplicate_revocation_is_idempotent",
+      "status": "PASS"
+    },
+    {
+      "name": "company_deletion_preserves_financial_grant_history",
+      "status": "PASS"
+    }
+  ]
+}

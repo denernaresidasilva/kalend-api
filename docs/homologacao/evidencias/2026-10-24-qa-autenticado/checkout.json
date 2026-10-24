@@ -1,0 +1,34 @@
+{
+  "passed": 7,
+  "failed": 0,
+  "results": [
+    {
+      "name": "QA_plan_creation_via_authenticated_API",
+      "status": "PASS"
+    },
+    {
+      "name": "QA_company_creation_with_existing_QA_owner",
+      "status": "PASS"
+    },
+    {
+      "name": "duplicate_QA_company_slug_rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "same_QA_owner_can_select_second_authorized_tenant",
+      "status": "PASS"
+    },
+    {
+      "name": "actual_PagBank_SANDBOX_checkout",
+      "status": "PASS"
+    },
+    {
+      "name": "checkout_same_key_is_idempotent",
+      "status": "PASS"
+    },
+    {
+      "name": "unverified_PagBank_webhook_rejected",
+      "status": "PASS"
+    }
+  ]
+}

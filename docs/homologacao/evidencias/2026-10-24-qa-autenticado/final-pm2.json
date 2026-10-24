@@ -1,0 +1,57 @@
+[
+  {
+    "context": "kalend",
+    "processes": [
+      {
+        "name": "kalend-web",
+        "pid": 1921,
+        "status": "online",
+        "restarts": 0
+      }
+    ]
+  },
+  {
+    "context": "kalend-api",
+    "processes": [
+      {
+        "name": "kalend-api",
+        "pid": 1848,
+        "status": "online",
+        "restarts": 0
+      }
+    ]
+  },
+  {
+    "context": "kalend-dev",
+    "processes": [
+      {
+        "name": "kalend-web-dev",
+        "pid": 3957617,
+        "status": "online",
+        "restarts": 2
+      }
+    ]
+  },
+  {
+    "context": "kalend-api-dev",
+    "processes": [
+      {
+        "name": "kalend-api-dev",
+        "pid": 3963958,
+        "status": "online",
+        "restarts": 2
+      }
+    ]
+  },
+  {
+    "context": "kalend-api-dev:QA-sink",
+    "processes": [
+      {
+        "name": "kalend-qa-smtp-sink",
+        "pid": 3974157,
+        "status": "online",
+        "restarts": 0
+      }
+    ]
+  }
+]

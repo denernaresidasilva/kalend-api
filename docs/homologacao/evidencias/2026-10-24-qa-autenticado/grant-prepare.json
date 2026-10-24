@@ -1,0 +1,15 @@
+{
+  "stage": "prepare",
+  "passed": 2,
+  "failed": 0,
+  "results": [
+    {
+      "name": "explicit_QA_ADMIN_GRANT_company_creation",
+      "status": "PASS"
+    },
+    {
+      "name": "explicit_grant_allows_legitimate_access_without_fake_payment",
+      "status": "PASS"
+    }
+  ]
+}

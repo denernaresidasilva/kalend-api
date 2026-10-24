@@ -1,0 +1,26 @@
+{
+  "results": [
+    {
+      "name": "notification_read_IDOR_and_idempotence",
+      "status": "PASS"
+    },
+    {
+      "name": "QA_notification_preferences_roundtrip",
+      "status": "PASS"
+    },
+    {
+      "name": "cannot_disable_QA_super_admin",
+      "status": "PASS"
+    },
+    {
+      "name": "QA_user_deactivation_revokes_existing_session",
+      "status": "PASS"
+    },
+    {
+      "name": "QA_logout_all_revokes_two_independent_sessions",
+      "status": "PASS"
+    }
+  ],
+  "passed": 5,
+  "failed": 0
+}

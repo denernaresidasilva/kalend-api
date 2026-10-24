@@ -1,0 +1,72 @@
+{
+  "passed": 15,
+  "failed": 1,
+  "results": [
+    {
+      "name": "expired_trial_blocks_A_and_B_without_paid_right",
+      "status": "PASS"
+    },
+    {
+      "name": "first_pending_payment_is_QA_only",
+      "status": "PASS"
+    },
+    {
+      "name": "first_pending_never_unlocks_paid_access",
+      "status": "PASS"
+    },
+    {
+      "name": "first_overdue_does_not_grant_grace",
+      "status": "PASS"
+    },
+    {
+      "name": "administrative_enablement_does_not_grant_paid_access",
+      "status": "PASS"
+    },
+    {
+      "name": "illegitimate_grace_is_rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "payment_failed_remains_blocked",
+      "status": "PASS"
+    },
+    {
+      "name": "paid_reactivation_without_approval_is_rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "owner_A_cannot_read_B_payment",
+      "status": "PASS"
+    },
+    {
+      "name": "A_pending_simulation_created",
+      "status": "PASS"
+    },
+    {
+      "name": "approval_grants_legitimate_paid_access",
+      "status": "PASS"
+    },
+    {
+      "name": "duplicate_approval_is_idempotent",
+      "status": "PASS"
+    },
+    {
+      "name": "late_failure_cannot_reverse_approved_payment",
+      "status": "PASS"
+    },
+    {
+      "name": "suspension_blocks_access",
+      "status": "PASS"
+    },
+    {
+      "name": "reactivation_requires_and_preserves_paid_proof",
+      "status": "PASS"
+    },
+    {
+      "name": "QA_administrative_block_and_recovery",
+      "status": "FAIL",
+      "code": "HTTP_401_EXPECTED_200"
+    }
+  ],
+  "scope": "QA_SIMULATION; external checkout requires SANDBOX precondition; no real charge"
+}

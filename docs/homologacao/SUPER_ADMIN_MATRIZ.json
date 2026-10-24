@@ -8,20 +8,21 @@
     "database": "Sessões; persistência substituída no HTTP",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/auth.e2e-spec.ts; src/auth/auth.tokens.spec.ts",
-    "evidence": "test/auth.e2e-spec.ts; src/auth/auth.tokens.spec.ts",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "test/auth.e2e-spec.ts; src/auth/auth.tokens.spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "PARCIAL",
-    "current_dev_evidence": "Formulário/catálogo ou proteção anônima/redirecionamento exercitados em Chromium; jornada autenticada não exercitada. evidencias/2026-10-24-homologacao-real/resumo.json"
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Login real Super Admin/Owner/Professional; cookies Secure/HttpOnly/__Host; formulário real em três viewports. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-002",
@@ -32,20 +33,21 @@
     "database": "AuthSession",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/auth.e2e-spec.ts; web tests/account.test.cjs",
-    "evidence": "test/auth.e2e-spec.ts; web tests/account.test.cjs",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "test/auth.e2e-spec.ts; web tests/account.test.cjs; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Logout atual e logout-all revogaram duas sessões independentes QA. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-003",
@@ -56,20 +58,21 @@
     "database": "Hash e revogação da família",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/auth.e2e-spec.ts; src/auth/auth.security.spec.ts",
-    "evidence": "test/auth.e2e-spec.ts; src/auth/auth.security.spec.ts",
+    "evidence": "test/auth.e2e-spec.ts; src/auth/auth.security.spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Refresh rotativo e token assinado realmente expirado comprovados; janela absoluta/replay mantêm evidência local.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Refresh rotativo e token assinado realmente expirado comprovados; janela absoluta/replay mantêm evidência local. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-004",
@@ -80,20 +83,21 @@
     "database": "Fingerprint de senha",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/auth.e2e-spec.ts; src/auth/auth.security.spec.ts",
-    "evidence": "test/auth.e2e-spec.ts; src/auth/auth.security.spec.ts",
+    "evidence": "test/auth.e2e-spec.ts; src/auth/auth.security.spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Token assinado expirado, conta desativada e sessão revogada rejeitados; alteração de senha não disponível.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Token assinado expirado, conta desativada e sessão revogada rejeitados; alteração de senha não disponível. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-005",
@@ -104,20 +108,21 @@
     "database": "Não aplicável",
     "implementation": "PARCIALMENTE IMPLEMENTADO",
     "tests": "src/auth/auth.security.spec.ts; test/auth.e2e-spec.ts; src/main.ts",
-    "evidence": "src/auth/auth.security.spec.ts; test/auth.e2e-spec.ts; src/main.ts",
+    "evidence": "src/auth/auth.security.spec.ts; test/auth.e2e-spec.ts; src/main.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "PARCIAL",
     "severity": "P2",
     "pending": "CORS/cookies entre hosts com navegador autenticado DEV ainda sem prova atual.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "PARCIAL",
-    "blocker": "CORS/cookies entre hosts com navegador autenticado DEV ainda sem prova atual.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Navegador autenticado entre os hosts DEV funcionou; proteção negativa Origin conserva testes locais.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
     "current_dev_result": "PARCIAL",
-    "current_dev_evidence": "Formulário/catálogo ou proteção anônima/redirecionamento exercitados em Chromium; jornada autenticada não exercitada. evidencias/2026-10-24-homologacao-real/resumo.json"
+    "current_dev_evidence": "Navegador autenticado entre os hosts DEV funcionou; proteção negativa Origin conserva testes locais. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "PARCIAL"
   },
   {
     "id": "KA-006",
@@ -134,14 +139,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-007",
@@ -164,8 +170,9 @@
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "PARCIAL"
   },
   {
     "id": "KA-008",
@@ -188,8 +195,9 @@
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "PARCIAL"
   },
   {
     "id": "KA-009",
@@ -212,8 +220,9 @@
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "NÃO TESTADO"
   },
   {
     "id": "KA-010",
@@ -224,20 +233,21 @@
     "database": "isSuperAdmin reconsultado",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/auth.e2e-spec.ts; src/auth/auth.security.spec.ts",
-    "evidence": "test/auth.e2e-spec.ts; src/auth/auth.security.spec.ts",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "test/auth.e2e-spec.ts; src/auth/auth.security.spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "PARCIAL",
-    "current_dev_evidence": "Formulário/catálogo ou proteção anônima/redirecionamento exercitados em Chromium; jornada autenticada não exercitada. evidencias/2026-10-24-homologacao-real/resumo.json"
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Owner e Professional receberam 403 nos recursos globais; shell Super Admin negado. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-011",
@@ -248,20 +258,21 @@
     "database": "Membership única usuário/empresa",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/auth.e2e-spec.ts; test/trial-access.e2e-spec.ts",
-    "evidence": "test/auth.e2e-spec.ts; test/trial-access.e2e-spec.ts",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "test/auth.e2e-spec.ts; test/trial-access.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Seleção exige membership; Professional e Owner exercitados em tenants QA. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-012",
@@ -272,20 +283,21 @@
     "database": "Consultas escopadas",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/auth.e2e-spec.ts; test/commercial-qa-simulation.e2e-spec.ts",
-    "evidence": "test/auth.e2e-spec.ts; test/commercial-qa-simulation.e2e-spec.ts",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "test/auth.e2e-spec.ts; test/commercial-qa-simulation.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Seleção cruzada, cancelamento de assinatura alheia e leitura de notificação alheia negados. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-013",
@@ -302,14 +314,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-014",
@@ -326,14 +339,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-015",
@@ -344,20 +358,21 @@
     "database": "Schema financeiro aplicado",
     "implementation": "BLOQUEADO POR DEPENDÊNCIA EXTERNA",
     "tests": "dev-schema-readonly.json; homologacao/LIMITACOES.md",
-    "evidence": "dev-schema-readonly.json; homologacao/LIMITACOES.md",
-    "status": "BLOQUEADO",
-    "severity": "P1",
+    "evidence": "dev-schema-readonly.json; homologacao/LIMITACOES.md; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
+    "severity": "—",
     "pending": "Exige contas QA autorizadas A/B e versão candidata publicada; não executar testes com efeitos no DEV atual.",
-    "environment": "DEV REAL — autenticação QA ainda bloqueada",
-    "result": "BLOQUEADO",
-    "blocker": "Zero identidades QA A/B; credenciais QA não encontradas.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "BLOQUEADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Identidades QA A/B reais; isolamento autenticado exercitado sem mocks. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "BLOQUEADO"
   },
   {
     "id": "KA-016",
@@ -368,20 +383,21 @@
     "database": "Transação Serializable",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "src/companies/companies.service.spec.ts; test/entitlement-evidence.e2e-spec.ts",
-    "evidence": "src/companies/companies.service.spec.ts; test/entitlement-evidence.e2e-spec.ts",
+    "evidence": "src/companies/companies.service.spec.ts; test/entitlement-evidence.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Criação manual real com proprietário QA existente; criação inicial de identidades pelo preparador transacional.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Criação manual real com proprietário QA existente; criação inicial de identidades pelo preparador transacional. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-017",
@@ -392,20 +408,21 @@
     "database": "Company.slug/User.email únicos",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "src/companies/companies.service.spec.ts",
-    "evidence": "src/companies/companies.service.spec.ts",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "src/companies/companies.service.spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Slug duplicado rejeitado; proprietário QA reutilizado sem trocar senha. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-018",
@@ -416,20 +433,21 @@
     "database": "Vínculos por tenant",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/auth.e2e-spec.ts; web tests/company-selection.test.cjs",
-    "evidence": "test/auth.e2e-spec.ts; web tests/company-selection.test.cjs",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "test/auth.e2e-spec.ts; web tests/company-selection.test.cjs; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Mesmo proprietário selecionou empresas QA próprias; outra empresa não autorizada negada. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-019",
@@ -440,20 +458,21 @@
     "database": "DISABLED/LEGACY_UNKNOWN negados",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/entitlement-evidence.e2e-spec.ts; test/suspended-recovery.e2e-spec.ts",
-    "evidence": "test/entitlement-evidence.e2e-spec.ts; test/suspended-recovery.e2e-spec.ts",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "test/entitlement-evidence.e2e-spec.ts; test/suspended-recovery.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Bloqueio administrativo revogou sessão e não foi contornado por aprovação simulada; recuperação exigiu novo login. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-020",
@@ -464,20 +483,21 @@
     "database": "Revogação transacional",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "src/users/users.service.spec.ts; src/auth/auth.security.spec.ts",
-    "evidence": "src/users/users.service.spec.ts; src/auth/auth.security.spec.ts",
+    "evidence": "src/users/users.service.spec.ts; src/auth/auth.security.spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Desativação QA revogou sessões; reativação não reviveu sessão antiga; desativação Super Admin negada.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Desativação QA revogou sessões; reativação não reviveu sessão antiga; desativação Super Admin negada. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-021",
@@ -488,20 +508,21 @@
     "database": "Payments/Evidence/Webhooks preservados",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "src/companies/companies.service.spec.ts; test/entitlement-evidence.e2e-spec.ts",
-    "evidence": "src/companies/companies.service.spec.ts; test/entitlement-evidence.e2e-spec.ts",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "src/companies/companies.service.spec.ts; test/entitlement-evidence.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Exclusão de empresa QA com grant/histórico retornou 409 e preservou histórico. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-022",
@@ -524,8 +545,9 @@
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "PARCIAL"
   },
   {
     "id": "KA-023",
@@ -548,8 +570,9 @@
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "PARCIAL"
   },
   {
     "id": "KA-024",
@@ -560,20 +583,21 @@
     "database": "Plan + PlanFeature",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "src/plans/plans.service.spec.ts; src/plans/plans.controller.spec.ts; web tests/commercial-contract.test.cjs",
-    "evidence": "src/plans/plans.service.spec.ts; src/plans/plans.controller.spec.ts; web tests/commercial-contract.test.cjs",
+    "evidence": "src/plans/plans.service.spec.ts; src/plans/plans.controller.spec.ts; web tests/commercial-contract.test.cjs; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Plano QA criado/editado por HTTP; valor negativo rejeitado; plano de checkout ocultado após teste.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Plano QA criado/editado por HTTP; valor negativo rejeitado; plano de checkout ocultado após teste. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-025",
@@ -590,14 +614,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-026",
@@ -608,20 +633,21 @@
     "database": "Prazo autoritativo",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/trial-access.e2e-spec.ts; core.local.spec.ts",
-    "evidence": "test/trial-access.e2e-spec.ts; core.local.spec.ts",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "test/trial-access.e2e-spec.ts; core.local.spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Trial QA expirado bloqueou produto; recovery compacta e modais verificados em três viewports. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-027",
@@ -644,8 +670,9 @@
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "PARCIAL"
   },
   {
     "id": "KA-028",
@@ -662,14 +689,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-029",
@@ -680,20 +708,21 @@
     "database": "entitledWhere + PaymentEvidence",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/entitlement-evidence.e2e-spec.ts",
-    "evidence": "test/entitlement-evidence.e2e-spec.ts",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "test/entitlement-evidence.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Primeira cobrança simulada pendente/falha/vencida não liberou acesso. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-030",
@@ -704,20 +733,21 @@
     "database": "Direito e assinatura com deadline",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/entitlement-evidence.e2e-spec.ts; test/subscription-grace-timing.e2e-spec.ts",
-    "evidence": "test/entitlement-evidence.e2e-spec.ts; test/subscription-grace-timing.e2e-spec.ts",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "test/entitlement-evidence.e2e-spec.ts; test/subscription-grace-timing.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "GRACE inicial indevido negado; GRACE com prova prévia permitido e prazo não ampliado por repetição. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-031",
@@ -728,20 +758,21 @@
     "database": "Prova paga da mesma assinatura",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/suspended-recovery.e2e-spec.ts; web tests/owner-recovery.test.cjs",
-    "evidence": "test/suspended-recovery.e2e-spec.ts; web tests/owner-recovery.test.cjs",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "test/suspended-recovery.e2e-spec.ts; web tests/owner-recovery.test.cjs; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Suspensão, recuperação e aprovação de novo pagamento QA restauraram somente direito legítimo. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-032",
@@ -752,20 +783,21 @@
     "database": "Histórico persistido",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "src/billing/renewals.spec.ts; test/entitlement-evidence.e2e-spec.ts",
-    "evidence": "src/billing/renewals.spec.ts; test/entitlement-evidence.e2e-spec.ts",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "src/billing/renewals.spec.ts; test/entitlement-evidence.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Cancelamento autenticado/idempotente preservou trial independente; cancelar trial final bloqueou somente tenant QA. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-033",
@@ -776,20 +808,21 @@
     "database": "Grant/revoker/period imutáveis",
     "implementation": "PARCIALMENTE IMPLEMENTADO",
     "tests": "test/entitlement-evidence.e2e-spec.ts",
-    "evidence": "test/entitlement-evidence.e2e-spec.ts",
+    "evidence": "test/entitlement-evidence.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "PARCIAL",
     "severity": "P2",
     "pending": "Backend testado; falta exposição operacional completa de grants/revogação na interface.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "PARCIAL",
-    "blocker": "Backend testado; falta exposição operacional completa de grants/revogação na interface.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Grant criado explicitamente pelo QA Super Admin, ator presente; Owner não revoga; revogação idempotente bloqueia acesso; UI dedicada ainda ausente.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Grant criado explicitamente pelo QA Super Admin, ator presente; Owner não revoga; revogação idempotente bloqueia acesso; UI dedicada ainda ausente. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "PARCIAL"
   },
   {
     "id": "KA-034",
@@ -800,20 +833,21 @@
     "database": "Locks e fronteira paga",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "src/billing/renewals.spec.ts; test/entitlement-evidence.e2e-spec.ts",
-    "evidence": "src/billing/renewals.spec.ts; test/entitlement-evidence.e2e-spec.ts",
+    "evidence": "src/billing/renewals.spec.ts; test/entitlement-evidence.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Checkout sandbox repetido manteve identidade; concorrência multiconexão conserva evidência histórica local.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Checkout sandbox repetido manteve identidade; concorrência multiconexão conserva evidência histórica local. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-035",
@@ -824,20 +858,21 @@
     "database": "FKs e triggers imutáveis",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/entitlement-evidence.e2e-spec.ts",
-    "evidence": "test/entitlement-evidence.e2e-spec.ts",
+    "evidence": "test/entitlement-evidence.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Imutabilidade de período de pagamento comprovado rejeitada pelo trigger no DEV; ensaio revertido.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Imutabilidade de período de pagamento comprovado rejeitada pelo trigger no DEV; ensaio revertido. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-036",
@@ -854,14 +889,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-037",
@@ -878,14 +914,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-038",
@@ -896,20 +933,21 @@
     "database": "Status financeiro vivo",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/entitlement-evidence.e2e-spec.ts",
-    "evidence": "test/entitlement-evidence.e2e-spec.ts",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "test/entitlement-evidence.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Refund integral e chargeback pelo domínio compilado QA removeram acesso; estado confirmado via HTTP. Callback real de provedor não exercitado. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-039",
@@ -920,20 +958,21 @@
     "database": "PaymentEvidence.financialReviewRequired",
     "implementation": "PARCIALMENTE IMPLEMENTADO",
     "tests": "test/entitlement-evidence.e2e-spec.ts",
-    "evidence": "test/entitlement-evidence.e2e-spec.ts",
-    "status": "PARCIAL",
-    "severity": "P2",
+    "evidence": "test/entitlement-evidence.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
+    "severity": "—",
     "pending": "Revisão persistida não tem workflow completo de triagem financeira no Super Admin.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "PARCIAL",
-    "blocker": "Revisão persistida não tem workflow completo de triagem financeira no Super Admin.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Refund parcial pelo domínio compilado QA preservou acesso e valor reembolsado; estado confirmado via HTTP. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "PARCIAL"
   },
   {
     "id": "KA-040",
@@ -950,14 +989,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-041",
@@ -974,14 +1014,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-042",
@@ -1004,8 +1045,9 @@
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-043",
@@ -1022,14 +1064,15 @@
     "pending": "Homologar jornadas financeiras autenticadas nos requisitos próprios.",
     "environment": "DEV REAL — ledger/checksum/schema/backfill; não é jornada autenticada",
     "result": "APROVADO EM DEV REAL",
-    "blocker": "Nenhum para aplicação/schema/backfill observados.",
-    "next_step": "Manter evidência; não repetir migration.",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
     "current_dev_result": "APROVADO EM DEV REAL",
-    "current_dev_evidence": "evidencias/2026-10-24-homologacao-real/resumo.json"
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO EM DEV REAL"
   },
   {
     "id": "KA-044",
@@ -1040,20 +1083,21 @@
     "database": "Intenção persistida antes do provedor",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "src/billing/payments.service.spec.ts; checkout.local.spec.ts",
-    "evidence": "src/billing/payments.service.spec.ts; checkout.local.spec.ts",
+    "evidence": "src/billing/payments.service.spec.ts; checkout.local.spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Checkout PagBank SANDBOX real criado e repetido idempotentemente; plano privado não elegível ao checkout público.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Checkout PagBank SANDBOX real criado e repetido idempotentemente; plano privado não elegível ao checkout público. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-045",
@@ -1070,14 +1114,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-046",
@@ -1088,20 +1133,21 @@
     "database": "Webhook normalizado, sem raw payload exposto",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/webhooks.e2e-spec.ts; src/billing/adapters/pagbank.spec.ts",
-    "evidence": "test/webhooks.e2e-spec.ts; src/billing/adapters/pagbank.spec.ts",
+    "evidence": "test/webhooks.e2e-spec.ts; src/billing/adapters/pagbank.spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Assinatura PagBank inválida rejeitada por HTTP; callback legítimo/replay do provedor pendentes.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Assinatura PagBank inválida rejeitada por HTTP; callback legítimo/replay do provedor pendentes. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-047",
@@ -1118,14 +1164,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-048",
@@ -1136,20 +1183,21 @@
     "database": "Namespace e exclusão de agregação",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/commercial-qa-simulation.e2e-spec.ts; test/qa-worker-isolation.e2e-spec.ts",
-    "evidence": "test/commercial-qa-simulation.e2e-spec.ts; test/qa-worker-isolation.e2e-spec.ts",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "test/commercial-qa-simulation.e2e-spec.ts; test/qa-worker-isolation.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Todos pagamentos simulados usaram QA_SIMULATION/SANDBOX; único checkout externo PagBank SANDBOX sem cobrança. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-049",
@@ -1160,20 +1208,21 @@
     "database": "Não houve cobrança remota",
     "implementation": "BLOQUEADO POR DEPENDÊNCIA EXTERNA",
     "tests": "docs/GATEWAY-PROVIDERS.md; docs/COMMERCIAL-VALIDATION.md",
-    "evidence": "docs/GATEWAY-PROVIDERS.md; docs/COMMERCIAL-VALIDATION.md",
-    "status": "BLOQUEADO",
+    "evidence": "docs/GATEWAY-PROVIDERS.md; docs/COMMERCIAL-VALIDATION.md; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "PARCIAL",
     "severity": "P1",
     "pending": "Exige operação sandbox autorizada, callbacks correlacionados e evidência por pagamento; mocks não aprovam fornecedor.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "BLOQUEADO",
-    "blocker": "Exige operação sandbox autorizada, callbacks correlacionados e evidência por pagamento; mocks não aprovam fornecedor.; publicação bloqueada pelos gates de acesso/backup/legado (P1-OPS-01)",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "PARCIAL",
+    "blocker": "Checkout PagBank real aprovado; pagamento sandbox confirmado por callback e recorrência ainda pendentes.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Checkout PagBank real aprovado; pagamento sandbox confirmado por callback e recorrência ainda pendentes. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "BLOQUEADO"
   },
   {
     "id": "KA-050",
@@ -1190,14 +1239,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-051",
@@ -1214,14 +1264,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-052",
@@ -1244,8 +1295,9 @@
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "PARCIAL"
   },
   {
     "id": "KA-053",
@@ -1256,20 +1308,21 @@
     "database": "Outbox transacional",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "test/communication.e2e-spec.ts; test/communication-template-migration.e2e-spec.ts; test/entitlement-evidence.e2e-spec.ts",
-    "evidence": "test/communication.e2e-spec.ts; test/communication-template-migration.e2e-spec.ts; test/entitlement-evidence.e2e-spec.ts",
+    "evidence": "test/communication.e2e-spec.ts; test/communication-template-migration.e2e-spec.ts; test/entitlement-evidence.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "12 eventos comerciais distintos persistidos/processados mais QA_COMMUNICATION_TEST; SECURITY_PASSWORD_CHANGED não gerado.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "12 eventos comerciais distintos persistidos/processados mais QA_COMMUNICATION_TEST; SECURITY_PASSWORD_CHANGED não gerado. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-054",
@@ -1286,14 +1339,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-055",
@@ -1304,20 +1358,21 @@
     "database": "SKIP LOCKED/estado durável",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "src/communication/engine.spec.ts; test/qa-worker-isolation.e2e-spec.ts; outbox.local.spec.ts",
-    "evidence": "src/communication/engine.spec.ts; test/qa-worker-isolation.e2e-spec.ts; outbox.local.spec.ts",
+    "evidence": "src/communication/engine.spec.ts; test/qa-worker-isolation.e2e-spec.ts; outbox.local.spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Worker estritamente escopado aos seis tenants QA; repetição sem nova entrega, fila escopada zerada. Falha/retry do provedor mantém evidência local.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Worker estritamente escopado aos seis tenants QA; repetição sem nova entrega, fila escopada zerada. Falha/retry do provedor mantém evidência local. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-056",
@@ -1328,20 +1383,21 @@
     "database": "Não modifica provedores PROD",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "src/communication/dev-smtp-policy.spec.ts; docs/COMMUNICATION-DEV-ISOLATION.md",
-    "evidence": "src/communication/dev-smtp-policy.spec.ts; docs/COMMUNICATION-DEV-ISOLATION.md",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "src/communication/dev-smtp-policy.spec.ts; docs/COMMUNICATION-DEV-ISOLATION.md; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "DEV ignorou SMTP live e entregou exclusivamente em sink 127.0.0.1:1025 com allowlist; 31 mensagens armazenadas. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-057",
@@ -1358,14 +1414,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-058",
@@ -1376,20 +1433,21 @@
     "database": "Notification por usuário/empresa",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "src/notifications/notifications.spec.ts; test/entitlement-evidence.e2e-spec.ts",
-    "evidence": "src/notifications/notifications.spec.ts; test/entitlement-evidence.e2e-spec.ts",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "src/notifications/notifications.spec.ts; test/entitlement-evidence.e2e-spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Inbox autenticada; IDOR 404; read idempotente; unread-count decrementa; preferências ida/volta. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-059",
@@ -1400,20 +1458,21 @@
     "database": "Tokens cifrados",
     "implementation": "PARCIALMENTE IMPLEMENTADO",
     "tests": "src/communication/push.spec.ts; push-flow.local.spec.ts",
-    "evidence": "src/communication/push.spec.ts; push-flow.local.spec.ts",
+    "evidence": "src/communication/push.spec.ts; push-flow.local.spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "PARCIAL",
     "severity": "P1",
     "pending": "BUG-01 histórico continua aberto até prova no perfil DEV afetado; não encerrar por mocks.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "PARCIAL",
-    "blocker": "BUG-01 histórico continua aberto até prova no perfil DEV afetado; não encerrar por mocks.; publicação bloqueada pelos gates de acesso/backup/legado (P1-OPS-01)",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Seis casos browser de permissão across reload/tab passaram; entrega física e BUG-01 original não comprovados.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "Seis casos browser de permissão across reload/tab passaram; entrega física e BUG-01 original não comprovados. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "PARCIAL"
   },
   {
     "id": "KA-060",
@@ -1424,20 +1483,21 @@
     "database": "Logs correlacionados",
     "implementation": "PARCIALMENTE IMPLEMENTADO",
     "tests": "src/communication/meta-webhook.spec.ts; outbox.local.spec.ts",
-    "evidence": "src/communication/meta-webhook.spec.ts; outbox.local.spec.ts",
+    "evidence": "src/communication/meta-webhook.spec.ts; outbox.local.spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "PARCIAL",
     "severity": "P1",
     "pending": "Entrega crítica real e recibos/dispositivo destinatário não foram demonstrados nesta auditoria.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "PARCIAL",
-    "blocker": "Entrega crítica real e recibos/dispositivo destinatário não foram demonstrados nesta auditoria.; publicação bloqueada pelos gates de acesso/backup/legado (P1-OPS-01)",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "SMTP ACCEPTED correlacionado a 31 arquivos no sink; nenhuma afirmação de entrega externa. WhatsApp/Push UNSENDABLE.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "SMTP ACCEPTED correlacionado a 31 arquivos no sink; nenhuma afirmação de entrega externa. WhatsApp/Push UNSENDABLE. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "PARCIAL"
   },
   {
     "id": "KA-061",
@@ -1448,20 +1508,21 @@
     "database": "Mailpit permaneceu desligado na recuperação anterior",
     "implementation": "BLOQUEADO POR DEPENDÊNCIA EXTERNA",
     "tests": "docs/COMMUNICATION-DEV-ISOLATION.md; homologacao/LIMITACOES.md",
-    "evidence": "docs/COMMUNICATION-DEV-ISOLATION.md; homologacao/LIMITACOES.md",
-    "status": "BLOQUEADO",
+    "evidence": "docs/COMMUNICATION-DEV-ISOLATION.md; homologacao/LIMITACOES.md; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "PARCIAL",
     "severity": "P1",
     "pending": "Restaurar sink só com autorização; obter evidência sandbox e entrega por canal sem atingir usuários reais.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "BLOQUEADO",
-    "blocker": "Contas QA ausentes; SMTP configurado PRODUCTION, sem prova de caixa sandbox; WhatsApp/Push sem entrega QA comprovada.",
-    "next_step": "Disponibilizar identidades e sink/destinatários/dispositivo QA seguros; não acionar transporte real para clientes.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "PARCIAL",
+    "blocker": "E-mail sandbox comprovado; faltam destinatário QA WhatsApp e dispositivo Push autorizados.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "BLOQUEADO",
-    "current_dev_evidence": "evidencias/2026-10-24-homologacao-real/resumo.json"
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "E-mail sandbox comprovado; faltam destinatário QA WhatsApp e dispositivo Push autorizados. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "BLOQUEADO"
   },
   {
     "id": "KA-062",
@@ -1472,20 +1533,21 @@
     "database": "Dados locais simulados no browser",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "web tests/design-system.browser.cjs; web tests/integration.test.cjs",
-    "evidence": "web tests/design-system.browser.cjs; web tests/integration.test.cjs",
+    "evidence": "web tests/design-system.browser.cjs; web tests/integration.test.cjs; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "14 rotas administrativas reais visitadas em três viewports; endpoints com autenticação retornaram dados. Nem todo formulário/indicador exercitado.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
     "current_dev_result": "PARCIAL",
-    "current_dev_evidence": "Formulário/catálogo ou proteção anônima/redirecionamento exercitados em Chromium; jornada autenticada não exercitada. evidencias/2026-10-24-homologacao-real/resumo.json"
+    "current_dev_evidence": "14 rotas administrativas reais visitadas em três viewports; endpoints com autenticação retornaram dados. Nem todo formulário/indicador exercitado. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-063",
@@ -1496,20 +1558,21 @@
     "database": "Mocks no browser",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "web tests/account.test.cjs; web tests/notifications.test.cjs; web tests/communication.test.cjs",
-    "evidence": "web tests/account.test.cjs; web tests/notifications.test.cjs; web tests/communication.test.cjs",
+    "evidence": "web tests/account.test.cjs; web tests/notifications.test.cjs; web tests/communication.test.cjs; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Comunicação, notificações, perfil e configurações navegados com sessão QA; inbox mutante testada.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
     "current_dev_result": "PARCIAL",
-    "current_dev_evidence": "Formulário/catálogo ou proteção anônima/redirecionamento exercitados em Chromium; jornada autenticada não exercitada. evidencias/2026-10-24-homologacao-real/resumo.json"
+    "current_dev_evidence": "Comunicação, notificações, perfil e configurações navegados com sessão QA; inbox mutante testada. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-064",
@@ -1520,20 +1583,21 @@
     "database": "Não aplicável",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "web tests/integration.test.cjs; core.local.spec.ts",
-    "evidence": "web tests/integration.test.cjs; core.local.spec.ts",
+    "evidence": "web tests/integration.test.cjs; core.local.spec.ts; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "429 QA observado; recovery trial testada; falhas de rede/loading abrangentes conservam evidência local.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "PARCIAL",
+    "current_dev_evidence": "429 QA observado; recovery trial testada; falhas de rede/loading abrangentes conservam evidência local. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-065",
@@ -1544,20 +1608,21 @@
     "database": "Não aplicável",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "web tests/design-system.test.cjs; web tests/design-system.browser.cjs",
-    "evidence": "web tests/design-system.test.cjs; web tests/design-system.browser.cjs",
+    "evidence": "web tests/design-system.test.cjs; web tests/design-system.browser.cjs; evidencias/2026-10-24-qa-autenticado/resumo.json",
     "status": "APROVADO LOCALMENTE",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "blocker": "Navegação real e recovery aprovadas; certificação completa de teclado/leitor de tela não feita.",
+    "next_step": "Concluir as verificações explicitamente pendentes; não repetir cenários aprovados.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
     "current_dev_result": "PARCIAL",
-    "current_dev_evidence": "Formulário/catálogo ou proteção anônima/redirecionamento exercitados em Chromium; jornada autenticada não exercitada. evidencias/2026-10-24-homologacao-real/resumo.json"
+    "current_dev_evidence": "Navegação real e recovery aprovadas; certificação completa de teclado/leitor de tela não feita. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-066",
@@ -1568,20 +1633,21 @@
     "database": "Não aplicável",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "web tests/design-system.browser.cjs; Playwright desktop/tablet/mobile",
-    "evidence": "web tests/design-system.browser.cjs; Playwright desktop/tablet/mobile",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "web tests/design-system.browser.cjs; Playwright desktop/tablet/mobile; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "PARCIAL",
-    "current_dev_evidence": "Formulário/catálogo ou proteção anônima/redirecionamento exercitados em Chromium; jornada autenticada não exercitada. evidencias/2026-10-24-homologacao-real/resumo.json"
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Desktop/tablet/mobile Chromium; 42 visitas admin sem overflow/erro JavaScript; temas claro/escuro. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-067",
@@ -1592,20 +1658,21 @@
     "database": "Migration aplicada e checksum conferido",
     "implementation": "BLOQUEADO POR DEPENDÊNCIA EXTERNA",
     "tests": "dev-schema-readonly.json",
-    "evidence": "dev-schema-readonly.json",
-    "status": "BLOQUEADO",
-    "severity": "P1",
+    "evidence": "dev-schema-readonly.json; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
+    "severity": "—",
     "pending": "Testar fluxos principais em DEV autorizado após publicação/migration; aprovação local não equivale a E2E real.",
-    "environment": "DEV REAL — somente público/anônimo verificado",
-    "result": "BLOQUEADO",
-    "blocker": "Jornada autenticada bloqueada por zero usuários/credenciais QA disponíveis.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "BLOQUEADO",
-    "current_dev_evidence": "evidencias/2026-10-24-homologacao-real/resumo.json"
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Navegador autenticado usando API publicada e PostgreSQL DEV sem mocks. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "BLOQUEADO"
   },
   {
     "id": "KA-068",
@@ -1628,8 +1695,9 @@
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "NÃO TESTADO"
   },
   {
     "id": "KA-069",
@@ -1646,14 +1714,15 @@
     "pending": "Homologar a release candidata em DEV autorizado.",
     "environment": "LOCAL — fixtures; DEV real ainda pendente",
     "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Homologar a release candidata em DEV autorizado.",
+    "blocker": "Evidência local histórica preservada; requisito completo não reexecutado em DEV nesta etapa.",
+    "next_step": "Regressão dirigida somente quando necessária para este requisito.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   },
   {
     "id": "KA-070",
@@ -1676,8 +1745,9 @@
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "PARCIAL"
   },
   {
     "id": "KA-071",
@@ -1700,8 +1770,9 @@
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "NÃO TESTADO NESTA EXECUÇÃO",
+    "current_dev_evidence": "Evidência histórica preservada; nenhuma promoção automática nesta etapa. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "BLOQUEADO"
   },
   {
     "id": "KA-072",
@@ -1712,19 +1783,20 @@
     "database": "Sem writes administrativos",
     "implementation": "IMPLEMENTADO E TESTADO",
     "tests": "estado-inicial.json; dev-schema-readonly.json; estado-final.json",
-    "evidence": "estado-inicial.json; dev-schema-readonly.json; estado-final.json; evidencias/2026-10-22-release-controlada/pipeline-audit.json",
-    "status": "APROVADO LOCALMENTE",
+    "evidence": "estado-inicial.json; dev-schema-readonly.json; estado-final.json; evidencias/2026-10-22-release-controlada/pipeline-audit.json; evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status": "APROVADO EM DEV REAL",
     "severity": "—",
     "pending": "Homologar a release candidata em DEV autorizado.",
-    "environment": "LOCAL — fixtures; DEV real ainda pendente",
-    "result": "APROVADO LOCALMENTE",
-    "blocker": "Release publicada; jornada autenticada depende de contas QA.",
-    "next_step": "Provisionar identidades exclusivamente QA e exercitar este requisito no DEV publicado, respeitando sandbox.",
+    "environment": "DEV REAL — QA isolado; camada e limitações na evidência",
+    "result": "APROVADO EM DEV REAL",
+    "blocker": "Nenhum no escopo comprovado.",
+    "next_step": "Preservar regressão; limites de camada registrados na evidência.",
     "dev_release": {
       "api": "a49f6a5",
       "web": "c4f84d5"
     },
-    "current_dev_result": "NÃO TESTADO",
-    "current_dev_evidence": "Sem execução autenticada nesta rodada; conta QA indisponível."
+    "current_dev_result": "APROVADO EM DEV REAL",
+    "current_dev_evidence": "Somente fixtures novas e configuração QA DEV; PROD HTTP 200; PM2 PROD e PIDs Nginx/PostgreSQL/Redis/Docker preservados. evidencias/2026-10-24-qa-autenticado/resumo.json",
+    "status_before_authenticated_qa": "APROVADO LOCALMENTE"
   }
 ]

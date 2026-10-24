@@ -1,0 +1,27 @@
+{
+  "stage": "grace",
+  "passed": 5,
+  "failed": 0,
+  "results": [
+    {
+      "name": "historical_expired_paid_period_does_not_unlock_before_grace",
+      "status": "PASS"
+    },
+    {
+      "name": "legitimate_grace_uses_preexisting_paid_evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "grace_deadline_is_anchored_and_duplicate_does_not_extend",
+      "status": "PASS"
+    },
+    {
+      "name": "recovery_payment_reuses_rightful_subscription",
+      "status": "PASS"
+    },
+    {
+      "name": "recovery_approval_restores_active_paid_access",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,174 @@
+{
+  "apiVersion": "a49f6a5",
+  "webVersion": "c4f84d5",
+  "authenticated": true,
+  "passed": 40,
+  "failed": 1,
+  "results": [
+    {
+      "name": "login_SUPER_ADMIN",
+      "status": "PASS"
+    },
+    {
+      "name": "login_OWNER_A",
+      "status": "PASS"
+    },
+    {
+      "name": "login_OWNER_B",
+      "status": "PASS"
+    },
+    {
+      "name": "login_PROFESSIONAL_A",
+      "status": "PASS"
+    },
+    {
+      "name": "disabled_QA_identity_rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/companies",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/users",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/plans",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/subscriptions",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/finance",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/finance/summary",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/dashboard/summary",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/notifications",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/notifications/unread-count",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/notifications/preferences",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/payment-gateways",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/communication/providers",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/communication/events",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/communication/outbox",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/communication/deliveries",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/communication/push/public-config",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_GET_/communication/push/subscriptions",
+      "status": "PASS"
+    },
+    {
+      "name": "admin_read_exact_QA_tenant",
+      "status": "PASS"
+    },
+    {
+      "name": "QA_plan_edit_and_validation",
+      "status": "PASS"
+    },
+    {
+      "name": "QA_company_invalid_timezone_rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "user_views_do_not_expose_password_hashes",
+      "status": "PASS"
+    },
+    {
+      "name": "OWNER_A_global_admin_routes_forbidden",
+      "status": "PASS"
+    },
+    {
+      "name": "OWNER_A_cannot_modify_global_plan_or_company",
+      "status": "PASS"
+    },
+    {
+      "name": "OWNER_A_notifications_only_own_identity",
+      "status": "PASS"
+    },
+    {
+      "name": "OWNER_B_global_admin_routes_forbidden",
+      "status": "PASS"
+    },
+    {
+      "name": "OWNER_B_cannot_modify_global_plan_or_company",
+      "status": "PASS"
+    },
+    {
+      "name": "OWNER_B_notifications_only_own_identity",
+      "status": "PASS"
+    },
+    {
+      "name": "PROFESSIONAL_A_global_admin_routes_forbidden",
+      "status": "PASS"
+    },
+    {
+      "name": "PROFESSIONAL_A_cannot_modify_global_plan_or_company",
+      "status": "PASS"
+    },
+    {
+      "name": "PROFESSIONAL_A_notifications_only_own_identity",
+      "status": "PASS"
+    },
+    {
+      "name": "owner_A_cannot_select_B_tenant",
+      "status": "PASS"
+    },
+    {
+      "name": "owner_B_cannot_select_A_tenant",
+      "status": "PASS"
+    },
+    {
+      "name": "trial_A_and_B_allow_legitimate_trial_access",
+      "status": "PASS"
+    },
+    {
+      "name": "owner_A_other_tenant_subscription_cancel_rejected",
+      "status": "FAIL",
+      "code": "HTTP_400_EXPECTED_404"
+    },
+    {
+      "name": "professional_cannot_checkout_or_cancel",
+      "status": "PASS"
+    },
+    {
+      "name": "refresh_rotates_cookie_and_logout_revokes_session",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "stage": "chargeback",
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "name": "chargeback_refund_or_reversal_state_visible_through_authenticated_API",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "stage": "cancel",
+  "passed": 4,
+  "failed": 0,
+  "results": [
+    {
+      "name": "sandbox_pending_contract_cancel_is_authenticated_and_scoped",
+      "status": "PASS"
+    },
+    {
+      "name": "cancel_does_not_destroy_unrelated_valid_trial",
+      "status": "PASS"
+    },
+    {
+      "name": "trial_cancellation_blocks_only_that_QA_company",
+      "status": "PASS"
+    },
+    {
+      "name": "duplicate_cancel_is_idempotent",
+      "status": "PASS"
+    }
+  ]
+}
