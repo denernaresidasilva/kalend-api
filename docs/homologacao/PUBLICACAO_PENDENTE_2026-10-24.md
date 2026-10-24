@@ -113,3 +113,26 @@ bbb668b ci(dev): restore existing develop deployment workflow
 5. Revalidar backup/classificação na janela final, obter aprovação interativa de publicação e então push API, push Web, acompanhar Actions, verificar SHAs/migration e homologar DEV.
 
 Não houve push, migration real, deploy, restart, reload ou escrita administrativa remota. PROD foi preservada por ausência dessas operações; não se afirma isolamento efetivo ainda inexistente. Nenhuma versão candidata foi homologada em DEV nesta execução.
+
+
+## Política vigente — sessão Full Access, 24/10/2026
+
+Publicação DEV autorizada sem dependência de botão Yes; política atual em
+[POLITICA_EXECUCAO_KALEND.md](../POLITICA_EXECUCAO_KALEND.md). O impedimento não é
+aprovação interativa. Preflight encontrou HEAD API e6664fd e Web bbb668b; 14/4
+commits pendentes revisados, ancestralidade dos HEADs remotos preservada e workflows
+finais idênticos ao fluxo remoto existente. Varredura dos blobs alterados não
+identificou material privado pelos padrões verificados; único marcador de chave
+privada era fixture negativa de 41 caracteres, sem chave. Isso não é garantia
+universal de ausência de secrets. Trabalho consolidado e arquivos não rastreados
+anteriores preservados.
+
+28 testes operacionais/permissões passaram; testes de chave pública executados
+separadamente. Nenhuma bateria financeira foi repetida. Consulta atual READ ONLY
+confirmou banco kalend_dev com role/owner kalend, também proprietária de PROD.
+Sudo efetivo ainda permite clpctlWrapper aos usuários DEV e ALL a clp. Os quatro
+endpoints DEV/PROD retornam 200. Não houve push, migration, deploy ou alteração
+administrativa remota. Para prosseguir falta executar a intervenção DEV delimitada
+com recuperação independente verificável e autorização administrativa correspondente,
+validar isolamento SQL/sudo efetivo e atestar a identidade SSH real do CI. Full
+Access não substitui esses controles. Não desativar workflows.
