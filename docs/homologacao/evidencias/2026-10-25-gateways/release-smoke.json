@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-25",
+  "environment": "DEV",
+  "apiCommit": "14962deda4375ca2d703b385d279f3475ca14b0e",
+  "webCommit": "8d9d97035705c925f6c175fe551542a845d154d2",
+  "workflows": {
+    "api": {
+      "run": 40181447763,
+      "attempt": 1,
+      "result": "success",
+      "migrationTarget": "kalend_dev / kalend_dev_migrator",
+      "pendingMigrations": 0,
+      "health": "200; database connected"
+    },
+    "web": {
+      "run": 40181452419,
+      "attempt": 1,
+      "result": "ssh-timeout-before-remote-commands"
+    },
+    "webRetry": {
+      "run": 40181452419,
+      "attempt": 2,
+      "result": "success"
+    }
+  },
+  "http": {
+    "apiDevHealth": 200,
+    "webDev": 200,
+    "apiProductionHealth": 200,
+    "webProduction": 200
+  },
+  "pm2": {
+    "frontend": { "name": "kalend-web-dev", "status": "online", "restartsObserved": 4 },
+    "api": { "name": "kalend-api-dev", "status": "online", "restartsObserved": 3 }
+  },
+  "authenticatedBrowserSmoke": {
+    "role": "SUPER_ADMIN_QA",
+    "routes": [
+      { "gateway": "PAGBANK", "http": 200, "providerSpecificForm": true },
+      { "gateway": "STRIPE", "http": 200, "providerSpecificForm": true },
+      { "gateway": "MERCADO_PAGO", "http": 200, "providerSpecificForm": true },
+      { "gateway": "ASAAS", "http": 200, "providerSpecificForm": true }
+    ],
+    "pagbankRecurrenceToggle": { "enabledShowsCredentialField": true, "disabledHidesCredentialField": true },
+    "horizontalOverflow": { "width390": false, "width1440": false },
+    "gatewayConfigurationSubmitted": false,
+    "paymentSubmitted": false,
+    "sessionLoggedOut": true
+  },
+  "gatewayConfigMetadata": {
+    "pagbank": { "environment": "SANDBOX", "enabled": true, "status": "CONNECTED", "recurringConfigured": false },
+    "stripe": { "environment": "SANDBOX", "enabled": false, "status": "NOT_CONFIGURED" },
+    "mercadoPago": { "environment": "SANDBOX", "enabled": false, "status": "NOT_CONFIGURED" },
+    "asaas": { "environment": "SANDBOX", "enabled": false, "status": "NOT_CONFIGURED", "webhookManagement": false }
+  },
+  "externalPaymentOrMessage": false,
+  "productionWrite": false
+}

@@ -30,7 +30,11 @@ Uma sessão Super Admin QA foi usada somente para `GET /payment-gateways`; a ses
 
 ## Situação de publicação e limites
 
-Essas correções ainda são locais nesta evidência. Não classificar como aprovadas em DEV até publicar pelos workflows existentes e conferir os commits/health. A evidência remota desta rodada é somente a leitura autenticada do catálogo de configurações do gateway, não uma prova de webhook real.
+As correções foram publicadas em DEV: API `14962deda4375ca2d703b385d279f3475ca14b0e` e Web `8d9d97035705c925f6c175fe551542a845d154d2`. O Actions API run `40181447763` concluiu com sucesso, confirmou `kalend_dev_migrator`/`kalend_dev`, encontrou zero migrations pendentes, compilou e reiniciou apenas `kalend-api-dev`; `/health` respondeu com o banco conectado. O Actions Web run `40181452419` teve uma primeira tentativa sem execução remota (timeout SSH), e a tentativa 2 concluiu com sucesso. Os SHAs no checkout DEV conferem com os commits publicados.
+
+Smoke autenticado em DEV navegou pelas quatro configurações de gateway. As quatro páginas e seus GET de API responderam 200; cada formulário exibiu campos específicos do provedor; no PagBank o campo de recorrência aparece somente quando a opção é habilitada; não houve overflow em 390 e 1440 px. Nenhuma configuração foi salva. A API confirmou que somente PagBank está configurado em SANDBOX e recorrência está desligada. Evidência sanitizada: [release smoke](evidencias/2026-10-25-gateways/release-smoke.json).
+
+Isso comprova a publicação e a interface/contrato da configuração, não callbacks ou pagamento externo. Não classificar estes pontos como homologação financeira DEV.
 
 Permanecem bloqueados por dependência externa:
 
