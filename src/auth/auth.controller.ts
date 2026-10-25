@@ -51,6 +51,25 @@ export class AuthController {
       refreshExpiresAt: tokens.refreshExpiresAt,
     };
   }
+  @Post('trial-signup')
+  @HttpCode(201)
+  @UseGuards(AuthOriginGuard)
+  async trialSignup(
+    @Body() body: unknown,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.service.trialSignup(body, request.ip ?? 'unknown');
+    setAuthCookies(response, result.tokens);
+    return {
+      authenticated: true,
+      accessExpiresAt: result.tokens.accessExpiresAt,
+      refreshExpiresAt: result.tokens.refreshExpiresAt,
+      user: result.user,
+      company: result.company,
+      subscription: result.subscription,
+    };
+  }
   @Post('refresh')
   @HttpCode(200)
   @UseGuards(AuthOriginGuard)

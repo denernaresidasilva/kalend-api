@@ -20,6 +20,7 @@ import {
   eventName,
   render,
   retry,
+  requestedChannels,
   templateContent,
   TransportFailure,
 } from './contracts.js';
@@ -373,6 +374,7 @@ export class CommunicationEngine {
               !(name === 'SECURITY_PASSWORD_CHANGED' && event.userId)
             )
               throw new BadRequestException('OUTBOX_RECIPIENT_SCOPE_INVALID');
+            requestedChannels(event.variables);
           } catch {
             await tx.globalCommunicationOutbox.update({
               where: { id },
@@ -407,7 +409,9 @@ export class CommunicationEngine {
             ...globalByChannel.keys(),
             ...companyByChannel.keys(),
           ]);
+          const selectedChannels = requestedChannels(event.variables);
           const templates = [...channelsToResolve]
+            .filter((channel) => !selectedChannels || selectedChannels.includes(channel))
             .map((channel) => {
               const selected = resolveEffectiveTemplate(
                 globalByChannel.get(channel),
@@ -602,9 +606,10 @@ export class CommunicationEngine {
                     t.channel,
                     name,
                     {
-                      ...(event.variables as Variables),
+                      ...Object.fromEntries(Object.entries(event.variables as Record<string, unknown>).filter(([key]) => !key.startsWith('__'))) as Variables,
                       nome: member.user.name,
                       empresa: member.company.name,
+                      ...(name === 'OWNER_WELCOME' ? { plano: (event.variables as Variables).plano ?? 'Consulte sua conta', vencimento: (event.variables as Variables).vencimento ?? 'Consulte sua conta' } : {}),
                     },
                     to,
                   );

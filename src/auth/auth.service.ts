@@ -11,6 +11,8 @@ import {
 } from '../billing/company-policy.js';
 import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { Prisma } from '@prisma/client';
+import { normalizeBrazilianPhone } from '../communication/recipient.js';
 import { parseLoginDto, parseSelectTenantDto } from './auth.dto.js';
 import {
   AuthTokens,
@@ -25,6 +27,7 @@ import {
   SESSION_SECONDS,
 } from './auth.config.js';
 import { AuthRateLimit } from './auth-rate-limit.service.js';
+import { boolean, object, string, uuid } from '../common/validation.js';
 import type { AuthIdentity } from './auth.types.js';
 import {
   entitledWhere,
@@ -150,6 +153,121 @@ export class AuthService {
       });
     });
     return this.issue(user.id, session, refresh);
+  }
+
+  async trialSignup(input: unknown, ip: string) {
+    const data = object(input, [
+      'companyName', 'ownerName', 'whatsapp', 'email', 'password',
+      'confirmPassword', 'planId', 'acceptTerms', 'marketingConsent', 'website', 'attribution',
+    ]);
+    const companyName = string(data.companyName, 'companyName', 120);
+    const ownerName = string(data.ownerName, 'ownerName', 120);
+    const rawEmail = string(data.email, 'email', 254).toLowerCase();
+    const password = typeof data.password === 'string' && data.password.length <= 128 ? data.password : '';
+    const confirmPassword = typeof data.confirmPassword === 'string' && data.confirmPassword.length <= 128 ? data.confirmPassword : '';
+    const planId = uuid(data.planId);
+    const rawPhone = string(data.whatsapp, 'whatsapp', 32);
+    const attribution: Record<string, string> = {};
+    if (data.attribution !== undefined) {
+      if (!data.attribution || typeof data.attribution !== 'object' || Array.isArray(data.attribution))
+        throw new ForbiddenException('PUBLIC_SIGNUP_REJECTED');
+      const allowedAttribution = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'gclid', 'gbraid', 'wbraid', 'fbclid'];
+      for (const [key, value] of Object.entries(data.attribution as Record<string, unknown>)) {
+        if (!allowedAttribution.includes(key) || typeof value !== 'string' || value.length > 255 || /[\r\n]/.test(value))
+          throw new ForbiddenException('PUBLIC_SIGNUP_REJECTED');
+        attribution[key] = value;
+      }
+    }
+    const phone = normalizeBrazilianPhone(rawPhone);
+    boolean(data.acceptTerms, 'acceptTerms');
+    boolean(data.marketingConsent, 'marketingConsent');
+    if (typeof data.website !== 'string' || data.website.length > 200)
+      throw new ForbiddenException('PUBLIC_SIGNUP_REJECTED');
+    if (data.website.trim()) throw new ForbiddenException('PUBLIC_SIGNUP_REJECTED');
+    if (!data.acceptTerms) throw new ForbiddenException('TERMS_ACCEPTANCE_REQUIRED');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail))
+      throw new ForbiddenException('PUBLIC_SIGNUP_REJECTED');
+    if (password !== confirmPassword || Buffer.byteLength(password) > 72 ||
+      password.length < 12 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) ||
+      !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password))
+      throw new ForbiddenException('PUBLIC_SIGNUP_REJECTED');
+    if (!companyName.trim() || !ownerName.trim() || !phone)
+      throw new ForbiddenException('PUBLIC_SIGNUP_REJECTED');
+
+    await this.limiter.consume('public-trial-ip', ip, 5, 3600);
+    await this.limiter.consume('public-trial-email', rawEmail, 3, 86400);
+    const passwordHash = await bcrypt.hash(password, 12);
+    const now = new Date();
+    const randomSuffix = randomBytes(4).toString('hex');
+    const baseSlug = companyName.normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
+    const slug = `${baseSlug || 'empresa'}-${randomSuffix}`;
+    const refresh = newRefresh();
+    const expiresAt = new Date(now.getTime() + SESSION_SECONDS * 1000);
+    const refreshExpiresAt = new Date(now.getTime() + REFRESH_SECONDS * 1000);
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const plan = await tx.plan.findFirst({
+          where: { id: planId, isActive: true, isPublic: true, trialEnabled: true, trialDays: { gt: 0, lte: 365 } },
+          select: { id: true, name: true, trialDays: true },
+        });
+        if (!plan) throw new ForbiddenException('PUBLIC_SIGNUP_REJECTED');
+        const user = await tx.user.create({
+          data: { name: ownerName, email: rawEmail, phone, passwordHash, isActive: true, isSuperAdmin: false },
+          select: { id: true, name: true, email: true },
+        });
+        const company = await tx.company.create({
+          data: { name: companyName.trim(), slug, status: 'TRIAL', administrativeStatus: 'ACTIVE', isActive: true, timezone: 'America/Sao_Paulo' },
+          select: { id: true, name: true, slug: true },
+        });
+        await tx.membership.create({ data: { userId: user.id, companyId: company.id, role: 'OWNER', isActive: true } });
+        const trialEndsAt = new Date(now);
+        trialEndsAt.setUTCDate(trialEndsAt.getUTCDate() + plan.trialDays);
+        const trialEndLabel = new Intl.DateTimeFormat('pt-BR', {
+          dateStyle: 'long', timeZone: 'America/Sao_Paulo',
+        }).format(trialEndsAt);
+        const subscription = await tx.subscription.create({
+          data: { companyId: company.id, planId: plan.id, status: 'TRIALING', billingInterval: 'MONTHLY', trialStartedAt: now, trialEndsAt, gateway: 'MANUAL' },
+          select: { id: true, status: true, trialStartedAt: true, trialEndsAt: true },
+        });
+        await tx.publicSignupConsent.create({
+          data: {
+            userId: user.id, companyId: company.id,
+            termsVersion: 'kalend-terms-2026-10-25', privacyVersion: 'kalend-privacy-2026-10-25',
+            acceptedAt: now, marketingOptIn: data.marketingConsent === true,
+            marketingConsentedAt: data.marketingConsent === true ? now : null,
+            attribution: Object.keys(attribution).length ? attribution : undefined,
+          },
+        });
+        await tx.globalCommunicationOutbox.create({
+          data: {
+            scope: 'GLOBAL', event: 'OWNER_WELCOME', businessKey: `owner-welcome:${company.id}`,
+            companyId: company.id, userId: user.id,
+            variables: { __channels: ['EMAIL'], plano: plan.name, vencimento: trialEndLabel },
+          },
+        });
+        const session = await tx.authSession.create({
+          data: {
+            userId: user.id, selectedCompanyId: company.id, credentialHash: credentialHash(passwordHash),
+            expiresAt, refreshExpiresAt,
+            refreshTokens: { create: { tokenHash: refreshHash(refresh), expiresAt: refreshExpiresAt } },
+          },
+          select: { id: true, expiresAt: true, refreshExpiresAt: true },
+        });
+        return {
+          user, company, subscription,
+          tokens: {
+            access: await this.tokens.access(user.id, session.id, new Date(Math.min(now.getTime() + ACCESS_SECONDS * 1000, expiresAt.getTime(), refreshExpiresAt.getTime()))),
+            refresh, accessExpiresAt: new Date(Math.min(now.getTime() + ACCESS_SECONDS * 1000, expiresAt.getTime(), refreshExpiresAt.getTime())), refreshExpiresAt,
+          },
+        };
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')
+        throw new ForbiddenException('PUBLIC_SIGNUP_REJECTED');
+      throw error;
+    }
   }
   private async issue(
     userId: string,

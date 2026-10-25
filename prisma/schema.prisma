@@ -91,6 +91,7 @@ model User {
   notifications           Notification[]
   notificationPreference  NotificationPreference?
   globalPushSubscriptions GlobalPushSubscription[]
+  publicSignupConsents    PublicSignupConsent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -115,6 +116,7 @@ model Company {
   webhookEvents          WebhookEvent[]
   authSessions           AuthSession[]
   communicationTemplates CompanyCommunicationTemplate[]
+  publicSignupConsents   PublicSignupConsent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -137,6 +139,24 @@ model Membership {
   @@unique([userId, companyId])
   @@index([companyId, role])
   @@index([userId])
+}
+
+model PublicSignupConsent {
+  id                    String   @id @default(uuid()) @db.Uuid
+  userId                String   @db.Uuid
+  companyId             String   @db.Uuid
+  termsVersion          String
+  privacyVersion        String
+  acceptedAt            DateTime @default(now())
+  marketingOptIn         Boolean  @default(false)
+  marketingConsentedAt   DateTime?
+  attribution             Json?
+  source                 String   @default("PUBLIC_LP")
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company                Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId, acceptedAt])
 }
 
 model Plan {

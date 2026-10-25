@@ -19,6 +19,14 @@ export type Event = (typeof EVENTS)[number] | 'QA_COMMUNICATION_TEST';
 export type Channel = 'EMAIL' | 'WHATSAPP' | 'PUSH';
 export type Provider = 'SMTP' | 'GMAIL' | 'META' | 'EVOLUTION' | 'PUSH_PENDING';
 export type Variables = Record<string, string>;
+export function requestedChannels(value: unknown): Channel[] | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const selected = (value as Record<string, unknown>).__channels;
+  if (selected === undefined) return undefined;
+  if (!Array.isArray(selected) || selected.length === 0 || selected.some((channel) => !['EMAIL', 'WHATSAPP', 'PUSH'].includes(String(channel))))
+    throw new BadRequestException('OUTBOX_CHANNEL_FILTER_INVALID');
+  return selected as Channel[];
+}
 export const channels: Record<Provider, Channel> = {
   SMTP: 'EMAIL',
   GMAIL: 'EMAIL',
@@ -40,6 +48,7 @@ export function providerName(v: string): Provider {
 export function variablesFor(event: Event): string[] {
   if (event === 'SECURITY_PASSWORD_CHANGED') return ['nome'];
   if (event === 'QA_COMMUNICATION_TEST') return ['nome', 'empresa'];
+  if (event === 'OWNER_WELCOME') return ['nome', 'empresa', 'plano', 'vencimento'];
   return [
     'nome',
     'empresa',

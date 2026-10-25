@@ -10,6 +10,7 @@ import {
   email,
   EVENTS,
   phone,
+  requestedChannels,
   render,
   renderText,
   retry,
@@ -150,6 +151,12 @@ describe('global communication security contracts', () => {
     for (const number of ['11999999999', '+0123456789', 'not-a-phone', null])
       expect(() => phone(number)).toThrow();
     expect(() => email('name <owner@example.test>')).toThrow();
+  });
+  it('restricts public Trial welcome events to explicitly selected communication channels', () => {
+    expect(requestedChannels({ __channels: ['EMAIL'] })).toEqual(['EMAIL']);
+    expect(requestedChannels({ nome: 'Ana' })).toBeUndefined();
+    expect(() => requestedChannels({ __channels: ['EMAIL', 'SMS'] })).toThrow('OUTBOX_CHANNEL_FILTER_INVALID');
+    expect(() => requestedChannels({ __channels: [] })).toThrow('OUTBOX_CHANNEL_FILTER_INVALID');
   });
   it.each(EVENTS)('only exposes event variables for %s', (event) => {
     expect(() => renderText('{{passwordHash}}', event, {})).toThrow();
