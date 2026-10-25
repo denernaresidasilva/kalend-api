@@ -35,10 +35,20 @@ Estado local: 25/10/2026. Esta implementação ainda não foi publicada em DEV.
 
 Leitura remota sanitizada em `srv1119527`: os processos DEV estão online; o
 preflight da migration confirmou `kalend_dev`/`kalend_dev_migrator` sem
-privilégios de cluster. Contudo, o runtime da API lê `kalend_dev` através da role
-`kalend`, que tem `CREATEDB` e é proprietária de outro banco. As contas DEV também
-mantêm a permissão CloudPanel `clpctlWrapper` via sudo. Não houve alteração
-remota, backup, push ou deploy nesta tarefa.
+privilégios de cluster e `prisma migrate status` mostrou as 19 migrations já
+publicadas como aplicadas. O catálogo público retornou três planos Trial elegíveis.
+Contudo, o runtime da API lê `kalend_dev` através da role `kalend`, que tem
+`CREATEDB` e é proprietária de outro banco. As contas DEV também mantêm a
+permissão CloudPanel `clpctlWrapper` via sudo.
+
+Backup novo de `kalend_dev` criado sob `/root/kalend-dev-lp-20261025-xVFoWvuV`,
+modo 0700 root:root; SHA-256 registrado no manifesto privado. Restore completo
+foi testado em database temporário isolado e removido depois da validação: 29
+tabelas, 69 constraints, 31 FKs, 92 índices, zero constraints não validadas,
+17 subscriptions e 11 payments. Um segundo snapshot privado, também restaurado
+com sucesso, foi preservado em `/root/kalend-dev-lp-20261025-fvBmlaR3`.
+Nenhum serviço ou configuração foi alterado; dados de aplicação, migration,
+push e deploy não foram alterados/executados.
 
 Antes de publicar, separar a role de runtime exclusivamente em `kalend_dev`,
 provar autenticação e privilégios sem acesso a `kalend`, e estabelecer uma
