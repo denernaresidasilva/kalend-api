@@ -38,25 +38,43 @@ Leitura remota sanitizada em `srv1119527`: os processos DEV estão online; o
 preflight da migration confirmou `kalend_dev`/`kalend_dev_migrator` sem
 privilégios de cluster e `prisma migrate status` mostrou as 19 migrations já
 publicadas como aplicadas. O catálogo público retornou três planos Trial elegíveis.
-Contudo, o runtime da API lê `kalend_dev` através da role `kalend`, que tem
-`CREATEDB` e é proprietária de outro banco. As contas DEV também mantêm a
-permissão CloudPanel `clpctlWrapper` via sudo.
 
-Backup novo de `kalend_dev` criado sob `/root/kalend-dev-lp-20261025-xVFoWvuV`,
-modo 0700 root:root; SHA-256 registrado no manifesto privado. Restore completo
-foi testado em database temporário isolado e removido depois da validação: 29
-tabelas, 69 constraints, 31 FKs, 92 índices, zero constraints não validadas,
-17 subscriptions e 11 payments. Um segundo snapshot privado, também restaurado
-com sucesso, foi preservado em `/root/kalend-dev-lp-20261025-fvBmlaR3`.
-Nenhum serviço ou configuração foi alterado; dados de aplicação, migration,
-push e deploy não foram alterados/executados.
+**Isolamento do runtime aplicado em DEV:** role `kalend_dev_runtime`, LOGIN sem
+senha, `NOSUPERUSER`, `NOCREATEDB`, `NOCREATEROLE`, `NOREPLICATION`,
+`NOBYPASSRLS`, sem memberships ou ownership. Recebe somente `USAGE` em `public`,
+DML em tabelas, `USAGE/SELECT` em sequences e default privileges futuros dos
+objetos criados por `kalend_dev_migrator`. Não recebe `CREATE` no banco/schema.
+O `.env` privado da API aponta para peer socket como `kalend_dev_runtime`; a role
+migradora e a variável de migration permaneceram inalteradas.
 
-Antes de publicar, separar a role de runtime exclusivamente em `kalend_dev`,
-provar autenticação e privilégios sem acesso a `kalend`, e estabelecer uma
-identidade de execução DEV sem caminho administrativo efetivo. Essas mudanças
-exigem intervenção administrativa delimitada, backup das configurações e
-recuperação apropriada. Não usar este commit como autorização para contornar o
-gate.
+Regras específicas de `pg_hba`/`pg_ident` permitem peer apenas do UID
+`kalend-api-dev` para `kalend_dev` e rejeitam o runtime por socket em outros
+bancos e por TCP. A role herda o bit `CONNECT` de `PUBLIC` no catálogo, mas testes
+reais foram negados pelo HBA para `kalend` via socket, `kalend` via TCP e até
+`kalend_dev` via TCP. O API DEV foi reiniciado somente pelo nome PM2 autorizado;
+HTTP health e catálogo público retornaram 200, com três planos, e a sessão ativa
+foi observada como `kalend_dev_runtime` em `kalend_dev`.
+
+Configuração anterior preservada em `/root/kalend-dev-runtime-20261025-WitXCWSf`
+(0700 root:root), com rollback `rollback-runtime.sh` validado por `bash -n`.
+O backup contém `.env`; não copiar nem exibir seu conteúdo. Backup de dados DEV
+restaurável continua em `/root/kalend-dev-lp-20261025-xVFoWvuV` e
+`/root/kalend-dev-lp-20261025-fvBmlaR3`.
+
+**Publicação continua bloqueada:** os dois usuários que os workflows verificam,
+`kalend-api-dev` e `kalend-dev`, ainda podem executar `clpctlWrapper` por sudo.
+O inventário CloudPanel disponível afirma que não se pode remover essa permissão
+às cegas porque os consumidores legítimos ainda não foram totalmente mapeados;
+uma identidade SSH de deploy separada também não isola código executado pelo
+runtime na mesma conta. Não alterei sudoers, SSH ou a conta `clp`; recuperação
+administrativa independente ainda não está comprovada. Não houve push, migration
+ou deploy. `/lp` segue indisponível em DEV até o pipeline poder executar com
+isolamento administrativo efetivo.
+
+Antes de publicar, completar o inventário CloudPanel/SSH e confinar os
+executores/runtime DEV sem quebrar os consumidores legítimos, com recuperação
+administrativa independente e rollback verificados. Não usar este commit como
+autorização para contornar esse gate.
 
 Depois do isolamento: backup atualizado e restore verificado de `kalend_dev`,
 push API (a migration é aplicada pelo workflow automático) e, em seguida, Web;
