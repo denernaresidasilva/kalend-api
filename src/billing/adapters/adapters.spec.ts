@@ -84,6 +84,7 @@ it('registers four distinct real adapters with explicit capabilities', () => {
     'AsaasAdapter',
   ]);
   expect(new PagBankAdapter().capabilities.recurring).toBe(true);
+  expect(new AsaasAdapter().capabilities.webhookManagement).toBe(false);
 });
 it.each(gateways)(
   '%s rejects unsigned webhooks without fetching or granting access',
@@ -222,6 +223,47 @@ it('Asaas uses separate authToken and re-fetches authenticated current payment',
       { ...context, webhookSecret: context.credentials },
     ),
   ).rejects.toThrow('WEBHOOK_SEPARATE_SECRET_REQUIRED');
+});
+it('Asaas reconciles only completed partial refunds and keeps pending refunds from revoking payment', async () => {
+  const adapter = new AsaasAdapter();
+  reply({
+    id: 'pay_partial',
+    status: 'REFUNDED',
+    value: 99,
+    originalValue: 99,
+    refunds: [
+      { status: 'DONE', value: 12.5 },
+      { status: 'PENDING', value: 8 },
+      { status: 'CANCELLED', value: 3 },
+    ],
+  });
+  expect(await adapter.getPayment('pay_partial', context)).toMatchObject({
+    status: 'REFUNDED',
+    amountCents: 9900,
+    refundedAmountCents: 1250,
+  });
+
+  reply({
+    id: 'pay_waiting_refund',
+    status: 'REFUNDED',
+    value: 99,
+    originalValue: 99,
+    refunds: [{ status: 'PENDING', value: 99 }],
+  });
+  expect(await adapter.getPayment('pay_waiting_refund', context)).toMatchObject({
+    status: 'PENDING',
+    refundedAmountCents: 0,
+  });
+});
+it('Asaas webhook configuration subscribes to partial and in-progress refund lifecycle events', async () => {
+  reply({ id: 'webhook_1' });
+  await new AsaasAdapter().configureWebhook(context, 'qa@example.invalid');
+  expect(JSON.parse(network.mock.calls[0][1].body).events).toContain(
+    'PAYMENT_PARTIALLY_REFUNDED',
+  );
+  expect(JSON.parse(network.mock.calls[0][1].body).events).toContain(
+    'PAYMENT_REFUND_IN_PROGRESS',
+  );
 });
 it('Asaas recurring mandate has explicit plan interval/reference and cancellation uses DELETE', async () => {
   reply({ data: [{ id: 'cus_1' }] });

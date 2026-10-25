@@ -29,7 +29,9 @@ export class AsaasAdapter implements GatewayProvider {
     recurring: true,
     nativeIdempotency: false,
     cancelAtPeriodEnd: false,
-    webhookManagement: true,
+    // The adapter can validate notifications but automatic webhook setup is not
+    // exposed through the GatewayProvider/API configuration flow.
+    webhookManagement: false,
   };
   private api(c: GatewayContext, path: string, method = 'GET', body?: Remote) {
     return request(
@@ -125,20 +127,32 @@ export class AsaasAdapter implements GatewayProvider {
     };
     const status = r.deleted ? 'CANCELED' : map[r.status];
     if (!status) throw new BadRequestException('GATEWAY_UNKNOWN_STATUS');
-    const refunded =
-      status === 'REFUNDED'
+    const refundsAvailable = Array.isArray(r.refunds);
+    const completedRefunds = refundsAvailable
+      ? (r.refunds as Remote[])
+          .filter((x: Remote) => x.status === 'DONE')
+          .reduce((n: number, x: Remote) => n + cents(x.value, true), 0)
+      : 0;
+    // Asaas returns individual refund amounts, including partial refunds.
+    // Use the charge value as a full-refund fallback only for older responses
+    // that omit the refunds field entirely. A pending refund is not a refund.
+    const refunded = refundsAvailable
+      ? completedRefunds
+      : status === 'REFUNDED'
         ? cents(r.value, true)
-        : (r.refunds ?? [])
-            .filter((x: Remote) => x.status === 'DONE')
-            .reduce((n: number, x: Remote) => n + cents(x.value, true), 0);
+        : 0;
+    const effectiveStatus =
+      status === 'REFUNDED' && refundsAvailable && refunded === 0
+        ? 'PENDING'
+        : status;
     return {
       environment: c.environment,
-      eventId: eventId(id(r.id), status, refunded),
+      eventId: eventId(id(r.id), effectiveStatus, refunded),
       type: String(r.status).includes('CHARGEBACK') ? `chargeback:${r.status}` : 'payment',
       externalPaymentId: id(r.id),
       externalReference: r.externalReference,
       externalSubscriptionId: r.subscription ? id(r.subscription) : undefined,
-      status: refunded > 0 ? 'REFUNDED' : status,
+      status: refunded > 0 ? 'REFUNDED' : effectiveStatus,
       amountCents: cents(r.originalValue ?? r.value, true),
       currency: 'BRL',
       refundedAmountCents: refunded,
@@ -269,6 +283,8 @@ export class AsaasAdapter implements GatewayProvider {
         'PAYMENT_RECEIVED',
         'PAYMENT_OVERDUE',
         'PAYMENT_REFUNDED',
+        'PAYMENT_PARTIALLY_REFUNDED',
+        'PAYMENT_REFUND_IN_PROGRESS',
         'PAYMENT_DELETED',
         'PAYMENT_CREDIT_CARD_CAPTURE_REFUSED',
         'SUBSCRIPTION_CREATED',

@@ -121,10 +121,13 @@ export class GatewaysService {
       data.credentials !== undefined ||
       data.webhookSecret !== undefined ||
       environment !== old?.environment;
-    if (
-      data.recurringEnabled === true &&
-      !(recurringCredentialsEncrypted ?? old?.recurringCredentialsEncrypted)
-    )
+    const effectiveRecurringCredentials =
+      data.recurringCredentials !== undefined
+        ? recurringCredentialsEncrypted
+        : environment === old?.environment
+          ? old?.recurringCredentialsEncrypted
+          : undefined;
+    if (data.recurringEnabled === true && !effectiveRecurringCredentials)
       throw new BadRequestException('PAGBANK_RECURRING_CONFIGURATION_REQUIRED');
     if (gateway === 'ASAAS') {
       const apiKey =

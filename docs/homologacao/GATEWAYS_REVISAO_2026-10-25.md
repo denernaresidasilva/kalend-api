@@ -1,0 +1,47 @@
+# Revisão dos gateways — 25/10/2026
+
+## Resultado desta continuação
+
+Foram revisados os quatro adapters efetivamente registrados: Stripe, Mercado Pago, PagBank e Asaas. Os testes locais cobriram contratos de checkout, ambiente, autenticação, assinatura de webhook, reconciliação, cancelamento e refund conforme aplicável. Não houve cobrança, estorno remoto ou alteração da configuração dos gateways.
+
+Uma sessão Super Admin QA foi usada somente para `GET /payment-gateways`; a sessão foi encerrada em seguida. A configuração observada em DEV indicou PagBank SANDBOX conectado, sem recorrência habilitada; Mercado Pago, Stripe e Asaas não configurados. Nenhuma credencial foi retornada nem registrada. Portanto, não havia credenciais sandbox para contratos remotos dos outros três provedores.
+
+## Revisão por provedor
+
+| Gateway | Implementação observada | Segurança/contrato | Estado de teste externo |
+|---|---|---|---|
+| Stripe | Checkout Sessions em modo `payment`/`subscription`; segredo de API só no backend; header de idempotência; cancelamento imediato ou ao fim do período. | Confere prefixo test/live e `livemode`; assinatura do webhook sobre bytes originais e timestamp; checkout e metadata vinculam payment, company, plan e subscription. Campos usados no formulário: chave secreta; segredo de webhook separado. | Contratos locais aprovados. Sandbox remoto indisponível: sem credenciais configuradas em DEV. |
+| Mercado Pago | Checkout Pro Preferences e `/preapproval`; credencial Bearer; URL de notificação e retorno geradas pelo Kalend; cancelamento e confirmação por consulta autenticada ao recurso. | Assinatura HMAC da notificação vincula `data.id`, `x-request-id` e timestamp; reconciliação busca o recurso na API. Idempotência é da aplicação, não declarada como nativa pelo adapter. | Contratos locais aprovados. Sandbox remoto indisponível: sem credenciais configuradas em DEV. O produto atualmente usa Preferences; a documentação oficial mantém essa referência, enquanto Orders é outra rota disponível e exige `X-Idempotency-Key`. A migração de produto não foi feita nesta correção. |
+| PagBank | Checkout hospedado `/checkouts`; recorrência em API separada e explicitamente opt-in; URLs de notificação geradas pelo backend. | Token checkout e token de recorrência separados; chave pública webhook obtida pela API; ECDSA do corpo original; env SANDBOX/PRODUCTION aplicado aos hosts; cancelamento de recorrência sem prometer período restante. | Um checkout SANDBOX e idempotência já têm evidência DEV anterior. Não houve submissão de pagamento nem callback legítimo. Recorrência não habilitada nem configurada. |
+| Asaas | Customers, Payments e Subscriptions; `access_token`; hosts sandbox/prod distintos; cobrança em checkout hospedado. | Token do webhook separado da API key (`asaas-access-token`); evento não é confiado sem refetch do pagamento. Idempotência é interna ao Kalend; exclusão de assinatura é imediata e remove cobranças pendentes/vencidas segundo o provedor. Configuração automática de webhook não está exposta pelo contrato do adapter, então a capability foi corrigida para `false`; configuração é externa/manual. | Contratos locais aprovados. Sandbox remoto indisponível: sem credenciais configuradas em DEV. |
+
+## Correções locais desta rodada
+
+1. PagBank: mudar o ambiente em modo checkout-only não exige token de recorrência. O formulário oculta o token enquanto recorrência estiver desligada; ao trocar ambiente com recorrência desligada, envia `null` para apagar a credencial cifrada no escopo antigo. Ao habilitar recorrência no ambiente novo, exige token novo, evitando reutilizar ciphertext cifrado com AAD do outro ambiente.
+2. Asaas: re-fetch de pagamento agora soma apenas entradas de refund em estado `DONE`, preservando valores parciais. Uma resposta `REFUNDED` com refunds somente pendentes não é tratada como dinheiro devolvido. O fallback de valor integral existe só quando a API omite o array `refunds`. O webhook de Asaas também se inscreve em `PAYMENT_PARTIALLY_REFUNDED` e `PAYMENT_REFUND_IN_PROGRESS`.
+3. Asaas: `webhookManagement` agora é falso, pois o método de cadastro não está conectado a rota/contrato acessível do fluxo Super Admin; evita alegar gestão automática que o produto não oferece.
+
+## Validação executada
+
+- API: 90 testes dirigidos de billing/adapters/gateways passaram; lint e build passaram.
+- Web: 399 testes passaram com Node 24.21.0; TypeScript, ESLint e build passaram.
+- Uma tentativa inicial da suíte Web com Node 18 falhou por `ERR_REQUIRE_ESM` em jsdom; repetida na versão Node 24 do projeto, passou integralmente.
+- Nenhum teste pagou, submeteu checkout ou enviou comunicação externa nesta rodada.
+
+## Situação de publicação e limites
+
+Essas correções ainda são locais nesta evidência. Não classificar como aprovadas em DEV até publicar pelos workflows existentes e conferir os commits/health. A evidência remota desta rodada é somente a leitura autenticada do catálogo de configurações do gateway, não uma prova de webhook real.
+
+Permanecem bloqueados por dependência externa:
+
+- Configurar credenciais sandbox privadas de Stripe, Mercado Pago e Asaas para contrato remoto.
+- Submeter um pagamento de teste PagBank e observar callback autenticado, usando comprador de teste do provedor.
+- Habilitar recorrência SANDBOX PagBank com token próprio de recorrência e provar criação/cancelamento sem cobrança live.
+- Confirmar entrega real de WhatsApp com destinatário QA autorizado e Push num dispositivo QA com subscription ativa.
+
+## Documentação oficial consultada
+
+- Stripe: [Checkout Sessions](https://docs.stripe.com/api/checkout/sessions/create), [assinatura de webhooks](https://docs.stripe.com/webhooks/signature), [idempotência](https://docs.stripe.com/api/idempotent_requests), [refunds](https://docs.stripe.com/api/refunds/create), [cancelamento de assinatura](https://docs.stripe.com/api/subscriptions/cancel).
+- Mercado Pago: [Preferences API/Checkout Pro](https://www.mercadopago.com.br/developers/en/reference/online-payments/checkout-pro-preferences/overview), [autenticação](https://www.mercadopago.com.br/developers/pt/reference), [criação de Order e chave de idempotência](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-pro/create-order/post).
+- Asaas: [refunds e valores parciais](https://docs.asaas.com/docs/refunds), [eventos de pagamento](https://docs.asaas.com/docs/payment-events), [remoção de assinatura](https://docs.asaas.com/reference/remove-subscription), [webhooks](https://docs.asaas.com/docs/receba-eventos-do-asaas-no-seu-endpoint-de-webhook).
+- PagBank: [criar checkout](https://developer.pagbank.com.br/reference/criar-checkout), [webhooks de checkout](https://developer.pagbank.com.br/reference/webhooks-checkout), [autenticidade de notificações](https://developer.pagbank.com.br/reference/validacao-de-autenticidade), [refunds e recorrência](https://developer.pagbank.com.br/docs/pagamentos).
