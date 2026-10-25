@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-25",
+  "environment": "DEV",
+  "gateway": "PAGBANK",
+  "configuration": {
+    "environment": "SANDBOX",
+    "enabled": true
+  },
+  "qaAuthentication": {
+    "superAdminLoginHttp": 200,
+    "logoutHttp": 204,
+    "credentialsPrinted": false
+  },
+  "checkoutFixture": {
+    "existingPendingCheckout": true,
+    "duplicateCreationHttp": 409,
+    "applicationCode": "CHECKOUT_ALREADY_PENDING",
+    "additionalCheckoutCreated": false,
+    "providerPaymentSubmitted": false,
+    "callbackObserved": false
+  },
+  "scopeChecks": {
+    "fixtureCompanyAccessibleToAvailableOwnerIdentity": false,
+    "tenantSelectionHttp": 403,
+    "authenticationOrMembershipBypassAttempted": false,
+    "realCardUsed": false,
+    "productionTouched": false
+  },
+  "officialDocumentation": {
+    "sandboxTestCards": "https://developer.pagbank.com.br/docs/cartoes-de-teste",
+    "sandboxIntegrationTest": "https://developer.pagbank.com.br/reference/testar-sua-integracao-pagamentos-recorrentes",
+    "hostedCheckout": "https://developer.pagbank.com.br/docs/checkout",
+    "scopeNote": "The published test-card guide identifies /orders and /orders/pay. Compatibility with the deployed hosted /checkouts form was not established."
+  },
+  "result": "PARTIAL_EXTERNAL_BLOCKER"
+}

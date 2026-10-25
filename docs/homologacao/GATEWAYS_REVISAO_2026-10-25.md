@@ -43,6 +43,30 @@ Permanecem bloqueados por dependência externa:
 - Habilitar recorrência SANDBOX PagBank com token próprio de recorrência e provar criação/cancelamento sem cobrança live.
 - Confirmar entrega real de WhatsApp com destinatário QA autorizado e Push num dispositivo QA com subscription ativa.
 
+## Continuação de homologação — 25/10/2026
+
+Foi retomada a tentativa do callback PagBank somente na configuração SANDBOX.
+O endpoint administrativo autenticado confirmou PagBank habilitado em SANDBOX.
+Ao usar a fixture isolada de checkout já existente, a API respondeu
+`CHECKOUT_ALREADY_PENDING` (HTTP 409), sem criar outro pagamento nem chamar o
+provedor novamente. A sessão QA foi encerrada (HTTP 204). A consulta anterior à
+fixture já havia mostrado que a identidade OWNER_A não tem membership na empresa
+extra da fixture (HTTP 403); portanto não foi usada para contornar a restrição.
+Não submetemos cartão, não criamos cobrança adicional e não simulamos callback.
+
+A documentação oficial consultada nesta retomada informa que o sandbox não tem
+valor monetário e publica cartões fictícios, mas delimita esses cartões às APIs
+`/orders` e `/orders/pay`. O fluxo implementado pelo Kalend usa Checkout hospedado
+(`/checkouts`); não assumimos que os cartões de Orders funcionam nesse formulário.
+O checkout hospedado requer a identidade de comprador sandbox adequada e/ou o
+simulador compatível com esse fluxo. Assim, pagamento aprovado, callback legítimo
+e recorrência permanecem pendentes; não foram promovidos na matriz. Fontes:
+[teste de integração e sandbox PagBank](https://developer.pagbank.com.br/reference/testar-sua-integracao-pagamentos-recorrentes),
+[escopo oficial dos cartões de teste](https://developer.pagbank.com.br/docs/cartoes-de-teste),
+[fluxo Checkout hospedado](https://developer.pagbank.com.br/docs/checkout).
+
+Evidência sanitizada: `evidencias/2026-10-25-gateways/pagbank-callback-resume.json`.
+
 ## Documentação oficial consultada
 
 - Stripe: [Checkout Sessions](https://docs.stripe.com/api/checkout/sessions/create), [assinatura de webhooks](https://docs.stripe.com/webhooks/signature), [idempotência](https://docs.stripe.com/api/idempotent_requests), [refunds](https://docs.stripe.com/api/refunds/create), [cancelamento de assinatura](https://docs.stripe.com/api/subscriptions/cancel).

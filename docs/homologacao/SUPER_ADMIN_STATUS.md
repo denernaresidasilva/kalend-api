@@ -315,3 +315,18 @@ Revisados localmente Stripe, Mercado Pago, PagBank e Asaas contra documentação
 Foram corrigidos e publicados: troca de ambiente PagBank checkout-only para não exigir nem manter token de recorrência cifrado no escopo anterior; reconciliação Asaas para somar só refunds `DONE` e não tratar refund pendente como devolvido; inclusão dos eventos Asaas de refund parcial e em progresso; capability Asaas de gestão automática de webhook ajustada para falso, pois o cadastro não está exposto no fluxo atual. API `14962de` e Web `8d9d970` foram implantados em DEV pelo Actions. Health DEV ficou 200 com banco conectado; PROD Web/API também responderam HTTP 200. A evidência sanitizada de workflow, PM2, páginas autenticadas e configuração dos provedores está em [release smoke](evidencias/2026-10-25-gateways/release-smoke.json) e a comparação com documentação oficial está em [revisão de gateways 25/10](GATEWAYS_REVISAO_2026-10-25.md).
 
 Validação local desta rodada: 886 testes unitários API, lint e build aprovados; 399 testes Web, TypeScript, ESLint e build aprovados com Node 24. Após o deploy, as quatro páginas de configuração tiveram smoke autenticado real em DEV e status/capacidades foram lidos via API sem segredos. KA-049 permanece PARCIAL/P1: faltam callback de pagamento aprovado e recorrência PagBank; Stripe, Mercado Pago e Asaas não têm credenciais sandbox em DEV. A entrega real de WhatsApp/Push ainda exige destinatário/dispositivo QA autorizado (KA-059 a KA-061).
+
+## Continuação autenticada do callback PagBank — 25/10/2026
+
+Revalidação em DEV confirmou PagBank `SANDBOX` habilitado. A fixture isolada já
+tem checkout pendente; uma nova tentativa pelo endpoint Super Admin recebeu
+`CHECKOUT_ALREADY_PENDING`/HTTP 409, sem criar outro payment ou submeter ao
+provedor. Login QA e logout concluíram (HTTP 200/204). A identidade OWNER_A
+disponível não tem membership na empresa da fixture (seleção de tenant HTTP 403),
+então nenhuma autenticação foi contornada. Nenhum cartão, callback, cobrança,
+configuração de gateway ou mensagem foi submetido. A documentação oficial dos
+cartões de teste delimita o suporte aos endpoints `/orders` e `/orders/pay`; a
+compatibilidade com o checkout hospedado `/checkouts` não foi demonstrada.
+KA-049 permanece PARCIAL/P1; a evidência e fontes oficiais estão em
+[revisão de gateways](GATEWAYS_REVISAO_2026-10-25.md) e
+[resultado sanitizado](evidencias/2026-10-25-gateways/pagbank-callback-resume.json).
