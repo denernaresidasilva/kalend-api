@@ -24,7 +24,8 @@ Estado local: 25/10/2026. Esta implementação ainda não foi publicada em DEV.
 
 ## Validação local
 
-- API: 892 testes unitários passaram; build, lint e Prisma validate passaram.
+- API: 892 testes unitários e 251 E2E passaram; build, lint e Prisma validate
+  passaram.
 - Migration `20261025090000_public_trial_signup_consent`: aplicada em PGlite
   isolado; tabela, defaults, FKs, unicidade e índices verificados.
 - Web: 402 testes, ESLint, TypeScript e build passaram.
