@@ -31,7 +31,8 @@
   },
   "pm2": {
     "frontend": { "name": "kalend-web-dev", "status": "online", "restartsObserved": 4 },
-    "api": { "name": "kalend-api-dev", "status": "online", "restartsObserved": 3 }
+    "api": { "name": "kalend-api-dev", "status": "online", "restartsObserved": 3 },
+    "stabilitySample": "10 seconds; both PIDs and restart counts unchanged"
   },
   "authenticatedBrowserSmoke": {
     "role": "SUPER_ADMIN_QA",
@@ -53,6 +54,12 @@
     "mercadoPago": { "environment": "SANDBOX", "enabled": false, "status": "NOT_CONFIGURED" },
     "asaas": { "environment": "SANDBOX", "enabled": false, "status": "NOT_CONFIGURED", "webhookManagement": false }
   },
+  "generatedWebhookUrls": [
+    "https://api-dev.kalend.tech/webhooks/mercado-pago",
+    "https://api-dev.kalend.tech/webhooks/stripe",
+    "https://api-dev.kalend.tech/webhooks/pagbank",
+    "https://api-dev.kalend.tech/webhooks/asaas"
+  ],
   "externalPaymentOrMessage": false,
   "productionWrite": false
 }
