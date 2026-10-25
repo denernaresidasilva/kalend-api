@@ -7,30 +7,42 @@
     "enabled": true
   },
   "qaAuthentication": {
-    "superAdminLoginHttp": 200,
+    "ownerRole": "OWNER_B",
+    "ownerAlreadyAssociatedWithFixture": true,
+    "tenantSelectionHttp": 200,
+    "loginHttp": 200,
     "logoutHttp": 204,
     "credentialsPrinted": false
   },
   "checkoutFixture": {
-    "existingPendingCheckout": true,
+    "hostedCheckoutHttp": 200,
+    "host": "pagamento.sandbox.pagbank.com.br",
+    "paymentStatus": "PENDING",
+    "creationState": "CREATED",
+    "paidAt": null,
+    "subscriptionAccessStatus": "CANCELED",
     "duplicateCreationHttp": 409,
     "applicationCode": "CHECKOUT_ALREADY_PENDING",
     "additionalCheckoutCreated": false,
-    "providerPaymentSubmitted": false,
-    "callbackObserved": false
+    "callbackObserved": false,
+    "privateCheckoutUrlStored": true,
+    "urlFileMode": "0600",
+    "urlParentMode": "0700",
+    "buyerPaymentSubmitted": false
   },
   "scopeChecks": {
-    "fixtureCompanyAccessibleToAvailableOwnerIdentity": false,
-    "tenantSelectionHttp": 403,
-    "authenticationOrMembershipBypassAttempted": false,
+    "ownerAMembershipBypassAttempted": false,
     "realCardUsed": false,
+    "paymentApprovedManually": false,
     "productionTouched": false
   },
   "officialDocumentation": {
+    "createHostedCheckout": "https://developer.pagbank.com.br/reference/criar-checkout",
+    "hostedCheckoutGuide": "https://developer.pagbank.com.br/docs/checkout",
     "sandboxTestCards": "https://developer.pagbank.com.br/docs/cartoes-de-teste",
     "sandboxIntegrationTest": "https://developer.pagbank.com.br/reference/testar-sua-integracao-pagamentos-recorrentes",
-    "hostedCheckout": "https://developer.pagbank.com.br/docs/checkout",
-    "scopeNote": "The published test-card guide identifies /orders and /orders/pay. Compatibility with the deployed hosted /checkouts form was not established."
+    "legacySandboxStatusSimulator": "https://developer.pagbank.com.br/v1/docs/api-notificacao",
+    "scopeNote": "Published API test cards cover /orders and /orders/pay; compatibility with hosted /checkouts was not established. The legacy simulator is documented for a different product/version and was not used."
   },
-  "result": "PARTIAL_EXTERNAL_BLOCKER"
+  "result": "PARTIAL_OWNER_ACTION_REQUIRED"
 }

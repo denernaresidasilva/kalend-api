@@ -318,15 +318,14 @@ Validação local desta rodada: 886 testes unitários API, lint e build aprovado
 
 ## Continuação autenticada do callback PagBank — 25/10/2026
 
-Revalidação em DEV confirmou PagBank `SANDBOX` habilitado. A fixture isolada já
-tem checkout pendente; uma nova tentativa pelo endpoint Super Admin recebeu
-`CHECKOUT_ALREADY_PENDING`/HTTP 409, sem criar outro payment ou submeter ao
-provedor. Login QA e logout concluíram (HTTP 200/204). A identidade OWNER_A
-disponível não tem membership na empresa da fixture (seleção de tenant HTTP 403),
-então nenhuma autenticação foi contornada. Nenhum cartão, callback, cobrança,
-configuração de gateway ou mensagem foi submetido. A documentação oficial dos
-cartões de teste delimita o suporte aos endpoints `/orders` e `/orders/pay`; a
-compatibilidade com o checkout hospedado `/checkouts` não foi demonstrada.
+Revalidação em DEV confirmou PagBank `SANDBOX` habilitado. OWNER_B é a proprietária
+QA já associada à empresa da fixture e selecionou o tenant com HTTP 200. A tentativa
+de criar outra cobrança recebeu `CHECKOUT_ALREADY_PENDING`/HTTP 409, sem duplicar
+pagamento. O checkout hospedado abriu HTTP 200; o payment permanece
+`PENDING`/`CREATED`, sem `paidAt`, e a assinatura permanece CANCELED. A URL foi
+guardada fora do repositório, em arquivo 0600 sob diretório 0700. Nenhum cartão foi
+submetido e nenhum callback foi simulado. Os cartões oficiais publicados são para
+`/orders` e `/orders/pay`, sem compatibilidade comprovada com `/checkouts`.
 KA-049 permanece PARCIAL/P1; a evidência e fontes oficiais estão em
 [revisão de gateways](GATEWAYS_REVISAO_2026-10-25.md) e
 [resultado sanitizado](evidencias/2026-10-25-gateways/pagbank-callback-resume.json).

@@ -45,25 +45,27 @@ Permanecem bloqueados por dependência externa:
 
 ## Continuação de homologação — 25/10/2026
 
-Foi retomada a tentativa do callback PagBank somente na configuração SANDBOX.
-O endpoint administrativo autenticado confirmou PagBank habilitado em SANDBOX.
-Ao usar a fixture isolada de checkout já existente, a API respondeu
-`CHECKOUT_ALREADY_PENDING` (HTTP 409), sem criar outro pagamento nem chamar o
-provedor novamente. A sessão QA foi encerrada (HTTP 204). A consulta anterior à
-fixture já havia mostrado que a identidade OWNER_A não tem membership na empresa
-extra da fixture (HTTP 403); portanto não foi usada para contornar a restrição.
-Não submetemos cartão, não criamos cobrança adicional e não simulamos callback.
+Foi retomado o callback PagBank usando a fixture existente e sua proprietária QA
+legítima, OWNER_B. A tentativa anterior com OWNER_A recebeu 403; a leitura
+administrativa confirmou a associação existente de OWNER_B, cuja seleção de tenant
+respondeu 200. PagBank segue habilitado em SANDBOX. A repetição protegida pela API
+respondeu `CHECKOUT_ALREADY_PENDING` (HTTP 409), sem criar pagamento adicional.
+O endpoint autenticado da proprietária confirmou o payment como `PENDING`,
+`creationState=CREATED`, sem `paidAt`; o estado comercial continua CANCELED. O
+checkout hospedado abriu em HTTP 200 e apresentou cartão, Pix e boleto. A sessão
+foi encerrada (HTTP 204). A URL de teste foi guardada somente em arquivo local
+privado, fora do repositório, com modo 0600 sob diretório 0700.
 
-A documentação oficial consultada nesta retomada informa que o sandbox não tem
-valor monetário e publica cartões fictícios, mas delimita esses cartões às APIs
-`/orders` e `/orders/pay`. O fluxo implementado pelo Kalend usa Checkout hospedado
-(`/checkouts`); não assumimos que os cartões de Orders funcionam nesse formulário.
-O checkout hospedado requer a identidade de comprador sandbox adequada e/ou o
-simulador compatível com esse fluxo. Assim, pagamento aprovado, callback legítimo
-e recorrência permanecem pendentes; não foram promovidos na matriz. Fontes:
+A documentação oficial define `/checkouts` como checkout hospedado e descreve as
+notificações de alteração do pagamento. Os cartões fictícios publicados são
+explicitamente delimitados a `/orders` e `/orders/pay`; não assumimos que funcionem
+neste formulário. O checkout pode ser concluído por um comprador QA com instrumento
+de teste oficialmente compatível. Assim, pagamento aprovado, callback legítimo e
+recorrência permanecem pendentes; não foram promovidos na matriz. Fontes:
 [teste de integração e sandbox PagBank](https://developer.pagbank.com.br/reference/testar-sua-integracao-pagamentos-recorrentes),
 [escopo oficial dos cartões de teste](https://developer.pagbank.com.br/docs/cartoes-de-teste),
-[fluxo Checkout hospedado](https://developer.pagbank.com.br/docs/checkout).
+[fluxo Checkout hospedado](https://developer.pagbank.com.br/docs/checkout),
+[endpoint de criação `/checkouts`](https://developer.pagbank.com.br/reference/criar-checkout).
 
 Evidência sanitizada: `evidencias/2026-10-25-gateways/pagbank-callback-resume.json`.
 
