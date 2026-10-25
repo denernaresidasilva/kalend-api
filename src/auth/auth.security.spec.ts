@@ -38,6 +38,13 @@ describe('authorization and limiting boundaries', () => {
     vi.stubEnv('AUTH_TRUSTED_PROXY_CIDRS', '0.0.0.0/0');
     expect(() => config.trustedProxies()).toThrow();
   });
+  it('builds only a root login URL from an explicitly allowed HTTPS origin', () => {
+    const config = new AuthConfig();
+    vi.stubEnv('AUTH_ALLOWED_ORIGINS', 'https://dev.kalend.tech');
+    expect(config.loginUrl('https://dev.kalend.tech')).toBe('https://dev.kalend.tech/');
+    expect(() => config.loginUrl('https://attacker.example')).toThrow();
+    expect(() => config.loginUrl('https://dev.kalend.tech.evil.example')).toThrow();
+  });
   it('enforces tenant role in addition to membership', async () => {
     const req = {
       method: 'GET',

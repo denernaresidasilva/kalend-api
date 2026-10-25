@@ -77,6 +77,7 @@ enum WebhookStatus {
 
 model User {
   id           String  @id @default(uuid()) @db.Uuid
+  // A SQL expression index also enforces lower(btrim(email)) for every writer.
   email        String  @unique
   passwordHash String
   name         String

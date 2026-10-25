@@ -48,7 +48,7 @@ export function providerName(v: string): Provider {
 export function variablesFor(event: Event): string[] {
   if (event === 'SECURITY_PASSWORD_CHANGED') return ['nome'];
   if (event === 'QA_COMMUNICATION_TEST') return ['nome', 'empresa'];
-  if (event === 'OWNER_WELCOME') return ['nome', 'empresa', 'plano', 'vencimento'];
+  if (event === 'OWNER_WELCOME') return ['nome', 'empresa', 'plano', 'vencimento', 'email_acesso', 'url_acesso'];
   return [
     'nome',
     'empresa',

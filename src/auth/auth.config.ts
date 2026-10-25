@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { isIP } from 'node:net';
 export const ACCESS_SECONDS = 600;
 export const REFRESH_SECONDS = 7 * 86400;
@@ -7,6 +7,12 @@ export const ACCESS_COOKIE = '__Host-kalend_access';
 export const REFRESH_COOKIE = '__Host-kalend_refresh';
 @Injectable()
 export class AuthConfig {
+  loginUrl(origin: string | undefined): string {
+    if (!origin || !this.origins().includes(origin))
+      throw new ForbiddenException('Origem não autorizada.');
+    return new URL('/', origin).toString();
+  }
+
   key(): Uint8Array {
     const value = process.env.AUTH_JWT_SECRET;
     if (!value || !/^[a-f0-9]{64}$/i.test(value))

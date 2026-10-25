@@ -367,6 +367,39 @@ describe('outbox delivery and retries', () => {
     );
   });
 
+  it('adds login and account email to legacy OWNER_WELCOME email templates without changing password data', async () => {
+    const f = fixture();
+    const additions = {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: 'welcome-event' }]),
+      globalCommunicationOutbox: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          companyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          event: 'OWNER_WELCOME',
+          variables: { __channels: ['EMAIL'], plano: 'Trial QA', vencimento: '1 de novembro de 2026', email_acesso: 'owner@example.test', url_acesso: 'https://dev.kalend.tech/' },
+        }),
+        update: vi.fn(),
+      },
+      globalCommunicationTemplate: {
+        findMany: vi.fn().mockResolvedValue([{ id: 'welcome-email', revision: 1, enabled: true, provider: 'SMTP', channel: 'EMAIL', content: { subject: 'Bem-vinda', text: 'Olá, {{nome}}. Empresa {{empresa}}.' } }]),
+      },
+      membership: {
+        findMany: vi.fn().mockResolvedValue([{ userId: 'owner', user: { name: 'Owner QA', email: 'owner@example.test', phone: null }, company: { name: 'Company QA' } }]),
+      },
+      globalCommunicationProvider: {
+        findUnique: vi.fn().mockResolvedValue({ enabled: true, scope: 'GLOBAL', environment: 'SANDBOX', revision: 1 }),
+      },
+    };
+    Object.assign(f.db, additions);
+    const createMany = vi.fn().mockResolvedValue({ count: 1 });
+    Object.assign(f.db.globalCommunicationDelivery, { createMany });
+    await f.engine.expand();
+    const row = createMany.mock.calls[0][0].data[0];
+    const message = JSON.parse(f.vault.decrypt(row.payloadEncrypted, `communication:GLOBAL:delivery:${row.id}`));
+    expect(message.text).toContain('E-mail de acesso: owner@example.test');
+    expect(message.text).toContain('Acesse o Kalend: https://dev.kalend.tech/');
+    expect(message.text).not.toMatch(/password|senha|token/i);
+  });
+
   it.each([
     ['OWNER_WELCOME', '12996015129'],
     ['OWNER_WELCOME', '5512996015129'],

@@ -6,11 +6,19 @@ Estado local: 25/10/2026. Esta implementação ainda não foi publicada em DEV.
 
 - `POST /auth/trial-signup`, protegido por `AuthOriginGuard`, cria em uma
   transação Serializable um usuário novo, uma empresa Trial, membership OWNER,
-  assinatura Trial sem evidência de pagamento, consentimento versionado,
-  sessão autenticada e evento de boas-vindas na Outbox.
-- Plano, elegibilidade e duração são validados no servidor. E-mail existente é
-  rejeitado genericamente; não há associação de empresa, troca de senha ou login
-  automático em conta preexistente.
+  assinatura Trial sem evidência de pagamento, consentimento versionado e evento
+  de boas-vindas na Outbox. O cadastro não cria sessão, cookies ou tokens.
+- Plano, elegibilidade e duração são validados no servidor. Qualquer identidade
+  existente, ativa ou desativada, mantém o e-mail reservado; o fluxo não associa
+  empresas, troca senhas nem reativa contas existentes. P2002 e conflito
+  serializável concorrente P2034 retornam rejeição genérica.
+- O e-mail é normalizado com trim/lowercase no cadastro e login. Uma migration
+  acrescenta índice único PostgreSQL em `lower(btrim(email))`, impedindo
+  duplicidade por caixa ou espaços mesmo para outros escritores. A migration
+  aborta sem alterar schema se encontrar identidades legadas normalizadas iguais.
+- Após cadastro, a página confirma sucesso e encaminha para a rota real de login
+  `/`; o usuário informa normalmente seu e-mail e senha. A URL de login enviada
+  no evento de boas-vindas é derivada exclusivamente de um Origin HTTPS permitido.
 - Rate limits por IP/e-mail, honeypot, validação de senha, aceite obrigatório e
   consentimento promocional independente.
 - Evento de boas-vindas solicita somente e-mail. Nenhum segredo é inserido nos
@@ -24,13 +32,28 @@ Estado local: 25/10/2026. Esta implementação ainda não foi publicada em DEV.
 
 ## Validação local
 
-- API: 892 testes unitários e 251 E2E passaram; build, lint e Prisma validate
-  passaram.
+- Validação atual da correção local: API 903 testes unitários e 253 E2E;
+  lint, typecheck, build e Prisma validate passaram. Web: 402 testes, lint,
+  TypeScript e build passaram.
 - Migration `20261025090000_public_trial_signup_consent`: aplicada em PGlite
   isolado; tabela, defaults, FKs, unicidade e índices verificados.
 - Web: 402 testes, ESLint, TypeScript e build passaram.
-- Playwright local da LP: 3/3 passaram em desktop, tablet e mobile; chamadas de
-  API foram simuladas localmente, não representam homologação real.
+- Playwright local da LP: 3/3 passaram em desktop, tablet e mobile; o teste
+  cobre cadastro sem cookies, tela de sucesso, navegação para login e login
+  normal. As chamadas de API foram simuladas localmente e não representam
+  homologação real.
+
+## Regra de reutilização do e-mail
+
+Consulta somente leitura realizada no banco DEV para o endereço reportado:
+existe uma identidade de usuário desativada, sem membership, sem empresa
+correspondente e sem assinatura, pagamento ou evidência financeira associada;
+as sessões históricas estão todas revogadas. Portanto, isso não é uma exclusão
+definitiva de identidade e o cadastro público deve continuar recusando o e-mail.
+Nenhum registro DEV foi alterado. Não existe fluxo de recuperação de conta
+disponível no produto auditado; a identidade requer recuperação administrativa
+autorizada. A exclusão futura de empresa não deve remover uma identidade nem seu
+histórico financeiro automaticamente.
 
 ## Gate DEV pendente
 

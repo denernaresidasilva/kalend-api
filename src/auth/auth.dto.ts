@@ -10,7 +10,7 @@ export interface SelectTenantDto {
 /** Explicit runtime parsers: TypeScript interfaces alone do not validate HTTP input. */
 export function parseLoginDto(input: unknown): LoginDto {
   const data = object(input, ['email', 'password']);
-  const email = string(data.email, 'email', 254).toLowerCase();
+  const email = string(data.email, 'email', 254).trim().toLowerCase();
   if (
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
     typeof data.password !== 'string' ||

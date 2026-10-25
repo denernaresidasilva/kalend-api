@@ -57,14 +57,14 @@ export class AuthController {
   async trialSignup(
     @Body() body: unknown,
     @Req() request: Request,
-    @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.service.trialSignup(body, request.ip ?? 'unknown');
-    setAuthCookies(response, result.tokens);
+    const result = await this.service.trialSignup(
+      body,
+      request.ip ?? 'unknown',
+      request.headers.origin,
+    );
     return {
-      authenticated: true,
-      accessExpiresAt: result.tokens.accessExpiresAt,
-      refreshExpiresAt: result.tokens.refreshExpiresAt,
+      created: true,
       user: result.user,
       company: result.company,
       subscription: result.subscription,

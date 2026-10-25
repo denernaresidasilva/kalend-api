@@ -17,6 +17,7 @@ import { CommunicationTransports } from './transports.js';
 import {
   channels,
   email,
+  escapeHtml,
   eventName,
   render,
   retry,
@@ -610,9 +611,21 @@ export class CommunicationEngine {
                       nome: member.user.name,
                       empresa: member.company.name,
                       ...(name === 'OWNER_WELCOME' ? { plano: (event.variables as Variables).plano ?? 'Consulte sua conta', vencimento: (event.variables as Variables).vencimento ?? 'Consulte sua conta' } : {}),
+                      ...(name === 'OWNER_WELCOME' ? { email_acesso: (event.variables as Variables).email_acesso ?? member.user.email, url_acesso: (event.variables as Variables).url_acesso ?? '' } : {}),
                     },
                     to,
                   );
+                  if (name === 'OWNER_WELCOME' && t.channel === 'EMAIL') {
+                    const source = typeof (t.content as Variables).text === 'string' ? (t.content as Variables).text : '';
+                    const requiredLines = [
+                      ...(!source.includes('{{email_acesso}}') && member.user.email ? [`E-mail de acesso: ${member.user.email}`] : []),
+                      ...(!source.includes('{{url_acesso}}') && (event.variables as Variables).url_acesso ? [`Acesse o Kalend: ${(event.variables as Variables).url_acesso}`] : []),
+                    ];
+                    if (requiredLines.length) {
+                      message.text = `${message.text}\n\n${requiredLines.join('\n')}`;
+                      message.html = `<p>${escapeHtml(message.text).replace(/\n/g, '<br>')}</p>`;
+                    }
+                  }
                   if (t.channel === 'PUSH') pushPayload(message);
                 } catch {
                   if (status !== 'UNSENDABLE') status = 'UNSENDABLE';

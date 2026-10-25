@@ -10,7 +10,7 @@ type DefaultEvent = (typeof EVENTS)[number];
 const footer = '\n\nKalend\nOrganize. Atenda. Cresça.';
 export const DEFAULT_TEMPLATE_COPY: Record<DefaultEvent, EventCopy> = {
   OWNER_WELCOME: {
-    EMAIL: { subject: 'Bem-vindo ao Kalend! Sua conta está pronta.', text: 'Olá, {{nome}}!\n\nSua conta no Kalend foi criada com sucesso.\n\nEmpresa: {{empresa}}\nPlano: {{plano}}\nTeste grátis até: {{vencimento}}\n\nAcesse sua conta pelo endereço oficial do Kalend e comece a configurar seu negócio. Nenhuma senha ou código de acesso será enviado por e-mail.\n\nEquipe Kalend.' + footer },
+    EMAIL: { subject: 'Bem-vindo ao Kalend! Sua conta está pronta.', text: 'Olá, {{nome}}!\n\nSua conta no Kalend foi criada com sucesso.\n\nEmpresa: {{empresa}}\nPlano: {{plano}}\nTeste grátis até: {{vencimento}}\nE-mail de acesso: {{email_acesso}}\n\nEntre no Kalend: {{url_acesso}}\n\nNenhuma senha ou código de acesso será enviado por e-mail.\n\nEquipe Kalend.' + footer },
     WHATSAPP: { text: 'Olá, {{nome}}! 👋\n\nSeja bem-vindo ao *Kalend*. ✨\n\nA empresa *{{empresa}}* já está pronta para começar.\n\nAgora você pode configurar:\n\n📅 Agenda\n👥 Equipe\n✂️ Serviços\n🕐 Horários\n📲 Comunicações\n📊 Gestão da empresa\n\nAcesse o Kalend e comece suas configurações.\n\nBem-vindo! 🚀' },
     PUSH: { title: 'Bem-vindo ao Kalend! 🎉', text: 'A empresa {{empresa}} está pronta. Comece agora a configurar seu Kalend.' },
   },

@@ -25,6 +25,7 @@ import {
   ACCESS_SECONDS,
   REFRESH_SECONDS,
   SESSION_SECONDS,
+  AuthConfig,
 } from './auth.config.js';
 import { AuthRateLimit } from './auth-rate-limit.service.js';
 import { boolean, object, string, uuid } from '../common/validation.js';
@@ -155,14 +156,15 @@ export class AuthService {
     return this.issue(user.id, session, refresh);
   }
 
-  async trialSignup(input: unknown, ip: string) {
+  async trialSignup(input: unknown, ip: string, loginUrl: string | undefined) {
     const data = object(input, [
       'companyName', 'ownerName', 'whatsapp', 'email', 'password',
       'confirmPassword', 'planId', 'acceptTerms', 'marketingConsent', 'website', 'attribution',
     ]);
     const companyName = string(data.companyName, 'companyName', 120);
     const ownerName = string(data.ownerName, 'ownerName', 120);
-    const rawEmail = string(data.email, 'email', 254).toLowerCase();
+    const rawEmail = string(data.email, 'email', 254).trim().toLowerCase();
+    const safeLoginUrl = new AuthConfig().loginUrl(loginUrl);
     const password = typeof data.password === 'string' && data.password.length <= 128 ? data.password : '';
     const confirmPassword = typeof data.confirmPassword === 'string' && data.confirmPassword.length <= 128 ? data.confirmPassword : '';
     const planId = uuid(data.planId);
@@ -202,10 +204,6 @@ export class AuthService {
     const baseSlug = companyName.normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
       .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
     const slug = `${baseSlug || 'empresa'}-${randomSuffix}`;
-    const refresh = newRefresh();
-    const expiresAt = new Date(now.getTime() + SESSION_SECONDS * 1000);
-    const refreshExpiresAt = new Date(now.getTime() + REFRESH_SECONDS * 1000);
-
     try {
       return await this.prisma.$transaction(async (tx) => {
         const plan = await tx.plan.findFirst({
@@ -213,6 +211,13 @@ export class AuthService {
           select: { id: true, name: true, trialDays: true },
         });
         if (!plan) throw new ForbiddenException('PUBLIC_SIGNUP_REJECTED');
+        // Existing identities, including deactivated orphan accounts, retain
+        // their email. The unique normalized index remains the race-safe guard.
+        const existingUser = await tx.user.findFirst({
+          where: { email: { equals: rawEmail, mode: 'insensitive' } },
+          select: { id: true },
+        });
+        if (existingUser) throw new ForbiddenException('PUBLIC_SIGNUP_REJECTED');
         const user = await tx.user.create({
           data: { name: ownerName, email: rawEmail, phone, passwordHash, isActive: true, isSuperAdmin: false },
           select: { id: true, name: true, email: true },
@@ -244,27 +249,22 @@ export class AuthService {
           data: {
             scope: 'GLOBAL', event: 'OWNER_WELCOME', businessKey: `owner-welcome:${company.id}`,
             companyId: company.id, userId: user.id,
-            variables: { __channels: ['EMAIL'], plano: plan.name, vencimento: trialEndLabel },
+            variables: {
+              __channels: ['EMAIL'],
+              plano: plan.name,
+              vencimento: trialEndLabel,
+              email_acesso: rawEmail,
+              url_acesso: safeLoginUrl,
+            },
           },
         });
-        const session = await tx.authSession.create({
-          data: {
-            userId: user.id, selectedCompanyId: company.id, credentialHash: credentialHash(passwordHash),
-            expiresAt, refreshExpiresAt,
-            refreshTokens: { create: { tokenHash: refreshHash(refresh), expiresAt: refreshExpiresAt } },
-          },
-          select: { id: true, expiresAt: true, refreshExpiresAt: true },
-        });
-        return {
-          user, company, subscription,
-          tokens: {
-            access: await this.tokens.access(user.id, session.id, new Date(Math.min(now.getTime() + ACCESS_SECONDS * 1000, expiresAt.getTime(), refreshExpiresAt.getTime()))),
-            refresh, accessExpiresAt: new Date(Math.min(now.getTime() + ACCESS_SECONDS * 1000, expiresAt.getTime(), refreshExpiresAt.getTime())), refreshExpiresAt,
-          },
-        };
+        return { user, company, subscription };
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        (error.code === 'P2002' || error.code === 'P2034')
+      )
         throw new ForbiddenException('PUBLIC_SIGNUP_REJECTED');
       throw error;
     }
