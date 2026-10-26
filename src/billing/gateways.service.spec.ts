@@ -53,6 +53,25 @@ function serviceFixture(recurringEnabled = false) {
 }
 
 describe('GatewaysService PagBank environment changes', () => {
+  it('does not expose legacy public identifiers or encrypted/plaintext secrets', async () => {
+    const f = serviceFixture();
+    const result = await f.target.get('PAGBANK');
+    expect(result).not.toHaveProperty('publicId');
+    expect(result).not.toHaveProperty('credentials');
+    expect(result).not.toHaveProperty('credentialsEncrypted');
+    expect(result).not.toHaveProperty('webhookSecret');
+    expect(result).not.toHaveProperty('webhookSecretEncrypted');
+    expect(result).not.toHaveProperty('recurringCredentials');
+    expect(result).not.toHaveProperty('recurringCredentialsEncrypted');
+  });
+
+  it('rejects the obsolete generic publicId field instead of persisting unused credentials', async () => {
+    const f = serviceFixture();
+    await expect(f.target.update('PAGBANK', { publicId: 'unused-public-key' }))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(f.writes()).toBe(0);
+  });
+
   it('allows checkout-only environment switch and clears old-environment recurring credentials', async () => {
     const f = serviceFixture();
     const result = await f.target.update('PAGBANK', {

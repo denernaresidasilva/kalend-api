@@ -29,7 +29,6 @@ export class GatewaysService {
       gateway,
       enabled: row?.enabled ?? false,
       environment: row?.environment ?? 'SANDBOX',
-      publicId: row?.publicId ?? null,
       configured: !!row?.credentialsEncrypted,
       webhookConfigured:
         gateway === 'PAGBANK'
@@ -63,7 +62,6 @@ export class GatewaysService {
     const data = object(input, [
       'enabled',
       'environment',
-      'publicId',
       'credentials',
       'webhookSecret',
       'recurringCredentials',
@@ -84,8 +82,6 @@ export class GatewaysService {
       !['SANDBOX', 'PRODUCTION'].includes(data.environment as string)
     )
       throw new BadRequestException('Ambiente inválido.');
-    if (data.publicId !== undefined && data.publicId !== null)
-      string(data.publicId, 'publicId');
     const old = await this.prisma.gatewayConfiguration.findUnique({
       where: { gateway },
     });
@@ -162,7 +158,6 @@ export class GatewaysService {
     const write = {
       environment,
       enabled: changed ? false : (data.enabled as boolean | undefined),
-      publicId: data.publicId as string | null | undefined,
       credentialsEncrypted,
       webhookSecretEncrypted,
       recurringCredentialsEncrypted,
