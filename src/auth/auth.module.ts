@@ -22,6 +22,6 @@ import { AuthController } from './auth.controller.js';
     TenantGuard,
     AdminGuard,
   ],
-  exports: [AuthConfig, AuthService, AuthGuard, TenantGuard, AdminGuard],
+  exports: [AuthConfig, AuthService, AuthGuard, TenantGuard, AdminGuard, AuthRateLimit],
 })
 export class AuthModule {}

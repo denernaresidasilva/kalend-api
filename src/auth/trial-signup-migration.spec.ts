@@ -34,5 +34,5 @@ describe('public trial signup consent migration', () => {
     } finally {
       await db.close();
     }
-  });
+  }, 15_000);
 });

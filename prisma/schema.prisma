@@ -14,6 +14,14 @@ enum MembershipRole {
   CLIENT
 }
 
+enum BookingRequestStatus {
+  REQUESTED
+  CONFIRMED
+  REJECTED
+  CANCELLED
+  EXPIRED
+}
+
 enum CompanyAdministrativeStatus {
   ACTIVE
   DISABLED
@@ -118,6 +126,10 @@ model Company {
   authSessions           AuthSession[]
   communicationTemplates CompanyCommunicationTemplate[]
   publicSignupConsents   PublicSignupConsent[]
+  services               Service[]
+  professionalProfiles   ProfessionalProfile[]
+  customerProfiles      CustomerProfile[]
+  bookingRequests       BookingRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -133,13 +145,140 @@ model Membership {
   user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   company            Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   pushAuthorizations GlobalPushAuthorization[]
+  professionalProfile ProfessionalProfile?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([userId, companyId])
+  @@unique([id, companyId])
   @@index([companyId, role])
   @@index([userId])
+}
+
+// Tenant-owned operational catalog. Every business record carries companyId;
+// composite foreign keys below prevent cross-company references at the DB layer.
+model Service {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @db.Uuid
+  name            String
+  description     String?
+  category        String?
+  durationMinutes Int
+  priceCents      Int
+  active          Boolean  @default(true)
+  public          Boolean  @default(true)
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  professionalLinks ServiceProfessional[]
+  bookingItems    BookingRequestItem[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([id, companyId])
+  @@index([companyId, active, public, category])
+}
+
+model ProfessionalProfile {
+  id           String   @id @default(uuid()) @db.Uuid
+  companyId    String   @db.Uuid
+  membershipId String   @db.Uuid
+  displayName  String
+  active       Boolean  @default(true)
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  membership   Membership @relation(fields: [membershipId, companyId], references: [id, companyId], onDelete: Cascade)
+  availability ProfessionalAvailability[]
+  services     ServiceProfessional[]
+  bookingItems BookingRequestItem[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([id, companyId])
+  @@unique([membershipId, companyId])
+  @@index([companyId, active])
+}
+
+model ProfessionalAvailability {
+  id             String @id @default(uuid()) @db.Uuid
+  companyId      String @db.Uuid
+  professionalId String @db.Uuid
+  weekday        Int
+  startMinute    Int
+  endMinute      Int
+  active         Boolean @default(true)
+  professional   ProfessionalProfile @relation(fields: [professionalId, companyId], references: [id, companyId], onDelete: Cascade)
+
+  @@index([companyId, professionalId, weekday, active])
+}
+
+model ServiceProfessional {
+  companyId      String @db.Uuid
+  serviceId      String @db.Uuid
+  professionalId String @db.Uuid
+  service        Service @relation(fields: [serviceId, companyId], references: [id, companyId], onDelete: Cascade)
+  professional   ProfessionalProfile @relation(fields: [professionalId, companyId], references: [id, companyId], onDelete: Cascade)
+
+  @@id([serviceId, professionalId])
+  @@index([companyId, professionalId])
+}
+
+model CustomerProfile {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @db.Uuid
+  name        String
+  email       String?
+  phone       String?
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requests    BookingRequest[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([id, companyId])
+  @@unique([companyId, email])
+  @@unique([companyId, phone])
+  @@index([companyId, phone])
+}
+
+model BookingRequest {
+  id             String @id @default(uuid()) @db.Uuid
+  companyId      String @db.Uuid
+  customerId     String @db.Uuid
+  status         BookingRequestStatus @default(REQUESTED)
+  idempotencyKey String
+  holdExpiresAt  DateTime
+  termsAcceptedAt DateTime @default(now())
+  termsVersion String
+  privacyVersion String
+  marketingOptIn Boolean @default(false)
+  marketingConsentedAt DateTime?
+  customer       CustomerProfile @relation(fields: [customerId, companyId], references: [id, companyId], onDelete: Restrict)
+  company        Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items          BookingRequestItem[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([companyId, idempotencyKey])
+  @@unique([id, companyId])
+  @@index([companyId, status, createdAt])
+  @@index([status, holdExpiresAt])
+}
+
+model BookingRequestItem {
+  id             String @id @default(uuid()) @db.Uuid
+  companyId      String @db.Uuid
+  requestId      String @db.Uuid
+  serviceId      String @db.Uuid
+  professionalId String @db.Uuid
+  serviceName    String
+  priceCents     Int
+  durationMinutes Int
+  startsAt       DateTime
+  endsAt         DateTime
+  request        BookingRequest @relation(fields: [requestId, companyId], references: [id, companyId], onDelete: Cascade)
+  service        Service @relation(fields: [serviceId, companyId], references: [id, companyId], onDelete: Restrict)
+  professional   ProfessionalProfile @relation(fields: [professionalId, companyId], references: [id, companyId], onDelete: Restrict)
+
+  @@index([companyId, professionalId, startsAt, endsAt])
+  @@index([companyId, requestId])
 }
 
 model PublicSignupConsent {

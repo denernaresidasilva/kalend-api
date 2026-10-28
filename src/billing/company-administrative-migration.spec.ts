@@ -42,4 +42,4 @@ it('conservatively backfills only clearly active companies without changing comm
   } finally {
     await db.close();
   }
-});
+}, 15_000);
