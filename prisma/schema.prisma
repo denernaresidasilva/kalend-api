@@ -109,6 +109,10 @@ model User {
 }
 
 model Company {
+  posCashSessions PosCashSession[]
+  posProducts PosProduct[]
+  posCoupons PosCoupon[]
+  posSales PosSale[]
   evolutionConnection EvolutionConnection?
   emailConfiguration  CompanyEmailConfiguration?
   notifications       Notification[]
@@ -161,6 +165,7 @@ model Membership {
 // Tenant-owned operational catalog. Every business record carries companyId;
 // composite foreign keys below prevent cross-company references at the DB layer.
 model Service {
+  posLines PosSaleLine[]
   id              String   @id @default(uuid()) @db.Uuid
   companyId       String   @db.Uuid
   name            String
@@ -181,6 +186,7 @@ model Service {
 }
 
 model ProfessionalProfile {
+  posLines PosSaleLine[]
   id           String   @id @default(uuid()) @db.Uuid
   companyId    String   @db.Uuid
   membershipId String   @db.Uuid
@@ -224,6 +230,7 @@ model ServiceProfessional {
 }
 
 model CustomerProfile {
+  posSales PosSale[]
   userId      String? @db.Uuid
   user        User? @relation(fields: [userId], references: [id], onDelete: SetNull)
   activation  CustomerActivation?
@@ -260,6 +267,7 @@ model CustomerActivation {
 }
 
 model BookingRequest {
+  posSale PosSale?
   id             String @id @default(uuid()) @db.Uuid
   companyId      String @db.Uuid
   customerId     String @db.Uuid
@@ -284,6 +292,7 @@ model BookingRequest {
 }
 
 model BookingRequestItem {
+  posLines PosSaleLine[]
   id             String @id @default(uuid()) @db.Uuid
   companyId      String @db.Uuid
   requestId      String @db.Uuid
@@ -299,6 +308,7 @@ model BookingRequestItem {
   professional   ProfessionalProfile @relation(fields: [professionalId, companyId], references: [id, companyId], onDelete: Restrict)
 
   @@index([companyId, professionalId, startsAt, endsAt])
+  @@unique([id, companyId])
   @@index([companyId, requestId])
 }
 
@@ -949,4 +959,171 @@ model PaymentEvidence {
   @@index([subscriptionId, status, startsAt, endsAt])
   @@index([companyId])
   @@index([entitlementId])
+}
+enum PosSaleStatus {
+  OPEN
+  IN_PROGRESS
+  AWAITING_PAYMENT
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+  CANCELLED
+}
+enum PosPaymentMethod {
+  CASH
+  PIX
+  DEBIT_CARD
+  CREDIT_CARD
+  TRANSFER
+  OTHER
+}
+model PosCashSession {
+  id String @id @default(uuid()) @db.Uuid
+  companyId String @db.Uuid
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  openingCents Int
+  expectedCents Int?
+  countedCents Int?
+  differenceCents Int?
+  openedById String @db.Uuid
+  closedById String? @db.Uuid
+  closingNote String?
+  openedAt DateTime @default(now())
+  closedAt DateTime?
+  payments PosReceipt[]
+  refunds PosRefund[]
+  @@unique([id, companyId])
+  @@index([companyId, openedAt])
+}
+model PosProduct {
+  id String @id @default(uuid()) @db.Uuid
+  companyId String @db.Uuid
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  name String
+  priceCents Int
+  active Boolean @default(true)
+  lines PosSaleLine[]
+  createdAt DateTime @default(now())
+  @@unique([id, companyId])
+  @@index([companyId, active])
+}
+model PosCoupon {
+  id String @id @default(uuid()) @db.Uuid
+  companyId String @db.Uuid
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  code String
+  percentBps Int?
+  fixedCents Int?
+  minSubtotalCents Int @default(0)
+  maxUses Int?
+  expiresAt DateTime?
+  active Boolean @default(true)
+  sales PosSale[]
+  createdAt DateTime @default(now())
+  @@unique([id, companyId])
+  @@unique([companyId, code])
+}
+model PosSale {
+  id String @id @default(uuid()) @db.Uuid
+  companyId String @db.Uuid
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  bookingRequestId String? @db.Uuid
+  bookingRequest BookingRequest? @relation(fields: [bookingRequestId, companyId], references: [id, companyId], onDelete: Restrict)
+  customerId String? @db.Uuid
+  customer CustomerProfile? @relation(fields: [customerId, companyId], references: [id, companyId], onDelete: Restrict)
+  idempotencyKey String
+  requestHash String
+  status PosSaleStatus @default(OPEN)
+  subtotalCents Int @default(0)
+  discountCents Int @default(0)
+  totalCents Int @default(0)
+  discountReason String?
+  couponId String? @db.Uuid
+  coupon PosCoupon? @relation(fields: [couponId, companyId], references: [id, companyId], onDelete: Restrict)
+  openedById String @db.Uuid
+  finalizedById String? @db.Uuid
+  cancelledById String? @db.Uuid
+  cancellationReason String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  finalizedAt DateTime?
+  cancelledAt DateTime?
+  lines PosSaleLine[]
+  payments PosReceipt[]
+  refunds PosRefund[]
+  audit PosAudit[]
+  @@unique([id, companyId])
+  @@unique([companyId, idempotencyKey])
+  @@unique([bookingRequestId, companyId])
+  @@index([companyId, status, createdAt])
+}
+model PosSaleLine {
+  id String @id @default(uuid()) @db.Uuid
+  companyId String @db.Uuid
+  saleId String @db.Uuid
+  sale PosSale @relation(fields: [saleId, companyId], references: [id, companyId], onDelete: Restrict)
+  bookingItemId String? @unique @db.Uuid
+  bookingItem BookingRequestItem? @relation(fields: [bookingItemId, companyId], references: [id, companyId], onDelete: Restrict, map: "PosSaleLine_bookingItem_tenant_fk")
+  serviceId String? @db.Uuid
+  service Service? @relation(fields: [serviceId, companyId], references: [id, companyId], onDelete: Restrict)
+  productId String? @db.Uuid
+  product PosProduct? @relation(fields: [productId, companyId], references: [id, companyId], onDelete: Restrict)
+  professionalId String? @db.Uuid
+  professional ProfessionalProfile? @relation(fields: [professionalId, companyId], references: [id, companyId], onDelete: Restrict)
+  name String
+  unitPriceCents Int
+  quantity Int @default(1)
+  startedAt DateTime?
+  completedAt DateTime?
+  voidedAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([id, companyId])
+  @@index([companyId, saleId])
+}
+// Operational receipts are manually attested settlements, never SaaS Payment rows.
+model PosReceipt {
+  id String @id @default(uuid()) @db.Uuid
+  companyId String @db.Uuid
+  saleId String @db.Uuid
+  sale PosSale @relation(fields: [saleId, companyId], references: [id, companyId], onDelete: Restrict)
+  cashSessionId String @db.Uuid
+  cashSession PosCashSession @relation(fields: [cashSessionId, companyId], references: [id, companyId], onDelete: Restrict)
+  idempotencyKey String
+  amountCents Int
+  method PosPaymentMethod
+  reference String?
+  recordedById String @db.Uuid
+  createdAt DateTime @default(now())
+  refunds PosRefund[]
+  @@unique([id, companyId])
+  @@unique([companyId, idempotencyKey])
+  @@index([companyId, saleId])
+}
+model PosRefund {
+  id String @id @default(uuid()) @db.Uuid
+  companyId String @db.Uuid
+  saleId String @db.Uuid
+  sale PosSale @relation(fields: [saleId, companyId], references: [id, companyId], onDelete: Restrict)
+  receiptId String @db.Uuid
+  receipt PosReceipt @relation(fields: [receiptId, companyId], references: [id, companyId], onDelete: Restrict)
+  cashSessionId String @db.Uuid
+  cashSession PosCashSession @relation(fields: [cashSessionId, companyId], references: [id, companyId], onDelete: Restrict)
+  idempotencyKey String
+  amountCents Int
+  reason String
+  recordedById String @db.Uuid
+  createdAt DateTime @default(now())
+  @@unique([companyId, idempotencyKey])
+  @@index([companyId, saleId])
+}
+model PosAudit {
+  id String @id @default(uuid()) @db.Uuid
+  companyId String @db.Uuid
+  saleId String? @db.Uuid
+  sale PosSale? @relation(fields: [saleId, companyId], references: [id, companyId], onDelete: Restrict)
+  actorId String @db.Uuid
+  action String
+  detail Json
+  createdAt DateTime @default(now())
+  @@index([companyId, createdAt])
 }

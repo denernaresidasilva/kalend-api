@@ -5,6 +5,7 @@ export default defineConfig({
     fileParallelism: false,
     include: [
       'test/bookings.native.ts',
+      'test/operations.native.ts',
       'test/entitlement-native.native.ts',
       'test/release-access.native.ts',
       'test/entitlement-backfill.e2e-spec.ts',

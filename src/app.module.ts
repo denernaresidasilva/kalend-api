@@ -13,6 +13,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module.js';
 import { FinanceModule } from './finance/finance.module.js';
 import { WebhooksModule } from './webhooks/webhooks.module.js';
 import { UsersModule } from './users/users.module.js';
+import { OperationsModule } from './operations/operations.module.js';
 import { BookingsModule } from './bookings/bookings.module.js';
 
 @Module({
@@ -30,6 +31,7 @@ import { BookingsModule } from './bookings/bookings.module.js';
     WebhooksModule,
     UsersModule,
     BookingsModule,
+    OperationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

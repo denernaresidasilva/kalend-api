@@ -21,6 +21,10 @@ function setup(existing = false) {
   };
   const db = {
     subscriptionEntitlement: { create: vi.fn(), count: vi.fn().mockResolvedValue(0) },
+    posSale: { count: vi.fn().mockResolvedValue(0) },
+    posCashSession: { count: vi.fn().mockResolvedValue(0) },
+    posProduct: { count: vi.fn().mockResolvedValue(0) },
+    posCoupon: { count: vi.fn().mockResolvedValue(0) },
     payment: { count: vi.fn().mockResolvedValue(0) },
     plan: { findUnique: vi.fn().mockResolvedValue(plan) },
     user: {

@@ -638,10 +638,14 @@ export class CompaniesService {
   }
 
   private async assertNoFinancialHistory(
-    db: Pick<Prisma.TransactionClient, 'payment' | 'webhookEvent' | 'subscriptionEntitlement' | 'subscription'>,
+    db: Pick<Prisma.TransactionClient, 'payment' | 'webhookEvent' | 'subscriptionEntitlement' | 'subscription' | 'posSale' | 'posCashSession' | 'posProduct' | 'posCoupon'>,
     companyId: string,
   ) {
     const counts = await Promise.all([
+      db.posSale.count({ where: { companyId } }),
+      db.posCashSession.count({ where: { companyId } }),
+      db.posProduct.count({ where: { companyId } }),
+      db.posCoupon.count({ where: { companyId } }),
       db.payment.count({ where: { companyId } }),
       db.webhookEvent.count({ where: { companyId } }),
       db.subscriptionEntitlement.count({ where: { subscription: { companyId } } }),
