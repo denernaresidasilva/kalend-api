@@ -20,6 +20,8 @@ export function safeNotificationUrl(value: unknown): string | null {
       '/conta#seguranca',
       '/conta#preferencias',
       '/conta/notificacoes',
+      '/painel/proprietario',
+      '/painel/recepcionista',
     ].includes(value)
     ? value
     : null;

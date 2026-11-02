@@ -35,3 +35,38 @@ describe('BookingsService tenant and public safety', () => {
     expect(prisma.bookingRequest.findUnique).not.toHaveBeenCalled();
   });
 });
+
+describe('operational agenda isolation', () => {
+  const companyId = '11111111-1111-4111-8111-111111111111';
+  const membershipId = '22222222-2222-4222-8222-222222222222';
+  function agendaSetup() {
+    const prisma = {
+      company: { findUniqueOrThrow: vi.fn().mockResolvedValue({ timezone: 'America/Sao_Paulo' }) },
+      bookingRequestItem: { findMany: vi.fn().mockResolvedValue([]) },
+      bookingRequest: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+    return { prisma, service: new BookingsService(prisma as never, {} as never) };
+  }
+  it('uses company-local midnight and only confirmed tenant appointments', async () => {
+    const { service, prisma } = agendaSetup();
+    await service.agenda(companyId, 'OWNER', membershipId, '2026-11-02');
+    expect(prisma.bookingRequestItem.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {
+      companyId, startsAt: { lt: new Date('2026-11-03T03:00:00Z') }, endsAt: { gt: new Date('2026-11-02T03:00:00Z') }, request: { status: 'CONFIRMED' },
+    } }));
+  });
+  it('restricts a professional to their own appointment items', async () => {
+    const { service, prisma } = agendaSetup();
+    await service.agenda(companyId, 'PROFESSIONAL', membershipId, '2026-11-02');
+    expect(prisma.bookingRequestItem.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ companyId, professional: { membershipId } }) }));
+  });
+  it('does not expose colleagues items through shared requests', async () => {
+    const { service, prisma } = agendaSetup();
+    await service.listRequests(companyId, 'PROFESSIONAL', membershipId);
+    expect(prisma.bookingRequest.findMany).toHaveBeenCalledWith(expect.objectContaining({ select: expect.objectContaining({ items: expect.objectContaining({ where: { professional: { membershipId } } }) }) }));
+  });
+  it.each(['2026-02-30', '2026-13-01', '', undefined, '2026-11-02T00:00:00Z'])('rejects invalid date %s before querying appointments', async (date) => {
+    const { service, prisma } = agendaSetup();
+    await expect(service.agenda(companyId, 'OWNER', membershipId, date)).rejects.toThrow('data válida');
+    expect(prisma.bookingRequestItem.findMany).not.toHaveBeenCalled();
+  });
+});

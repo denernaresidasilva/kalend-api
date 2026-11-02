@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { retryableBillingConflict, withBillingConflictRetry } from '../billing/transaction-conflict.js';
 import { EntitlementsService } from '../billing/entitlements.service.js';
 import { assertAvailability, assertItemsDoNotOverlap, assertNoOverlap, assertNoScheduleOverlap, localMinuteToUtc, parseInstant, wallClock } from './booking-domain.js';
 import { integer, object, string, uuid } from '../common/validation.js';
@@ -126,7 +127,7 @@ export class BookingsService {
           ...new Set(profiles.map((item) => `${company.id}:professional:${item.professionalId}`)),
           `${company.id}:customer:${customer.id}`,
         ].sort();
-        for (const lockKey of lockKeys) await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+        for (const lockKey of lockKeys) await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))::text`;
         for (const item of profiles) {
           const conflicts = await tx.bookingRequestItem.findMany({ where: { companyId: company.id, professionalId: item.professionalId, startsAt: { lt: item.endsAt }, endsAt: { gt: item.startsAt }, request: { OR: [{ status: 'CONFIRMED' }, { status: 'REQUESTED', holdExpiresAt: { gt: new Date() } }] } }, select: { startsAt: true, endsAt: true } });
           assertNoOverlap(item.startsAt, item.endsAt, conflicts);
@@ -134,9 +135,9 @@ export class BookingsService {
           assertNoOverlap(item.startsAt, item.endsAt, customerConflicts);
         }
         const consentedAt = new Date();
-        const created = await tx.bookingRequest.create({ data: { companyId: company.id, customerId: customer.id, idempotencyKey, holdExpiresAt: new Date(Date.now() + 10 * 60_000), termsAcceptedAt: consentedAt, termsVersion: '2026-10-28', privacyVersion: '2026-10-28', marketingOptIn, marketingConsentedAt: marketingOptIn ? consentedAt : null, items: { create: profiles.map((item) => ({ companyId: company.id, serviceId: item.serviceId, professionalId: item.professionalId, serviceName: item.serviceName, durationMinutes: item.durationMinutes, priceCents: item.priceCents, startsAt: item.startsAt, endsAt: item.endsAt })) } }, select: publicRequestSelect });
-        const recipients = await tx.membership.findMany({ where: { companyId: company.id, isActive: true, role: { in: ['OWNER', 'ADMIN', 'RECEPTIONIST'] } }, select: { userId: true } });
-        if (recipients.length) await tx.notification.createMany({ data: recipients.map(({ userId }) => ({ userId, companyId: company.id, sourceKey: `booking-request:${created.id}`, type: 'BOOKING_REQUESTED', title: 'Nova solicitação de agendamento', message: 'Uma nova solicitação de agendamento aguarda análise.', actionUrl: '/painel/proprietario?tab=solicitacoes', actionLabel: 'Ver solicitação' })), skipDuplicates: true });
+        const created = await tx.bookingRequest.create({ data: { companyId: company.id, customerId: customer.id, idempotencyKey, holdExpiresAt: new Date(Date.now() + 10 * 60_000), termsAcceptedAt: consentedAt, termsVersion: '2026-10-28', privacyVersion: '2026-10-28', marketingOptIn, marketingConsentedAt: marketingOptIn ? consentedAt : null, items: { create: profiles.map((item) => ({ serviceId: item.serviceId, professionalId: item.professionalId, serviceName: item.serviceName, durationMinutes: item.durationMinutes, priceCents: item.priceCents, startsAt: item.startsAt, endsAt: item.endsAt })) } }, select: publicRequestSelect });
+        const recipients = await tx.membership.findMany({ where: { companyId: company.id, isActive: true, role: { in: ['OWNER', 'ADMIN', 'RECEPTIONIST'] } }, select: { userId: true, role: true } });
+        if (recipients.length) await tx.notification.createMany({ data: recipients.map(({ userId, role }) => ({ userId, companyId: company.id, sourceKey: `booking-request:${created.id}`, type: 'BOOKING_REQUESTED', title: 'Nova solicitação de agendamento', message: 'Uma nova solicitação de agendamento aguarda análise.', actionUrl: role === 'RECEPTIONIST' ? '/painel/recepcionista' : '/painel/proprietario', actionLabel: 'Ver solicitação' })), skipDuplicates: true });
         return created;
       }, { isolationLevel: 'Serializable', maxWait: 5000, timeout: 10000 });
     } catch (error) {
@@ -151,12 +152,12 @@ export class BookingsService {
   }
 
   async listRequests(companyId: string, role: string, membershipId: string) {
-    const requests = await this.prisma.bookingRequest.findMany({ where: { companyId, ...(role === 'PROFESSIONAL' ? { items: { some: { professional: { membershipId } } } } : {}) }, select: requestSelect, orderBy: [{ status: 'asc' }, { createdAt: 'desc' }], take: 100 });
+    const requests = await this.prisma.bookingRequest.findMany({ where: { companyId, ...(role === 'PROFESSIONAL' ? { items: { some: { professional: { membershipId } } } } : {}) }, select: { ...requestSelect, items: { ...requestSelect.items, ...(role === 'PROFESSIONAL' ? { where: { professional: { membershipId } } } : {}) } }, orderBy: [{ status: 'asc' }, { createdAt: 'desc' }], take: 100 });
     return role === 'PROFESSIONAL' ? requests.map(({ customer, ...request }) => ({ ...request, customer: { name: customer.name } })) : requests;
   }
 
   async decide(companyId: string, requestId: string, decision: 'CONFIRMED' | 'REJECTED') {
-    return this.prisma.$transaction(async (tx) => {
+    return withBillingConflictRetry(() => this.prisma.$transaction(async (tx) => {
       const request = await tx.bookingRequest.findFirst({ where: { id: requestId, companyId }, include: { items: true } });
       if (!request) throw new NotFoundException('Solicitação não encontrada.');
       if (request.status !== 'REQUESTED') throw new ConflictException('A solicitação já foi processada.');
@@ -165,8 +166,13 @@ export class BookingsService {
           ...new Set(request.items.map((item) => `${companyId}:professional:${item.professionalId}`)),
           `${companyId}:customer:${request.customerId}`,
         ].sort();
-        for (const lockKey of lockKeys) await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+        for (const lockKey of lockKeys) await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))::text`;
         for (const item of request.items) {
+          if (item.startsAt <= new Date()) throw new ConflictException('Não é possível confirmar um horário passado.');
+          const professional = await tx.professionalProfile.findFirst({ where: { id: item.professionalId, companyId, active: true, membership: { isActive: true } }, select: { id: true } });
+          if (!professional) throw new ConflictException('O profissional não está mais disponível.');
+          const company = await tx.company.findUniqueOrThrow({ where: { id: companyId }, select: { timezone: true } });
+          assertAvailability(item.startsAt, item.durationMinutes, company.timezone, await tx.professionalAvailability.findMany({ where: { companyId, professionalId: item.professionalId, active: true }, select: { weekday: true, startMinute: true, endMinute: true } }));
           const conflicts = await tx.bookingRequestItem.findMany({ where: { id: { notIn: request.items.map((value) => value.id) }, companyId, professionalId: item.professionalId, startsAt: { lt: item.endsAt }, endsAt: { gt: item.startsAt }, request: { OR: [{ status: 'CONFIRMED' }, { status: 'REQUESTED', holdExpiresAt: { gt: new Date() } }] } }, select: { startsAt: true, endsAt: true } });
           assertNoOverlap(item.startsAt, item.endsAt, conflicts);
           const customerConflicts = await tx.bookingRequestItem.findMany({ where: { id: { notIn: request.items.map((value) => value.id) }, companyId, startsAt: { lt: item.endsAt }, endsAt: { gt: item.startsAt }, request: { id: { not: requestId }, customerId: request.customerId, OR: [{ status: 'CONFIRMED' }, { status: 'REQUESTED', holdExpiresAt: { gt: new Date() } }] } }, select: { startsAt: true, endsAt: true } });
@@ -176,7 +182,24 @@ export class BookingsService {
       const result = await tx.bookingRequest.updateMany({ where: { id: requestId, companyId, status: 'REQUESTED' }, data: { status: decision } });
       if (result.count !== 1) throw new ConflictException('A solicitação foi processada por outra pessoa.');
       return tx.bookingRequest.findFirstOrThrow({ where: { id: requestId, companyId }, select: requestSelect });
-    }, { isolationLevel: 'Serializable', maxWait: 5000, timeout: 10000 });
+    }, { isolationLevel: 'Serializable', maxWait: 5000, timeout: 10000 }));
+  }
+
+  async agenda(companyId: string, role: string, membershipId: string, dateValue: unknown) {
+    if (typeof dateValue !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) throw new BadRequestException('Informe uma data válida.');
+    const date = new Date(`${dateValue}T12:00:00.000Z`);
+    if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== dateValue) throw new BadRequestException('Informe uma data válida.');
+    const company = await this.prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { timezone: true } });
+    const nextDay = new Date(date); nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    const from = localMinuteToUtc(dateValue, 0, company.timezone);
+    const to = localMinuteToUtc(nextDay.toISOString().slice(0, 10), 0, company.timezone);
+    const items = await this.prisma.bookingRequestItem.findMany({
+      where: { companyId, startsAt: { lt: to }, endsAt: { gt: from }, request: { status: 'CONFIRMED' }, ...(role === 'PROFESSIONAL' ? { professional: { membershipId } } : {}) },
+      select: { id: true, serviceName: true, startsAt: true, endsAt: true, durationMinutes: true, priceCents: true, professional: { select: { id: true, displayName: true } }, request: { select: { id: true, customer: { select: { name: true } } } } },
+      orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
+      take: 1000,
+    });
+    return { date: dateValue, timezone: company.timezone, items };
   }
 
   async listServices(companyId: string) {
@@ -212,7 +235,7 @@ export class BookingsService {
       const current = await tx.professionalProfile.count({ where: { companyId, active: true } });
       await this.entitlements.assertLimit(tx, companyId, 'professionals', current);
       const service = await tx.service.create({ data: { companyId, name: string(serviceInput.name, 'name', 120), description: serviceInput.description === undefined ? null : string(serviceInput.description, 'description', 2000), category: serviceInput.category === undefined ? null : string(serviceInput.category, 'category', 100), durationMinutes: durationMinutes as number, priceCents: priceCents as number } });
-      const professional = await tx.professionalProfile.create({ data: { companyId, membershipId, displayName: string(professionalInput.displayName, 'displayName', 120), availability: { create: windows.map((window) => ({ companyId, ...window })) }, services: { create: [{ companyId, serviceId: service.id }] } }, include: { availability: true, services: true } });
+      const professional = await tx.professionalProfile.create({ data: { companyId, membershipId, displayName: string(professionalInput.displayName, 'displayName', 120), availability: { create: windows }, services: { create: [{ serviceId: service.id }] } }, include: { availability: true, services: true } });
       return { service, professional };
     }, { isolationLevel: 'Serializable', maxWait: 5000, timeout: 10000 });
   }
@@ -270,5 +293,5 @@ function isUniqueConflict(error: unknown): error is { code: string } {
 }
 
 function isSerializationConflict(error: unknown): error is { code: string } {
-  return !!error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2034';
+  return retryableBillingConflict(error);
 }

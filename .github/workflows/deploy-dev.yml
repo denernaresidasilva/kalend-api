@@ -62,7 +62,7 @@ jobs:
 
             git fetch origin develop
             git checkout develop
-            git reset --hard origin/develop
+            git merge --ff-only origin/develop
 
             echo ""
             echo "Commit atual:"

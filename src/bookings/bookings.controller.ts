@@ -43,6 +43,12 @@ export class PublicBookingsController {
 export class TenantBookingsController {
   constructor(@Inject(BookingsService) private readonly service: BookingsService) {}
 
+  @Get('agenda')
+  @TenantRoles('OWNER', 'ADMIN', 'RECEPTIONIST', 'PROFESSIONAL')
+  agenda(@Req() req: AuthRequest, @Query('date') date: string) {
+    return this.service.agenda(req.tenant!.companyId, req.tenant!.role, req.tenant!.membershipId, date);
+  }
+
   @Get('requests')
   @TenantRoles('OWNER', 'ADMIN', 'RECEPTIONIST', 'PROFESSIONAL')
   requests(@Req() req: AuthRequest) {
