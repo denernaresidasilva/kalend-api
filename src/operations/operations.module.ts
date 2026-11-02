@@ -1,12 +1,19 @@
-import { Body, Controller, Get, Inject, Module, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Module, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { BillingModule } from '../billing/billing.module.js';
 import { TenantGuard, TenantRoles } from '../auth/tenant.guard.js';
 import { ProductAccessGuard } from '../billing/product-access.guard.js';
 import type { AuthRequest } from '../auth/auth.types.js';
+import { FinancialReportService } from './financial-report.service.js';
 import { CommissionsService } from './commissions.service.js';
 import { OperationsService, type Operator } from './operations.service.js';
 export const operator = (req: AuthRequest): Operator => ({ companyId: req.tenant!.companyId, userId: req.auth.user.id, membershipId: req.tenant!.membershipId, role: req.tenant!.role });
+@Controller('operations/financial-report')
+@UseGuards(TenantGuard, ProductAccessGuard)
+export class FinancialReportController {
+ constructor(@Inject(FinancialReportService) private readonly report:FinancialReportService){}
+ @Get() @TenantRoles('OWNER','ADMIN','ACCOUNTANT') get(@Req() r:AuthRequest,@Query() q:Record<string,string>){return this.report.report(operator(r),q);}
+}
 @Controller('operations/commissions')
 @UseGuards(TenantGuard, ProductAccessGuard)
 export class CommissionsController {
@@ -39,5 +46,5 @@ export class OperationsController {
   @Post('receipts/:id/refund') @TenantRoles('OWNER', 'ADMIN') refund(@Req() r: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body() b: unknown) { return this.ops.refund(operator(r), id, b); }
   @Post('sales/:id/cancel') @TenantRoles('OWNER', 'ADMIN', 'RECEPTIONIST') cancel(@Req() r: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body() b: unknown) { return this.ops.cancel(operator(r), id, b); }
 }
-@Module({ imports: [AuthModule, BillingModule], controllers: [OperationsController, CommissionsController], providers: [OperationsService, CommissionsService], exports: [OperationsService] })
+@Module({ imports: [AuthModule, BillingModule], controllers: [OperationsController, CommissionsController, FinancialReportController], providers: [OperationsService, CommissionsService, FinancialReportService], exports: [OperationsService] })
 export class OperationsModule {}

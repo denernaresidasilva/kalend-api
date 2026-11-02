@@ -12,6 +12,7 @@ enum MembershipRole {
   RECEPTIONIST
   PROFESSIONAL
   CLIENT
+  ACCOUNTANT
 }
 
 enum BookingRequestStatus {
