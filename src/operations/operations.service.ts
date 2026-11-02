@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { EntitlementsService } from '../billing/entitlements.service.js';
 import { withBillingConflictRetry } from '../billing/transaction-conflict.js';
 import { integer, object, string, uuid } from '../common/validation.js';
+import { cashBalance, generateCommissions, reconcileCommissions } from './commission-domain.js';
 import { netReceived, terminalSale, totalSale } from './pos-domain.js';
 export type Operator = { companyId: string; userId: string; membershipId: string; role: string };
 type Tx = Prisma.TransactionClient;
@@ -17,7 +18,7 @@ export type Sale = Prisma.PosSaleGetPayload<{ include: typeof saleInclude }>;
 export class OperationsService {
   constructor(@Inject(PrismaService) private readonly db: PrismaService, @Inject(EntitlementsService) private readonly entitlements: EntitlementsService) {}
   private role(actor: Operator, allowed: string[]) { if (!allowed.includes(actor.role)) throw new ForbiddenException('Operação não autorizada para seu papel.'); }
-  private async change<T>(actor: Operator, allowed: string[], work: (tx: Tx) => Promise<T>) {
+  async change<T>(actor: Operator, allowed: string[], work: (tx: Tx) => Promise<T>) {
     this.role(actor, allowed);
     return withBillingConflictRetry(() => this.db.$transaction(async tx => {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${actor.companyId}:operations`}, 0))::text`;
@@ -34,7 +35,7 @@ export class OperationsService {
   }
   private editable(sale: Sale) { if (terminalSale(sale.status) || sale.payments.length) throw new ConflictException('A comanda já possui recebimento ou está encerrada.'); }
   private async audit(tx: Tx, actor: Operator, action: string, detail: Prisma.InputJsonObject, saleId?: string) { await tx.posAudit.create({ data: { companyId: actor.companyId, actorId: actor.userId, saleId, action, detail } }); }
-  private async notify(tx: Tx, companyId: string, professionalIds: string[] = []) {
+  async notify(tx: Tx, companyId: string, professionalIds: string[] = []) {
     const ids = [...new Set(professionalIds)];
     for (let i = 0; i < Math.max(1, ids.length); i += 8) await tx.$queryRaw`SELECT pg_notify('kalend_booking_events', ${JSON.stringify({ companyId, professionalIds: ids.slice(i, i + 8) })})::text`;
   }
@@ -89,9 +90,7 @@ export class OperationsService {
     return this.change(actor, cashiers, async tx => {
       const cash = await tx.posCashSession.findFirst({ where: { id, companyId: actor.companyId } }); if (!cash) throw new NotFoundException('Caixa não encontrado.');
       if (cash.closedAt) throw new ConflictException('O caixa já foi fechado.');
-      const receipts = await tx.posReceipt.aggregate({ where: { companyId: actor.companyId, cashSessionId: id, method: 'CASH' }, _sum: { amountCents: true } });
-      const refunds = await tx.posRefund.aggregate({ where: { companyId: actor.companyId, cashSessionId: id, receipt: { method: 'CASH' } }, _sum: { amountCents: true } });
-      const expectedCents = cash.openingCents + (receipts._sum.amountCents ?? 0) - (refunds._sum.amountCents ?? 0);
+      const expectedCents = await cashBalance(tx, actor.companyId, cash);
       const differenceCents = (body.countedCents as number) - expectedCents;
       const note = body.note === undefined || body.note === '' ? null : string(body.note, 'note', 1000);
       if (differenceCents !== 0 && !note) throw new BadRequestException('Justifique a diferença de caixa.');
@@ -193,6 +192,7 @@ export class OperationsService {
       if (!lines.length || lines.some(l => l.serviceId && !l.completedAt)) throw new ConflictException('Conclua todos os atendimentos da comanda.');
       if (netReceived(sale.payments, sale.refunds) !== sale.totalCents) throw new ConflictException('A comanda ainda possui saldo a receber.');
       await tx.posSale.update({ where: { id }, data: { status: 'PAID', finalizedAt: new Date(), finalizedById: actor.userId } });
+      await generateCommissions(tx, actor, sale);
       await this.audit(tx, actor, 'SALE_FINALIZED', { totalCents: sale.totalCents }, id); await this.notify(tx, actor.companyId, lines.flatMap(l => l.professionalId ? [l.professionalId] : [])); return this.sale(tx, actor, id);
     });
   }
@@ -204,13 +204,12 @@ export class OperationsService {
       if (receipt.refunds.reduce((n, r) => n + r.amountCents, 0) + (body.amountCents as number) > receipt.amountCents) throw new ConflictException('Estorno maior que o valor recebido.');
       const cash = await this.openCash(tx, actor.companyId);
       if (receipt.method === 'CASH') {
-        const incoming = await tx.posReceipt.aggregate({ where: { companyId: actor.companyId, cashSessionId: cash.id, method: 'CASH' }, _sum: { amountCents: true } });
-        const outgoing = await tx.posRefund.aggregate({ where: { companyId: actor.companyId, cashSessionId: cash.id, receipt: { method: 'CASH' } }, _sum: { amountCents: true } });
-        if (cash.openingCents + (incoming._sum.amountCents ?? 0) - (outgoing._sum.amountCents ?? 0) < (body.amountCents as number)) throw new ConflictException('Saldo em dinheiro insuficiente neste caixa.');
+        if (await cashBalance(tx, actor.companyId, cash) < (body.amountCents as number)) throw new ConflictException('Saldo em dinheiro insuficiente neste caixa.');
       }
       const refund = await tx.posRefund.create({ data: { companyId: actor.companyId, saleId: receipt.saleId, receiptId, cashSessionId: cash.id, idempotencyKey: key, amountCents: body.amountCents as number, reason, recordedById: actor.userId } });
       const sale = await this.sale(tx, actor, receipt.saleId);
       if (['PAID', 'PARTIALLY_REFUNDED'].includes(sale.status)) await tx.posSale.update({ where: { id: sale.id }, data: { status: netReceived(sale.payments, sale.refunds) === 0 ? 'REFUNDED' : 'PARTIALLY_REFUNDED' } });
+      await reconcileCommissions(tx, actor, sale, refund.id);
       await this.audit(tx, actor, 'REFUND_RECORDED', { refundId: refund.id, receiptId, amountCents: refund.amountCents, reason }, receipt.saleId); await this.notify(tx, actor.companyId, sale.lines.flatMap(l => l.professionalId ? [l.professionalId] : [])); return refund;
     });
   }

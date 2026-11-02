@@ -4,8 +4,19 @@ import { BillingModule } from '../billing/billing.module.js';
 import { TenantGuard, TenantRoles } from '../auth/tenant.guard.js';
 import { ProductAccessGuard } from '../billing/product-access.guard.js';
 import type { AuthRequest } from '../auth/auth.types.js';
+import { CommissionsService } from './commissions.service.js';
 import { OperationsService, type Operator } from './operations.service.js';
 export const operator = (req: AuthRequest): Operator => ({ companyId: req.tenant!.companyId, userId: req.auth.user.id, membershipId: req.tenant!.membershipId, role: req.tenant!.role });
+@Controller('operations/commissions')
+@UseGuards(TenantGuard, ProductAccessGuard)
+export class CommissionsController {
+ constructor(@Inject(CommissionsService) private readonly commissions: CommissionsService) {}
+ @Get() @TenantRoles('OWNER','ADMIN','PROFESSIONAL') list(@Req() r:AuthRequest){return this.commissions.list(operator(r));}
+ @Post('rules') @TenantRoles('OWNER','ADMIN') rule(@Req() r:AuthRequest,@Body() b:unknown){return this.commissions.rules(operator(r),b);}
+ @Post(':id/release') @TenantRoles('OWNER','ADMIN') release(@Req() r:AuthRequest,@Param('id',new ParseUUIDPipe()) id:string){return this.commissions.release(operator(r),id);}
+ @Post(':id/pay') @TenantRoles('OWNER','ADMIN') pay(@Req() r:AuthRequest,@Param('id',new ParseUUIDPipe()) id:string,@Body() b:unknown){return this.commissions.pay(operator(r),id,b);}
+ @Post(':id/adjust') @TenantRoles('OWNER','ADMIN') adjust(@Req() r:AuthRequest,@Param('id',new ParseUUIDPipe()) id:string,@Body() b:unknown){return this.commissions.adjust(operator(r),id,b);}
+}
 @Controller('operations')
 @UseGuards(TenantGuard, ProductAccessGuard)
 export class OperationsController {
@@ -28,5 +39,5 @@ export class OperationsController {
   @Post('receipts/:id/refund') @TenantRoles('OWNER', 'ADMIN') refund(@Req() r: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body() b: unknown) { return this.ops.refund(operator(r), id, b); }
   @Post('sales/:id/cancel') @TenantRoles('OWNER', 'ADMIN', 'RECEPTIONIST') cancel(@Req() r: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body() b: unknown) { return this.ops.cancel(operator(r), id, b); }
 }
-@Module({ imports: [AuthModule, BillingModule], controllers: [OperationsController], providers: [OperationsService], exports: [OperationsService] })
+@Module({ imports: [AuthModule, BillingModule], controllers: [OperationsController, CommissionsController], providers: [OperationsService, CommissionsService], exports: [OperationsService] })
 export class OperationsModule {}

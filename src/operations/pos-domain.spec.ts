@@ -1,0 +1,4 @@
+import { allocateNet, proportionFloor, totalSale } from './pos-domain.js';
+it('allocates every discount cent exactly across product and service lines',()=>{const rows=[{id:'a',gross:333},{id:'b',gross:333},{id:'c',gross:334}],net=allocateNet(rows,100);expect([...net.values()].reduce((a,b)=>a+b,0)).toBe(900);expect(net.get('c')).toBe(300);});
+it('keeps integer precision at supported large monetary bounds',()=>{const net=allocateNet([{id:'a',gross:333333333},{id:'b',gross:666666667}],999999999);expect([...net.values()].reduce((a,b)=>a+b,0)).toBe(1);expect(proportionFloor(999999999,999999998,1000000000)).toBe(999999997);});
+it('rejects negative balances and overlarge totals before persistence',()=>{expect(()=>totalSale([{quantity:100,unitPriceCents:100000000,voidedAt:null}])).toThrow();expect(()=>totalSale([{quantity:1,unitPriceCents:100,voidedAt:null}],101)).toThrow();});

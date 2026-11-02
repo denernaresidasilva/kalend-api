@@ -165,6 +165,7 @@ model Membership {
 // Tenant-owned operational catalog. Every business record carries companyId;
 // composite foreign keys below prevent cross-company references at the DB layer.
 model Service {
+  commissionRules PosCommissionRule[]
   posLines PosSaleLine[]
   id              String   @id @default(uuid()) @db.Uuid
   companyId       String   @db.Uuid
@@ -186,6 +187,8 @@ model Service {
 }
 
 model ProfessionalProfile {
+  commissionRules PosCommissionRule[]
+  commissions PosCommission[]
   posLines PosSaleLine[]
   id           String   @id @default(uuid()) @db.Uuid
   companyId    String   @db.Uuid
@@ -978,6 +981,7 @@ enum PosPaymentMethod {
   OTHER
 }
 model PosCashSession {
+  commissionPayouts PosCommissionPayout[]
   id String @id @default(uuid()) @db.Uuid
   companyId String @db.Uuid
   company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
@@ -1024,6 +1028,7 @@ model PosCoupon {
   @@unique([companyId, code])
 }
 model PosSale {
+  commissions PosCommission[]
   id String @id @default(uuid()) @db.Uuid
   companyId String @db.Uuid
   company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
@@ -1058,6 +1063,7 @@ model PosSale {
   @@index([companyId, status, createdAt])
 }
 model PosSaleLine {
+  commissions PosCommission[]
   id String @id @default(uuid()) @db.Uuid
   companyId String @db.Uuid
   saleId String @db.Uuid
@@ -1126,4 +1132,77 @@ model PosAudit {
   detail Json
   createdAt DateTime @default(now())
   @@index([companyId, createdAt])
+}
+enum PosCommissionStatus {
+  GENERATED
+  PAYABLE
+  PAID
+  REVERSED
+}
+model PosCommissionRule {
+  id String @id @default(uuid()) @db.Uuid
+  companyId String @db.Uuid
+  professionalId String @db.Uuid
+  professional ProfessionalProfile @relation(fields: [professionalId, companyId], references: [id, companyId], onDelete: Restrict)
+  serviceId String @db.Uuid
+  service Service @relation(fields: [serviceId, companyId], references: [id, companyId], onDelete: Restrict)
+  percentBps Int?
+  fixedCents Int?
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([professionalId, serviceId, companyId])
+  @@index([companyId])
+}
+model PosCommission {
+  id String @id @default(uuid()) @db.Uuid
+  companyId String @db.Uuid
+  saleId String @db.Uuid
+  sale PosSale @relation(fields: [saleId, companyId], references: [id, companyId], onDelete: Restrict)
+  lineId String @db.Uuid
+  line PosSaleLine @relation(fields: [lineId, companyId], references: [id, companyId], onDelete: Restrict)
+  professionalId String @db.Uuid
+  professional ProfessionalProfile @relation(fields: [professionalId, companyId], references: [id, companyId], onDelete: Restrict)
+  baseCents Int
+  originalCents Int
+  adjustmentCents Int @default(0)
+  amountCents Int
+  ruleSnapshot Json
+  status PosCommissionStatus @default(GENERATED)
+  createdAt DateTime @default(now())
+  releasedAt DateTime?
+  releasedById String? @db.Uuid
+  adjustments PosCommissionAdjustment[]
+  payouts PosCommissionPayout[]
+  @@unique([id, companyId])
+  @@unique([lineId, companyId])
+  @@index([companyId, professionalId, status])
+}
+model PosCommissionAdjustment {
+  id String @id @default(uuid()) @db.Uuid
+  companyId String @db.Uuid
+  commissionId String @db.Uuid
+  commission PosCommission @relation(fields: [commissionId, companyId], references: [id, companyId], onDelete: Restrict)
+  sourceKey String
+  requestHash String?
+  deltaCents Int
+  reason String
+  actorId String @db.Uuid
+  createdAt DateTime @default(now())
+  @@unique([companyId, sourceKey])
+}
+model PosCommissionPayout {
+  id String @id @default(uuid()) @db.Uuid
+  companyId String @db.Uuid
+  commissionId String @db.Uuid
+  commission PosCommission @relation(fields: [commissionId, companyId], references: [id, companyId], onDelete: Restrict)
+  idempotencyKey String
+  amountCents Int
+  method PosPaymentMethod
+  reference String
+  cashSessionId String? @db.Uuid
+  cashSession PosCashSession? @relation(fields: [cashSessionId, companyId], references: [id, companyId], onDelete: Restrict)
+  actorId String @db.Uuid
+  createdAt DateTime @default(now())
+  @@unique([companyId, idempotencyKey])
 }

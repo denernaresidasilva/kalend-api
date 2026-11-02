@@ -7,10 +7,11 @@ export function totalSale(lines: Array<{ quantity: number; unitPriceCents: numbe
   return { subtotalCents, discountCents, totalCents: subtotalCents - discountCents };
 }
 export function netReceived(payments: Array<{ amountCents: number }>, refunds: Array<{ amountCents: number }>) { return payments.reduce((n, p) => n + p.amountCents, 0) - refunds.reduce((n, r) => n + r.amountCents, 0); }
+export const proportionFloor = (amount: number, numerator: number, denominator: number) => denominator ? Number(BigInt(amount) * BigInt(numerator) / BigInt(denominator)) : 0;
 export function allocateNet(lines: Array<{ id: string; gross: number }>, discount: number) {
   const gross = lines.reduce((n, l) => n + l.gross, 0);
   if (!gross) return new Map(lines.map(l => [l.id, 0]));
-  const portions = lines.map(l => ({ ...l, discount: Math.floor(discount * l.gross / gross), remainder: discount * l.gross % gross }));
+  const portions = lines.map(l => ({ ...l, discount: proportionFloor(discount, l.gross, gross), remainder: Number(BigInt(discount) * BigInt(l.gross) % BigInt(gross)) }));
   let remaining = discount - portions.reduce((n, l) => n + l.discount, 0);
   for (const l of [...portions].sort((a, b) => b.remainder - a.remainder || a.id.localeCompare(b.id))) if (remaining-- > 0) l.discount++;
   return new Map(portions.map(l => [l.id, l.gross - l.discount]));
