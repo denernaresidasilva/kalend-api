@@ -15,7 +15,7 @@ import { integer, object, string, uuid } from '../common/validation.js';
 
 const requestSelect = {
   id: true, status: true, createdAt: true, holdExpiresAt: true,
-  customer: { select: { name: true, email: true, phone: true } },
+  customer: { select: { id: true, name: true, email: true, phone: true, userId: true } },
   items: { select: { id: true, serviceName: true, priceCents: true, durationMinutes: true, startsAt: true, endsAt: true, professional: { select: { displayName: true } } }, orderBy: { startsAt: 'asc' as const } },
 } as const;
 const publicRequestSelect = {
@@ -47,7 +47,7 @@ export class BookingsService {
       select: { id: true, name: true, description: true, category: true, durationMinutes: true, priceCents: true, professionalLinks: { where: { professional: { active: true, membership: { isActive: true } } }, select: { professional: { select: { id: true, displayName: true } } } } },
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
-    return { company: { name: company.name, slug: company.slug }, timezone: company.timezone, services: services.map(({ professionalLinks, ...service }) => ({ ...service, professionals: professionalLinks.map((link) => link.professional) })) };
+    return { company: { name: company.name, slug: company.slug }, timezone: company.timezone, services: services.map(({ professionalLinks, ...service }) => ({ ...service, professionals: professionalLinks.map(({ professional }) => ({ id: professional.id, name: professional.displayName })) })) };
   }
 
   async availability(slug: string, serviceIdValue: unknown, dateValue: unknown, professionalIdValue?: unknown) {
@@ -80,7 +80,7 @@ export class BookingsService {
     }) };
   }
 
-  async request(slug: string, input: unknown, retry = 0): Promise<PublicBookingRequest> {
+  async request(slug: string, input: unknown, retry = 0, authenticatedUserId?: string): Promise<PublicBookingRequest> {
     const company = await this.publicCompany(slug);
     const body = object(input, ['idempotencyKey', 'customer', 'items', 'termsAccepted', 'marketingOptIn']);
     const idempotencyKey = string(body.idempotencyKey, 'idempotencyKey', 80);
@@ -118,6 +118,7 @@ export class BookingsService {
         assertItemsDoNotOverlap(clientIntervals);
         let customer = email ? await tx.customerProfile.findUnique({ where: { companyId_email: { companyId: company.id, email } } }) : null;
         if (!customer) customer = await tx.customerProfile.findFirst({ where: { companyId: company.id, phone } });
+        if (customer?.userId && customer.userId !== authenticatedUserId) throw new ForbiddenException({ code: 'CUSTOMER_LOGIN_REQUIRED', message: 'Entre na conta do cliente para solicitar este agendamento.' });
         if (!customer) {
           const customerCount = await tx.customerProfile.count({ where: { companyId: company.id } });
           await this.entitlements.assertLimit(tx, company.id, 'clients', customerCount);
@@ -145,9 +146,9 @@ export class BookingsService {
       if (isUniqueConflict(error)) {
         const duplicate = await this.prisma.bookingRequest.findUnique({ where: { companyId_idempotencyKey: { companyId: company.id, idempotencyKey } }, select: publicRequestSelect });
         if (duplicate) return duplicate;
-        if (retry < 2) return this.request(slug, input, retry + 1);
+        if (retry < 2) return this.request(slug, input, retry + 1, authenticatedUserId);
       }
-      if (isSerializationConflict(error) && retry < 2) return this.request(slug, input, retry + 1);
+      if (isSerializationConflict(error) && retry < 2) return this.request(slug, input, retry + 1, authenticatedUserId);
       throw error;
     }
   }

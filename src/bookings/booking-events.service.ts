@@ -29,7 +29,7 @@ export class BookingEventsService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() { await this.connect(); }
   private async connect() {
-    if (this.stopped) return;
+    if (this.stopped || !process.env.DATABASE_URL) return;
     const client = new pg.Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 5000, application_name: 'kalend-booking-events' });
     this.client = client;
     let failed = false;

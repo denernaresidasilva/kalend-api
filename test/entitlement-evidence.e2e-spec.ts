@@ -213,8 +213,14 @@ describe('commercial entitlement evidence (real Prisma and embedded PGlite Postg
     gateway: 'STRIPE' | 'QA_SIMULATION' = 'STRIPE',
   ) {
     const { s, p } = await pending(gateway);
-    const start = new Date(Date.now() + (expired ? -30 * day - 3600000 : 0));
-    const end = nextPeriod(start, 'MONTHLY');
+    // Anchor expiry explicitly: subtracting 30 days is not a calendar month.
+    const end = expired ? new Date(Date.now() - 3600000) : nextPeriod(new Date(), 'MONTHLY');
+    const start = expired ? new Date(end) : new Date();
+    if (expired) {
+      const dayOfMonth = start.getUTCDate(); start.setUTCDate(1); start.setUTCMonth(start.getUTCMonth() - 1);
+      const lastDay = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0)).getUTCDate();
+      start.setUTCDate(Math.min(dayOfMonth, lastDay));
+    }
     const approved = await db.payment.update({
       where: { id: p.id },
       data: {

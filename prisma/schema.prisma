@@ -100,6 +100,8 @@ model User {
   notifications           Notification[]
   notificationPreference  NotificationPreference?
   globalPushSubscriptions GlobalPushSubscription[]
+  customerProfiles        CustomerProfile[]
+  customerActivations     CustomerActivation[]
   publicSignupConsents    PublicSignupConsent[]
 
   createdAt DateTime @default(now())
@@ -222,6 +224,9 @@ model ServiceProfessional {
 }
 
 model CustomerProfile {
+  userId      String? @db.Uuid
+  user        User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  activation  CustomerActivation?
   id          String   @id @default(uuid()) @db.Uuid
   companyId   String   @db.Uuid
   name        String
@@ -233,9 +238,25 @@ model CustomerProfile {
   updatedAt   DateTime @updatedAt
 
   @@unique([id, companyId])
+  @@unique([companyId, userId])
   @@unique([companyId, email])
   @@unique([companyId, phone])
   @@index([companyId, phone])
+}
+
+model CustomerActivation {
+  id String @id @default(uuid()) @db.Uuid
+  companyId String @db.Uuid
+  customerId String @db.Uuid
+  customer CustomerProfile @relation(fields: [customerId, companyId], references: [id, companyId], onDelete: Cascade)
+  tokenHash String @unique
+  expiresAt DateTime
+  usedAt DateTime?
+  createdById String @db.Uuid
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  @@unique([customerId, companyId])
+  @@index([expiresAt])
 }
 
 model BookingRequest {

@@ -1,0 +1,22 @@
+{
+  "environment": "DEV",
+  "results": [
+    {
+      "name": "authenticated_SSE_owner_professional_other_tenant",
+      "status": "PASS"
+    },
+    {
+      "name": "new_request_visible_without_reload_before_polling",
+      "status": "PASS",
+      "latencyMs": 184
+    },
+    {
+      "name": "other_tenant_receives_no_booking",
+      "status": "PASS"
+    },
+    {
+      "name": "approval_updates_owner_and_professional_agenda_via_SSE",
+      "status": "PASS"
+    }
+  ]
+}

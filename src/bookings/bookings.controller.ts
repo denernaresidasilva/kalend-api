@@ -1,9 +1,13 @@
-import { Body, Controller, Get, Header, Sse, Inject, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, UnauthorizedException, Get, Header, Sse, Inject, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { AuthService } from '../auth/auth.service.js';
+import { ACCESS_COOKIE } from '../auth/auth.config.js';
+import { readCookie } from '../auth/auth.http.js';
 import type { AuthRequest } from '../auth/auth.types.js';
 import { AuthOriginGuard } from '../auth/auth.guard.js';
 import { AuthRateLimit } from '../auth/auth-rate-limit.service.js';
 import { TenantGuard, TenantRoles } from '../auth/tenant.guard.js';
 import { ProductAccessGuard } from '../billing/product-access.guard.js';
+import { CustomerAccessService } from './customer-access.service.js';
 import { BookingEventsService } from './booking-events.service.js';
 import { BookingsService } from './bookings.service.js';
 
@@ -12,7 +16,18 @@ export class PublicBookingsController {
   constructor(
     @Inject(BookingsService) private readonly service: BookingsService,
     @Inject(AuthRateLimit) private readonly rateLimit: AuthRateLimit,
+    @Inject(CustomerAccessService) private readonly customers: CustomerAccessService,
+    @Inject(AuthService) private readonly auth: AuthService,
   ) {}
+
+  @Post('activate')
+  @UseGuards(AuthOriginGuard)
+  async activate(@Body() body: unknown, @Req() req: AuthRequest) {
+    await this.rateLimit.consume('customer-activation', req.ip ?? 'unknown', 8, 900);
+    const token = body && typeof body === 'object' && 'token' in body ? body.token : undefined;
+    if (typeof token === 'string') await this.rateLimit.consume('customer-activation-token', token, 5, 900);
+    return this.customers.activate(body);
+  }
 
   @Get(':slug/catalog') async catalog(@Param('slug') slug: string, @Req() req: AuthRequest) {
     await this.rateLimit.consume('public-booking-catalog', req.ip ?? 'unknown', 60, 300);
@@ -35,7 +50,13 @@ export class PublicBookingsController {
   async request(@Param('slug') slug: string, @Body() body: unknown, @Req() req: AuthRequest) {
     await this.rateLimit.consume('public-booking-request-global', req.ip ?? 'unknown', 30, 300);
     await this.rateLimit.consume('public-booking-request', `${req.ip ?? 'unknown'}:${slug}`, 8, 300);
-    return this.service.request(slug, body);
+    let userId: string | undefined;
+    const cookie = readCookie(req, ACCESS_COOKIE);
+    if (cookie) {
+      try { userId = (await this.auth.authenticate(cookie)).user.id; }
+      catch (error) { if (!(error instanceof UnauthorizedException) && !(error instanceof ForbiddenException)) throw error; }
+    }
+    return this.service.request(slug, body, 0, userId);
   }
 }
 
@@ -45,7 +66,20 @@ export class TenantBookingsController {
   constructor(
     @Inject(BookingsService) private readonly service: BookingsService,
     @Inject(BookingEventsService) private readonly events: BookingEventsService,
+    @Inject(CustomerAccessService) private readonly customers: CustomerAccessService,
   ) {}
+
+  @Get('customers')
+  @TenantRoles('OWNER', 'ADMIN', 'RECEPTIONIST')
+  customersList(@Req() req: AuthRequest) { return this.customers.customers(req.tenant!.companyId); }
+
+  @Post('customers/:id/invitation')
+  @TenantRoles('OWNER', 'ADMIN', 'RECEPTIONIST')
+  invite(@Req() req: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string) { return this.customers.issue(req.tenant!.companyId, id, req.auth.user.id); }
+
+  @Get('my-requests')
+  @TenantRoles('CLIENT')
+  mine(@Req() req: AuthRequest) { return this.customers.mine(req.tenant!.companyId, req.auth.user.id); }
 
   @Sse('events')
   @Header('X-Accel-Buffering', 'no')

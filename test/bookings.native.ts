@@ -126,7 +126,8 @@ it('configures the first service and composite relations atomically', async () =
   });
   expect(result.professional.availability).toHaveLength(1);
   expect(result.professional.services[0].serviceId).toBe(result.service.id);
-  expect((await bookings.catalog(b.slug)).services.some(s => s.id === result.service.id)).toBe(true);
+  const published = (await bookings.catalog(b.slug)).services.find(s => s.id === result.service.id);
+  expect(published?.professionals[0].name).toBe('Owner QA');
 });
 it('allows only one expired competing reservation to be confirmed concurrently', async () => {
   const first = await bookings.request(a.slug, payload());
@@ -153,4 +154,82 @@ it('publishes database notifications for committed requests and decisions withou
     const decided = nextEvent(); await bookings.decide(a.id, booking.id, 'CONFIRMED');
     expect(await decided).toEqual(event);
   } finally { await listener.query('UNLISTEN kalend_booking_events'); listener.release(); }
+});
+
+// Client activation reuses the same real, disposable PostgreSQL fixture.
+import { CustomerAccessService } from '../src/bookings/customer-access.service.js';
+import * as bcrypt from 'bcrypt';
+import { createHash } from 'node:crypto';
+const clients = new CustomerAccessService(db as never, new EntitlementsService(db as never));
+const qaPassword = 'QA-only-password-2026!';
+async function activationFixture() {
+  const input = payload(); const booking = await bookings.request(a.slug, input);
+  const customer = await db.customerProfile.findFirstOrThrow({ where: { companyId: a.id, email: input.customer.email } });
+  const invite = await clients.issue(a.id, customer.id, a.members[0].userId);
+  const body = { token: invite.token, email: input.customer.email, password: qaPassword, termsAccepted: true };
+  return { input, booking, customer, invite, body };
+}
+it('stores only a token hash and activates a tenant-only client with consent', async () => {
+  const { customer, invite, body } = await activationFixture();
+  const row = await db.customerActivation.findFirstOrThrow({ where: { customerId: customer.id } });
+  expect(row.tokenHash).toBe(createHash('sha256').update(invite.token).digest('hex'));
+  expect(JSON.stringify(row)).not.toContain(invite.token);
+  await expect(clients.activate(body)).resolves.toEqual({ activated: true });
+  const user = await db.user.findUniqueOrThrow({ where: { email: body.email }, include: { memberships: true } });
+  expect(user.isSuperAdmin).toBe(false); expect(user.memberships.map(m => [m.companyId, m.role])).toEqual([[a.id, 'CLIENT']]);
+  expect(await bcrypt.compare(qaPassword, user.passwordHash)).toBe(true);
+  expect(await db.publicSignupConsent.count({ where: { userId: user.id, companyId: a.id, source: 'CUSTOMER_ACTIVATION' } })).toBe(1);
+});
+it('rejects foreign invitations and client data reads never cross user or tenant', async () => {
+  const { customer, body, booking } = await activationFixture();
+  await expect(clients.issue(b.id, customer.id, b.members[0].userId)).rejects.toThrow('não encontrado');
+  await clients.activate(body);
+  const user = await db.user.findUniqueOrThrow({ where: { email: body.email } });
+  expect((await clients.mine(a.id, user.id)).requests.map(r => r.id)).toEqual([booking.id]);
+  expect((await clients.mine(b.id, user.id)).requests).toHaveLength(0);
+  expect((await clients.mine(a.id, b.members[0].userId)).requests).toHaveLength(0);
+});
+it('blocks anonymous use of an activated client identity but allows its authenticated owner', async () => {
+  const { input, body } = await activationFixture(); await clients.activate(body);
+  const user = await db.user.findUniqueOrThrow({ where: { email: body.email } });
+  input.idempotencyKey = randomUUID(); input.items[0].startsAt = new Date(startsAt.getTime() + 3600000).toISOString();
+  await expect(bookings.request(a.slug, input)).rejects.toThrow('Entre na conta');
+  await expect(bookings.request(a.slug, input, 0, b.members[0].userId)).rejects.toThrow('Entre na conta');
+  await expect(bookings.request(a.slug, input, 0, user.id)).resolves.toHaveProperty('status', 'REQUESTED');
+});
+it('expires invitations, invalidates regenerated tokens and prevents replay', async () => {
+  const { customer, body } = await activationFixture();
+  await db.customerActivation.updateMany({ where: { customerId: customer.id }, data: { expiresAt: new Date(0) } });
+  await expect(clients.activate(body)).rejects.toThrow('Não foi possível ativar');
+  const replacement = await clients.issue(a.id, customer.id, a.members[0].userId);
+  await expect(clients.activate(body)).rejects.toThrow('Não foi possível ativar');
+  await clients.activate({ ...body, token: replacement.token });
+  await expect(clients.activate({ ...body, token: replacement.token })).rejects.toThrow('Não foi possível ativar');
+});
+it('does not let invitation activation reset or take over an existing identity', async () => {
+  const existing = await db.user.findUniqueOrThrow({ where: { id: b.members[0].userId } });
+  const passwordHash = await bcrypt.hash(qaPassword, 4);
+  await db.user.update({ where: { id: existing.id }, data: { passwordHash } });
+  const input = payload(); input.customer.email = existing.email;
+  await bookings.request(a.slug, input);
+  const customer = await db.customerProfile.findFirstOrThrow({ where: { companyId: a.id, email: existing.email } });
+  const invite = await clients.issue(a.id, customer.id, a.members[0].userId);
+  const body = { token: invite.token, email: existing.email, termsAccepted: true };
+  await expect(clients.activate({ ...body, password: 'WRONG-password!' })).rejects.toThrow('Não foi possível ativar');
+  expect((await db.user.findUniqueOrThrow({ where: { id: existing.id } })).passwordHash).toBe(passwordHash);
+  await clients.activate({ ...body, password: qaPassword });
+  expect((await db.user.findUniqueOrThrow({ where: { id: existing.id } })).passwordHash).toBe(passwordHash);
+  expect((await db.membership.findUniqueOrThrow({ where: { userId_companyId: { userId: existing.id, companyId: b.id } } })).role).toBe('OWNER');
+});
+it('consumes an invitation once under concurrent activation', async () => {
+  const { body } = await activationFixture();
+  const result = await Promise.allSettled([clients.activate(body), clients.activate(body)]);
+  expect(result.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+  expect(await db.user.count({ where: { email: body.email } })).toBe(1);
+});
+it('requires account consent and rejects email substitution without consuming the capability', async () => {
+  const { body, customer } = await activationFixture();
+  await expect(clients.activate({ ...body, termsAccepted: false })).rejects.toThrow('Aceite os termos');
+  await expect(clients.activate({ ...body, email: 'someone-else@example.test' })).rejects.toThrow('Não foi possível ativar');
+  expect((await db.customerActivation.findFirstOrThrow({ where: { customerId: customer.id } })).usedAt).toBeNull();
 });
