@@ -1,0 +1,45 @@
+{
+  "environment": "DEV",
+  "results": [
+    {
+      "name": "public_catalog_persisted_service",
+      "status": "PASS"
+    },
+    {
+      "name": "public_multi_service_request",
+      "status": "PASS"
+    },
+    {
+      "name": "public_idempotency_preserves_request",
+      "status": "PASS"
+    },
+    {
+      "name": "pending_request_does_not_enter_agenda",
+      "status": "PASS"
+    },
+    {
+      "name": "foreign_tenant_cannot_decide",
+      "status": "PASS"
+    },
+    {
+      "name": "professional_inbox_filters_other_items_and_contacts",
+      "status": "PASS"
+    },
+    {
+      "name": "professional_cannot_accept",
+      "status": "PASS"
+    },
+    {
+      "name": "owner_accepts_request",
+      "status": "PASS"
+    },
+    {
+      "name": "confirmation_updates_agenda_and_isolates_tenants",
+      "status": "PASS"
+    },
+    {
+      "name": "notification_persisted_with_safe_panel_link",
+      "status": "PASS"
+    }
+  ]
+}

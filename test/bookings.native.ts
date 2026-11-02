@@ -137,3 +137,20 @@ it('allows only one expired competing reservation to be confirmed concurrently',
   expect(result.filter(r => r.status === 'fulfilled')).toHaveLength(1);
   expect((await bookings.agenda(a.id, 'OWNER', a.members[0].id, date())).items).toHaveLength(1);
 });
+it('publishes database notifications for committed requests and decisions without customer data', async () => {
+  const listener = await pool.connect();
+  await listener.query('LISTEN kalend_booking_events');
+  const nextEvent = () => new Promise<{ companyId: string; professionalIds: string[] }>((resolve, reject) => {
+    const timeout = setTimeout(() => { listener.off('notification', receive); reject(new Error('BOOKING_EVENT_TIMEOUT')); }, 3000);
+    const receive = (event: { payload?: string }) => { clearTimeout(timeout); resolve(JSON.parse(event.payload!)); };
+    listener.once('notification', receive);
+  });
+  try {
+    const requested = nextEvent();
+    const booking = await bookings.request(a.slug, payload());
+    const event = await requested;
+    expect(event).toEqual({ companyId: a.id, professionalIds: [a.profiles[0].id] });
+    const decided = nextEvent(); await bookings.decide(a.id, booking.id, 'CONFIRMED');
+    expect(await decided).toEqual(event);
+  } finally { await listener.query('UNLISTEN kalend_booking_events'); listener.release(); }
+});

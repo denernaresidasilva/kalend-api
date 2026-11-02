@@ -1,0 +1,13 @@
+{
+  "target": {
+    "database": "kalend_dev",
+    "role": "kalend_dev_runtime"
+  },
+  "migration": "20261028110000_operational_booking_core",
+  "checksumMatches": true,
+  "operationalTables": 7,
+  "paymentEvidence": {
+    "total": 5,
+    "applied": 3
+  }
+}

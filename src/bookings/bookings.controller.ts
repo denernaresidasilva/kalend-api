@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, Sse, Inject, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
 import type { AuthRequest } from '../auth/auth.types.js';
 import { AuthOriginGuard } from '../auth/auth.guard.js';
 import { AuthRateLimit } from '../auth/auth-rate-limit.service.js';
 import { TenantGuard, TenantRoles } from '../auth/tenant.guard.js';
 import { ProductAccessGuard } from '../billing/product-access.guard.js';
+import { BookingEventsService } from './booking-events.service.js';
 import { BookingsService } from './bookings.service.js';
 
 @Controller('public/booking')
@@ -41,7 +42,15 @@ export class PublicBookingsController {
 @Controller('booking')
 @UseGuards(TenantGuard, ProductAccessGuard)
 export class TenantBookingsController {
-  constructor(@Inject(BookingsService) private readonly service: BookingsService) {}
+  constructor(
+    @Inject(BookingsService) private readonly service: BookingsService,
+    @Inject(BookingEventsService) private readonly events: BookingEventsService,
+  ) {}
+
+  @Sse('events')
+  @Header('X-Accel-Buffering', 'no')
+  @TenantRoles('OWNER', 'ADMIN', 'RECEPTIONIST', 'PROFESSIONAL')
+  eventsStream(@Req() req: AuthRequest) { return this.events.stream(req); }
 
   @Get('agenda')
   @TenantRoles('OWNER', 'ADMIN', 'RECEPTIONIST', 'PROFESSIONAL')

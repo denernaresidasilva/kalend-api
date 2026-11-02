@@ -138,6 +138,7 @@ export class BookingsService {
         const created = await tx.bookingRequest.create({ data: { companyId: company.id, customerId: customer.id, idempotencyKey, holdExpiresAt: new Date(Date.now() + 10 * 60_000), termsAcceptedAt: consentedAt, termsVersion: '2026-10-28', privacyVersion: '2026-10-28', marketingOptIn, marketingConsentedAt: marketingOptIn ? consentedAt : null, items: { create: profiles.map((item) => ({ serviceId: item.serviceId, professionalId: item.professionalId, serviceName: item.serviceName, durationMinutes: item.durationMinutes, priceCents: item.priceCents, startsAt: item.startsAt, endsAt: item.endsAt })) } }, select: publicRequestSelect });
         const recipients = await tx.membership.findMany({ where: { companyId: company.id, isActive: true, role: { in: ['OWNER', 'ADMIN', 'RECEPTIONIST'] } }, select: { userId: true, role: true } });
         if (recipients.length) await tx.notification.createMany({ data: recipients.map(({ userId, role }) => ({ userId, companyId: company.id, sourceKey: `booking-request:${created.id}`, type: 'BOOKING_REQUESTED', title: 'Nova solicitação de agendamento', message: 'Uma nova solicitação de agendamento aguarda análise.', actionUrl: role === 'RECEPTIONIST' ? '/painel/recepcionista' : '/painel/proprietario', actionLabel: 'Ver solicitação' })), skipDuplicates: true });
+        await tx.$queryRaw`SELECT pg_notify('kalend_booking_events', ${JSON.stringify({ companyId: company.id, professionalIds: [...new Set(profiles.map(item => item.professionalId))] })})::text`;
         return created;
       }, { isolationLevel: 'Serializable', maxWait: 5000, timeout: 10000 });
     } catch (error) {
@@ -181,6 +182,7 @@ export class BookingsService {
       }
       const result = await tx.bookingRequest.updateMany({ where: { id: requestId, companyId, status: 'REQUESTED' }, data: { status: decision } });
       if (result.count !== 1) throw new ConflictException('A solicitação foi processada por outra pessoa.');
+      await tx.$queryRaw`SELECT pg_notify('kalend_booking_events', ${JSON.stringify({ companyId, professionalIds: [...new Set(request.items.map(item => item.professionalId))] })})::text`;
       return tx.bookingRequest.findFirstOrThrow({ where: { id: requestId, companyId }, select: requestSelect });
     }, { isolationLevel: 'Serializable', maxWait: 5000, timeout: 10000 }));
   }

@@ -1,0 +1,13 @@
+{
+  "environment": "DEV",
+  "results": [
+    {
+      "name": "browser_agenda_390",
+      "status": "PASS"
+    },
+    {
+      "name": "browser_agenda_1366",
+      "status": "PASS"
+    }
+  ]
+}
