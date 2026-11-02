@@ -1,0 +1,13 @@
+{
+  "target": {
+    "database": "kalend_dev",
+    "role": "kalend_dev_runtime"
+  },
+  "migration": "20261102190000_customer_activation",
+  "checksumMatches": true,
+  "operationalTables": 8,
+  "paymentEvidence": {
+    "total": 5,
+    "applied": 3
+  }
+}

@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, UnauthorizedException, Get, Header, Sse, Inject, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, UnauthorizedException, Get, Header, Sse, Inject, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service.js';
 import { ACCESS_COOKIE } from '../auth/auth.config.js';
 import { readCookie } from '../auth/auth.http.js';
@@ -68,6 +68,22 @@ export class TenantBookingsController {
     @Inject(BookingEventsService) private readonly events: BookingEventsService,
     @Inject(CustomerAccessService) private readonly customers: CustomerAccessService,
   ) {}
+
+  @Get('members')
+  @TenantRoles('OWNER', 'ADMIN')
+  members(@Req() req: AuthRequest) { return this.service.members(req.tenant!.companyId); }
+
+  @Get('professionals')
+  @TenantRoles('OWNER', 'ADMIN', 'RECEPTIONIST')
+  professionals(@Req() req: AuthRequest) { return this.service.professionals(req.tenant!.companyId); }
+
+  @Patch('services/:id')
+  @TenantRoles('OWNER', 'ADMIN')
+  updateService(@Req() req: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body() body: unknown) { return this.service.updateService(req.tenant!.companyId, id, body); }
+
+  @Patch('professionals/:id')
+  @TenantRoles('OWNER', 'ADMIN')
+  updateProfessional(@Req() req: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body() body: unknown) { return this.service.updateProfessional(req.tenant!.companyId, id, body); }
 
   @Get('customers')
   @TenantRoles('OWNER', 'ADMIN', 'RECEPTIONIST')

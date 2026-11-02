@@ -233,3 +233,39 @@ it('requires account consent and rejects email substitution without consuming th
   await expect(clients.activate({ ...body, email: 'someone-else@example.test' })).rejects.toThrow('Não foi possível ativar');
   expect((await db.customerActivation.findFirstOrThrow({ where: { customerId: customer.id } })).usedAt).toBeNull();
 });
+it('creates a service and its own professional links atomically, rejecting foreign profiles', async () => {
+  const count = await db.service.count({ where: { companyId: a.id } });
+  await expect(bookings.createService(a.id, { name: 'Foreign', durationMinutes: 30, priceCents: 100, professionalIds: [b.profiles[0].id] })).rejects.toThrow('não disponíveis');
+  expect(await db.service.count({ where: { companyId: a.id } })).toBe(count);
+  const created = await bookings.createService(a.id, { name: 'New service', durationMinutes: 30, priceCents: 100, professionalIds: [a.profiles[0].id] });
+  expect((await bookings.catalog(a.slug)).services.find(s => s.id === created.id)?.professionals[0].name).toBe('QA 0');
+});
+it('edits service values without changing existing booking snapshots', async () => {
+  const request = await bookings.request(a.slug, payload());
+  await bookings.updateService(a.id, a.service.id, { name: 'Updated', durationMinutes: 60, priceCents: 9000 });
+  const stored = await db.bookingRequestItem.findFirstOrThrow({ where: { requestId: request.id } });
+  expect(stored.serviceName).toBe('QA service'); expect(stored.durationMinutes).toBe(30); expect(stored.priceCents).toBe(5000);
+  await expect(bookings.updateService(b.id, a.service.id, { active: false })).rejects.toThrow('não encontrado');
+  await expect(bookings.updateProfessional(b.id, a.profiles[0].id, { active: false })).rejects.toThrow('não encontrado');
+});
+it('enforces the plan limit on professional creation and reactivation', async () => {
+  const sub = await db.subscription.findFirstOrThrow({ where: { companyId: a.id } });
+  await db.plan.update({ where: { id: sub.planId }, data: { maxProfessionals: 0 } });
+  await expect(bookings.createProfessional(a.id, { membershipId: a.members[0].id, displayName: 'Limit QA' })).rejects.toThrow();
+  await bookings.updateProfessional(a.id, a.profiles[0].id, { active: false });
+  await expect(bookings.updateProfessional(a.id, a.profiles[0].id, { active: true })).rejects.toThrow();
+  expect((await db.professionalProfile.findUniqueOrThrow({ where: { id: a.profiles[0].id } })).active).toBe(false);
+});
+it('rejects all service changes atomically if a linked professional is from another company', async () => {
+  await expect(bookings.updateService(a.id, a.service.id, { priceCents: 9000, professionalIds: [b.profiles[0].id] })).rejects.toThrow('não disponíveis');
+  expect((await db.service.findUniqueOrThrow({ where: { id: a.service.id } })).priceCents).toBe(5000);
+});
+it('removes stale professional-role memberships from the public catalog', async () => {
+  await db.membership.updateMany({ where: { id: { in: a.profiles.map(p => p.membershipId) } }, data: { role: 'CLIENT' } });
+  expect((await bookings.catalog(a.slug)).services).toHaveLength(0);
+});
+it('rejects duplicate professional registration without changing existing profiles', async () => {
+  const count = await db.professionalProfile.count({ where: { companyId: a.id } });
+  await expect(bookings.createProfessional(a.id, { membershipId: a.profiles[0].membershipId, displayName: 'Duplicate' })).rejects.toThrow('já cadastrado');
+  expect(await db.professionalProfile.count({ where: { companyId: a.id } })).toBe(count);
+});

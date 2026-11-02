@@ -43,8 +43,8 @@ export class BookingsService {
   async catalog(slug: string) {
     const company = await this.publicCompany(slug);
     const services = await this.prisma.service.findMany({
-      where: { companyId: company.id, active: true, public: true, professionalLinks: { some: { professional: { active: true, membership: { isActive: true } } } } },
-      select: { id: true, name: true, description: true, category: true, durationMinutes: true, priceCents: true, professionalLinks: { where: { professional: { active: true, membership: { isActive: true } } }, select: { professional: { select: { id: true, displayName: true } } } } },
+      where: { companyId: company.id, active: true, public: true, professionalLinks: { some: { professional: { active: true, membership: { isActive: true, role: { in: ['OWNER', 'ADMIN', 'PROFESSIONAL'] } } } } } },
+      select: { id: true, name: true, description: true, category: true, durationMinutes: true, priceCents: true, professionalLinks: { where: { professional: { active: true, membership: { isActive: true, role: { in: ['OWNER', 'ADMIN', 'PROFESSIONAL'] } } } }, select: { professional: { select: { id: true, displayName: true } } } } },
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
     return { company: { name: company.name, slug: company.slug }, timezone: company.timezone, services: services.map(({ professionalLinks, ...service }) => ({ ...service, professionals: professionalLinks.map(({ professional }) => ({ id: professional.id, name: professional.displayName })) })) };
@@ -57,7 +57,7 @@ export class BookingsService {
     const day = new Date(`${dateValue}T12:00:00.000Z`);
     if (!Number.isFinite(day.getTime()) || day.toISOString().slice(0, 10) !== dateValue) throw new BadRequestException('Informe uma data válida.');
     const weekday = day.getUTCDay();
-    const service = await this.prisma.service.findFirst({ where: { id: serviceId, companyId: company.id, active: true, public: true }, select: { id: true, durationMinutes: true, professionalLinks: { where: { professional: { active: true, membership: { isActive: true } }, ...(professionalIdValue ? { professionalId: uuid(professionalIdValue) } : {}) }, select: { professional: { select: { id: true, displayName: true, availability: { where: { weekday, active: true }, select: { startMinute: true, endMinute: true } } } } } } } });
+    const service = await this.prisma.service.findFirst({ where: { id: serviceId, companyId: company.id, active: true, public: true }, select: { id: true, durationMinutes: true, professionalLinks: { where: { professional: { active: true, membership: { isActive: true, role: { in: ['OWNER', 'ADMIN', 'PROFESSIONAL'] } } }, ...(professionalIdValue ? { professionalId: uuid(professionalIdValue) } : {}) }, select: { professional: { select: { id: true, displayName: true, availability: { where: { weekday, active: true }, select: { startMinute: true, endMinute: true } } } } } } } });
     if (!service) throw new NotFoundException('Serviço não encontrado.');
     const startBound = new Date(`${dateValue}T00:00:00.000Z`);
     startBound.setUTCHours(startBound.getUTCHours() - 15);
@@ -107,7 +107,7 @@ export class BookingsService {
       return await this.prisma.$transaction(async (tx) => {
         const profiles: RequestedItem[] = [];
         for (const item of requested) {
-          const service = await tx.service.findFirst({ where: { id: item.serviceId, companyId: company.id, active: true, public: true, professionalLinks: { some: { professionalId: item.professionalId, professional: { active: true, membership: { isActive: true } } } } }, select: { id: true, name: true, durationMinutes: true, priceCents: true } });
+          const service = await tx.service.findFirst({ where: { id: item.serviceId, companyId: company.id, active: true, public: true, professionalLinks: { some: { professionalId: item.professionalId, professional: { active: true, membership: { isActive: true, role: { in: ['OWNER', 'ADMIN', 'PROFESSIONAL'] } } } } } }, select: { id: true, name: true, durationMinutes: true, priceCents: true } });
           if (!service) throw new BadRequestException('Um dos serviços ou profissionais não está disponível.');
           if (item.startsAt <= new Date()) throw new ConflictException('Escolha um horário futuro.');
           const end = new Date(item.startsAt.getTime() + service.durationMinutes * 60_000);
@@ -171,7 +171,7 @@ export class BookingsService {
         for (const lockKey of lockKeys) await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))::text`;
         for (const item of request.items) {
           if (item.startsAt <= new Date()) throw new ConflictException('Não é possível confirmar um horário passado.');
-          const professional = await tx.professionalProfile.findFirst({ where: { id: item.professionalId, companyId, active: true, membership: { isActive: true } }, select: { id: true } });
+          const professional = await tx.professionalProfile.findFirst({ where: { id: item.professionalId, companyId, active: true, membership: { isActive: true, role: { in: ['OWNER', 'ADMIN', 'PROFESSIONAL'] } } }, select: { id: true } });
           if (!professional) throw new ConflictException('O profissional não está mais disponível.');
           const company = await tx.company.findUniqueOrThrow({ where: { id: companyId }, select: { timezone: true } });
           assertAvailability(item.startsAt, item.durationMinutes, company.timezone, await tx.professionalAvailability.findMany({ where: { companyId, professionalId: item.professionalId, active: true }, select: { weekday: true, startMinute: true, endMinute: true } }));
@@ -206,15 +206,21 @@ export class BookingsService {
   }
 
   async listServices(companyId: string) {
-    return this.prisma.service.findMany({ where: { companyId }, orderBy: { createdAt: 'desc' } });
+    return this.prisma.service.findMany({ where: { companyId }, include: { professionalLinks: { select: { professionalId: true } } }, orderBy: { createdAt: 'desc' } });
   }
 
   async createService(companyId: string, input: unknown) {
-    const body = object(input, ['name', 'description', 'category', 'durationMinutes', 'priceCents', 'public']);
+    const body = object(input, ['name', 'description', 'category', 'durationMinutes', 'priceCents', 'public', 'professionalIds']);
     const durationMinutes = body.durationMinutes; const priceCents = body.priceCents;
     integer(durationMinutes, 'durationMinutes', 1, 1440); integer(priceCents, 'priceCents', 0, 100_000_000);
     if (body.public !== undefined && typeof body.public !== 'boolean') throw new BadRequestException('Campo inválido: public.');
-    return this.prisma.service.create({ data: { companyId, name: string(body.name, 'name', 120), description: body.description === undefined ? null : string(body.description, 'description', 2000), category: body.category === undefined ? null : string(body.category, 'category', 100), durationMinutes: durationMinutes as number, priceCents: priceCents as number, public: body.public as boolean | undefined } });
+    if (body.professionalIds !== undefined && (!Array.isArray(body.professionalIds) || body.professionalIds.length > 100)) throw new BadRequestException('Lista de profissionais inválida.');
+    const ids = [...new Set(((body.professionalIds ?? []) as unknown[]).map(uuid))];
+    return this.prisma.$transaction(async tx => {
+      const count = await tx.professionalProfile.count({ where: { id: { in: ids }, companyId, active: true, membership: { isActive: true, role: { in: ['OWNER', 'ADMIN', 'PROFESSIONAL'] } } } });
+      if (count !== ids.length) throw new BadRequestException('Profissionais não disponíveis nesta empresa.');
+      return tx.service.create({ data: { companyId, name: string(body.name, 'name', 120), description: body.description === undefined ? null : string(body.description, 'description', 2000), category: body.category === undefined ? null : string(body.category, 'category', 100), durationMinutes: durationMinutes as number, priceCents: priceCents as number, public: body.public as boolean | undefined, professionalLinks: { create: ids.map(professionalId => ({ professionalId })) } } });
+    });
   }
 
   async setupFirstService(companyId: string, input: unknown) {
@@ -243,12 +249,64 @@ export class BookingsService {
     }, { isolationLevel: 'Serializable', maxWait: 5000, timeout: 10000 });
   }
 
+  async members(companyId: string) {
+    return this.prisma.membership.findMany({ where: { companyId, isActive: true, role: { in: ['OWNER', 'ADMIN', 'PROFESSIONAL'] } }, select: { id: true, role: true, user: { select: { name: true } } }, orderBy: { createdAt: 'asc' } });
+  }
+
+  async professionals(companyId: string) {
+    return this.prisma.professionalProfile.findMany({ where: { companyId }, select: { id: true, membershipId: true, displayName: true, active: true, availability: { select: { weekday: true, startMinute: true, endMinute: true, active: true } }, services: { select: { serviceId: true } } }, orderBy: { displayName: 'asc' } });
+  }
+
   async createProfessional(companyId: string, input: unknown) {
     const body = object(input, ['membershipId', 'displayName']);
     const membershipId = uuid(body.membershipId);
-    const member = await this.prisma.membership.findFirst({ where: { id: membershipId, companyId, isActive: true, role: { in: ['PROFESSIONAL', 'OWNER', 'ADMIN'] } } });
-    if (!member) throw new ForbiddenException('Vínculo profissional não autorizado para esta empresa.');
-    return this.prisma.professionalProfile.create({ data: { companyId, membershipId, displayName: string(body.displayName, 'displayName', 120) } });
+    return withBillingConflictRetry(() => this.prisma.$transaction(async tx => {
+      const member = await tx.membership.findFirst({ where: { id: membershipId, companyId, isActive: true, role: { in: ['PROFESSIONAL', 'OWNER', 'ADMIN'] } } });
+      if (!member) throw new ForbiddenException('Vínculo profissional não autorizado para esta empresa.');
+      if (await tx.professionalProfile.findFirst({ where: { companyId, membershipId } })) throw new ConflictException('Profissional já cadastrado.');
+      const count = await tx.professionalProfile.count({ where: { companyId, active: true } });
+      await this.entitlements.assertLimit(tx, companyId, 'professionals', count);
+      return tx.professionalProfile.create({ data: { companyId, membershipId, displayName: string(body.displayName, 'displayName', 120) } });
+    }, { isolationLevel: 'Serializable' }));
+  }
+
+  async updateService(companyId: string, id: string, input: unknown) {
+    const body = object(input, ['name', 'description', 'category', 'durationMinutes', 'priceCents', 'active', 'public', 'professionalIds']);
+    const data: Prisma.ServiceUpdateManyMutationInput = {};
+    if (body.name !== undefined) data.name = string(body.name, 'name', 120);
+    for (const key of ['description', 'category'] as const) if (body[key] !== undefined) data[key] = body[key] === null ? null : string(body[key], key, key === 'description' ? 2000 : 100);
+    for (const key of ['active', 'public'] as const) if (body[key] !== undefined) { if (typeof body[key] !== 'boolean') throw new BadRequestException('Status inválido.'); data[key] = body[key]; }
+    if (body.durationMinutes !== undefined) { integer(body.durationMinutes, 'durationMinutes', 1, 1440); data.durationMinutes = body.durationMinutes as number; }
+    if (body.priceCents !== undefined) { integer(body.priceCents, 'priceCents', 0, 100_000_000); data.priceCents = body.priceCents as number; }
+    if (!Object.keys(data).length) throw new BadRequestException('Informe uma alteração.');
+    if (body.professionalIds !== undefined && (!Array.isArray(body.professionalIds) || body.professionalIds.length > 100)) throw new BadRequestException('Lista de profissionais inválida.');
+    const ids = body.professionalIds === undefined ? undefined : [...new Set((body.professionalIds as unknown[]).map(uuid))];
+    return this.prisma.$transaction(async tx => {
+      if (ids && await tx.professionalProfile.count({ where: { companyId, id: { in: ids }, active: true, membership: { isActive: true, role: { in: ['OWNER', 'ADMIN', 'PROFESSIONAL'] } } } }) !== ids.length) throw new BadRequestException('Profissionais não disponíveis nesta empresa.');
+      const result = await tx.service.updateMany({ where: { id, companyId }, data });
+      if (!result.count) throw new NotFoundException('Serviço não encontrado.');
+      if (ids) {
+        await tx.serviceProfessional.deleteMany({ where: { companyId, serviceId: id } });
+        if (ids.length) await tx.serviceProfessional.createMany({ data: ids.map(professionalId => ({ companyId, serviceId: id, professionalId })) });
+      }
+      return tx.service.findFirstOrThrow({ where: { id, companyId } });
+    });
+  }
+
+  async updateProfessional(companyId: string, id: string, input: unknown) {
+    const body = object(input, ['displayName', 'active']);
+    if (body.active !== undefined && typeof body.active !== 'boolean') throw new BadRequestException('Status inválido.');
+    const displayName = body.displayName === undefined ? undefined : string(body.displayName, 'displayName', 120);
+    if (displayName === undefined && body.active === undefined) throw new BadRequestException('Informe uma alteração.');
+    return withBillingConflictRetry(() => this.prisma.$transaction(async tx => {
+      const current = await tx.professionalProfile.findFirst({ where: { id, companyId }, include: { membership: true } });
+      if (!current) throw new NotFoundException('Profissional não encontrado.');
+      if (body.active === true) {
+        if (!current.membership.isActive || !['OWNER', 'ADMIN', 'PROFESSIONAL'].includes(current.membership.role)) throw new ForbiddenException('Vínculo profissional inativo.');
+        if (!current.active) await this.entitlements.assertLimit(tx, companyId, 'professionals', await tx.professionalProfile.count({ where: { companyId, active: true } }));
+      }
+      return tx.professionalProfile.update({ where: { id }, data: { displayName, active: body.active as boolean | undefined } });
+    }, { isolationLevel: 'Serializable' }));
   }
 
   async setAvailability(companyId: string, professionalId: string, input: unknown) {
@@ -275,7 +333,7 @@ export class BookingsService {
     const ids = [...new Set(body.professionalIds.map(uuid))];
     return this.prisma.$transaction(async (tx) => {
       if (!(await tx.service.findFirst({ where: { id: serviceId, companyId } }))) throw new NotFoundException('Serviço não encontrado.');
-      const profiles = await tx.professionalProfile.findMany({ where: { companyId, id: { in: ids }, active: true, membership: { isActive: true } }, select: { id: true } });
+      const profiles = await tx.professionalProfile.findMany({ where: { companyId, id: { in: ids }, active: true, membership: { isActive: true, role: { in: ['OWNER', 'ADMIN', 'PROFESSIONAL'] } } }, select: { id: true } });
       if (profiles.length !== ids.length) throw new BadRequestException('Um ou mais profissionais não pertencem à empresa.');
       await tx.serviceProfessional.deleteMany({ where: { companyId, serviceId } });
       if (ids.length) await tx.serviceProfessional.createMany({ data: ids.map((professionalId) => ({ companyId, serviceId, professionalId })) });

@@ -10,6 +10,7 @@ function setup() {
     bookingRequest: { findUnique: vi.fn() },
     customerProfile: { create: vi.fn() },
   };
+  Object.assign(prisma, { $transaction: (fn: (tx: typeof prisma) => unknown) => fn(prisma) });
   const entitlements = { current: vi.fn().mockResolvedValue({ id: 'entitled' }) };
   return { service: new BookingsService(prisma as never, entitlements as never), prisma, entitlements, company };
 }

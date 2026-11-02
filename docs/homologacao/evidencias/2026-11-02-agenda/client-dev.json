@@ -1,0 +1,29 @@
+{
+  "environment": "DEV",
+  "results": [
+    {
+      "name": "invitation_company_and_role_isolation",
+      "status": "PASS"
+    },
+    {
+      "name": "anonymous_mobile_activation_with_single_use_capability",
+      "status": "PASS"
+    },
+    {
+      "name": "consumed_capability_replay_rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "client_login_own_history_and_forbidden_staff_other_tenant",
+      "status": "PASS"
+    },
+    {
+      "name": "mobile_client_panel_persisted_bookings",
+      "status": "PASS"
+    },
+    {
+      "name": "anonymous_public_catalog_preserved_and_professional_names_visible",
+      "status": "PASS"
+    }
+  ]
+}
