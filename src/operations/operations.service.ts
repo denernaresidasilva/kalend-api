@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { EntitlementsService } from '../billing/entitlements.service.js';
 import { withBillingConflictRetry } from '../billing/transaction-conflict.js';
 import { integer, object, string, uuid } from '../common/validation.js';
+import { confirmLoyalty, reverseLoyalty } from './loyalty-domain.js';
 import { saleEvent, scheduleFollowups } from './operational-messages.js';
 import { cashBalance, generateCommissions, reconcileCommissions } from './commission-domain.js';
 import { netReceived, terminalSale, totalSale } from './pos-domain.js';
@@ -197,6 +198,7 @@ export class OperationsService {
       await tx.posSale.update({ where: { id }, data: { status: 'PAID', finalizedAt: new Date(), finalizedById: actor.userId } });
       await generateCommissions(tx, actor, sale);
       await scheduleFollowups(tx, sale);
+      await confirmLoyalty(tx, sale);
       await saleEvent(tx, sale, 'OP_SALE_PAID', sale.id);
       await this.audit(tx, actor, 'SALE_FINALIZED', { totalCents: sale.totalCents }, id); await this.notify(tx, actor.companyId, lines.flatMap(l => l.professionalId ? [l.professionalId] : [])); return this.sale(tx, actor, id);
     });
@@ -215,6 +217,7 @@ export class OperationsService {
       const sale = await this.sale(tx, actor, receipt.saleId);
       if (['PAID', 'PARTIALLY_REFUNDED'].includes(sale.status)) await tx.posSale.update({ where: { id: sale.id }, data: { status: netReceived(sale.payments, sale.refunds) === 0 ? 'REFUNDED' : 'PARTIALLY_REFUNDED' } });
       await reconcileCommissions(tx, actor, sale, refund.id);
+      await reverseLoyalty(tx, sale, refund.id);
       await tx.posFollowupJob.updateMany({where:{companyId:actor.companyId,saleId:sale.id,status:'PENDING'},data:{status:'CANCELLED',result:'SALE_REFUNDED'}});
       await saleEvent(tx, sale, 'OP_REFUND_RECORDED', refund.id, {__factId:refund.id});
       await this.audit(tx, actor, 'REFUND_RECORDED', { refundId: refund.id, receiptId, amountCents: refund.amountCents, reason }, receipt.saleId); await this.notify(tx, actor.companyId, sale.lines.flatMap(l => l.professionalId ? [l.professionalId] : [])); return refund;

@@ -110,6 +110,8 @@ model User {
 }
 
 model Company {
+ loyaltySettings PosLoyaltySettings?
+ loyaltyCards PosLoyaltyCard[]
   posCashSessions PosCashSession[]
   posProducts PosProduct[]
   posCoupons PosCoupon[]
@@ -235,6 +237,7 @@ model ServiceProfessional {
 }
 
 model CustomerProfile {
+ loyaltyCard PosLoyaltyCard?
   messageConsents PosMessageConsent[]
   followupJobs PosFollowupJob[]
   posSales PosSale[]
@@ -1032,6 +1035,7 @@ model PosCoupon {
   @@unique([companyId, code])
 }
 model PosSale {
+ loyaltyEntries PosLoyaltyEntry[]
   followupJobs PosFollowupJob[]
   commissions PosCommission[]
   id String @id @default(uuid()) @db.Uuid
@@ -1252,4 +1256,47 @@ model PosFollowupJob {
  createdAt DateTime @default(now())
  @@unique([lineId,companyId])
  @@index([status,dueAt])
+}
+
+model PosLoyaltySettings {
+ companyId String @id @db.Uuid
+ company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+ enabled Boolean @default(false)
+ spendCents Int @default(100)
+ points Int @default(1)
+ minPaidCents Int @default(100)
+ referralPoints Int @default(0)
+ updatedAt DateTime @updatedAt
+}
+model PosLoyaltyCard {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ customerId String @db.Uuid
+ customer CustomerProfile @relation(fields:[customerId,companyId],references:[id,companyId],onDelete:Restrict)
+ code String @unique @default(uuid()) @db.Uuid
+ referrerId String? @db.Uuid
+ referrer PosLoyaltyCard? @relation("Referrals",fields:[referrerId,companyId],references:[id,companyId],onDelete:Restrict)
+ referrals PosLoyaltyCard[] @relation("Referrals")
+ entries PosLoyaltyEntry[]
+ createdAt DateTime @default(now())
+ @@unique([id,companyId])
+ @@unique([customerId,companyId])
+}
+model PosLoyaltyEntry {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ cardId String @db.Uuid
+ card PosLoyaltyCard @relation(fields:[cardId,companyId],references:[id,companyId],onDelete:Restrict)
+ saleId String @db.Uuid
+ sale PosSale @relation(fields:[saleId,companyId],references:[id,companyId],onDelete:Restrict)
+ sourceKey String
+ delta Int
+ kind String
+ originalPoints Int
+ basisCents Int
+ minPaidCents Int
+ createdAt DateTime @default(now())
+ @@unique([companyId,sourceKey])
+ @@index([companyId,cardId])
 }
