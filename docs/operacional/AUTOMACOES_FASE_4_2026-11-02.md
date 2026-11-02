@@ -1,0 +1,11 @@
+# Mensagens operacionais e follow-up
+
+Reutiliza GlobalCommunicationOutbox, templates globais/da empresa, NotificationsService, Worker/Scheduler, providers e transportes existentes. Doze eventos operacionais entram no registro de eventos com modelos prontos nos três canais; os novos modelos ficam desativados por padrão, sem modificar modelos comerciais anteriores. OWNER/ADMIN ativam por evento/canal e editam conteúdo com as validações de variáveis/escape já existentes.
+
+Clientes ativados controlam consentimento por e-mail, WhatsApp, Push e mensagens comerciais. O consentimento captura o contato a que se refere; mudança de contato, revogação, perda de acesso/assinatura ou alteração do fato impede envio. A expansão e o envio revalidam empresa, usuário, perfil e canal. Push ainda depende de dispositivo e autorização anteriores. Nenhum endereço ou telefone digitado por terceiros cria autorização para comunicação.
+
+Follow-up individual por serviço, em horas/dias, após conclusão real e comanda legitimamente finalizada/paga. Job único por item; horário deriva da conclusão; Worker e Scheduler existentes processam vencidos com SKIP LOCKED. Outbox usa chave de negócio estável para não duplicar. Cancelamento/estorno suprime pendentes e a revalidação bloqueia os já enfileirados que perderam elegibilidade. Comissão paga também produz notificação interna para o profissional; não há envio externo a funcionários sem consentimento apropriado.
+
+Pré-publicação: 25 testes PostgreSQL nativos operacionais aprovados, incluindo concorrência de jobs, consentimento, isolamento, supressão após estorno e variáveis válidas. Corrigida comparação de vencimento para UTC explícito: Prisma armazena instantes UTC em timestamp e LOCALTIMESTAMP do cluster local podia atrasar o job pelo fuso. Corrigida também limpeza da fixture da Outbox (sem FK Company) entre cenários; nenhuma limpeza de dados reais. API: 942 unitários, build/lint; Web: 411 testes, tipos/lint/build aprovados.
+
+Fase contador anterior publicada e homologada: API 38b3956 / Actions 41510462369; Web 40ce329 / Actions 41510725516. Duas jornadas DEV reais, incluindo CSV mobile e negações de mutação/financeiro SaaS. Backup pré-publicação atual: 50 tabelas, 26 migrations, 5 PaymentEvidence. Nenhuma alteração de timer compartilhado, PROD ou envio externo foi executada.

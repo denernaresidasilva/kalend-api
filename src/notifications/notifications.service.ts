@@ -1,3 +1,4 @@
+import { OPERATIONAL_EVENTS, OPERATIONAL_LABELS, operationalEvent } from '../communication/operational-events.js';
 import {
   BadRequestException,
   ForbiddenException,
@@ -93,6 +94,7 @@ const presentations: Record<string, [string, string, string]> = {
     'A senha da sua conta foi alterada.',
   ],
 };
+Object.assign(presentations, Object.fromEntries(OPERATIONAL_EVENTS.map(event => [event, ['atendimento', OPERATIONAL_LABELS[event], OPERATIONAL_LABELS[event]]])));
 export function decodeCursor(value: string) {
   try {
     if (value.length > 250) throw Error();
@@ -293,6 +295,7 @@ export class NotificationsService {
         const presentation = presentations[event.event];
         if (
           presentation &&
+          (!operationalEvent(event.event) || !!event.userId) &&
           recent &&
           (event.companyId ||
             (event.event === 'SECURITY_PASSWORD_CHANGED' && event.userId))
@@ -307,7 +310,7 @@ export class NotificationsService {
                   await tx.membership.findMany({
                     where: {
                       companyId: event.companyId!,
-                      role: 'OWNER',
+                      role: operationalEvent(event.event) ? undefined : 'OWNER',
                       isActive: true,
                       user: { isActive: true },
                       ...(event.userId ? { userId: event.userId } : {}),

@@ -1,3 +1,5 @@
+import { operationalEvent } from './operational-events.js';
+import { operationalRecipient } from '../operations/operational-messages.js';
 import { qaRecoverableCompany } from '../billing/company-policy.js';
 import { adminList, listStatus } from '../common/admin-list.js';
 import { pushPayload, pushTargets } from './push.js';
@@ -370,6 +372,7 @@ export class CommunicationEngine {
           let name;
           try {
             name = eventName(event.event);
+            if (operationalEvent(name) && !event.userId) throw new BadRequestException('OPERATIONAL_RECIPIENT_REQUIRED');
             if (
               !event.companyId &&
               !(name === 'SECURITY_PASSWORD_CHANGED' && event.userId)
@@ -429,7 +432,7 @@ export class CommunicationEngine {
           const members = await tx.membership.findMany({
             where: {
               companyId: event.companyId ?? undefined,
-              role: 'OWNER',
+              role: operationalEvent(name) ? undefined : 'OWNER',
               isActive: true,
               user: { isActive: true },
               ...(event.userId ? { userId: event.userId } : {}),
@@ -446,6 +449,11 @@ export class CommunicationEngine {
           let deliveryLimitReached = false;
           for (const member of unique.values()) {
             for (const t of templates) {
+              if (operationalEvent(name)) {
+                const target = await operationalRecipient(tx, event, t.channel);
+                if (!target) { blocked.set(t.channel, 'OPERATIONAL_CONSENT_OR_FACT_CHANGED'); continue; }
+                member.user.email = target.email; member.user.phone = target.phone;
+              }
               if (options.qaMode && qaDeliveriesCreated >= 20) {
                 deliveryLimitReached = true;
                 break;
@@ -797,7 +805,7 @@ export class CommunicationEngine {
           where: {
             companyId: event.companyId ?? undefined,
             userId: row.userId,
-            role: 'OWNER',
+            role: operationalEvent(event.event) ? undefined : 'OWNER',
             isActive: true,
             user: { isActive: true },
           },
@@ -814,6 +822,11 @@ export class CommunicationEngine {
             : await this.db.globalCommunicationTemplate.findUnique({
                 where: { id: row.templateId },
               });
+        if (operationalEvent(event.event)) {
+          const target = await operationalRecipient(this.db, event, row.channel);
+          if (!target || !member || event.userId !== row.userId) { status = 'SKIPPED'; code = 'OPERATIONAL_CONSENT_OR_FACT_CHANGED'; }
+          else { member.user.email = target.email; member.user.phone = target.phone; }
+        }
         if (qaMode) {
           const channel = row.channel as QaChannel;
           const currentRecipient =

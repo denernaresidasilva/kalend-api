@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { EntitlementsService } from '../billing/entitlements.service.js';
 import { withBillingConflictRetry } from '../billing/transaction-conflict.js';
 import { integer, object, string, uuid } from '../common/validation.js';
+import { saleEvent, scheduleFollowups } from './operational-messages.js';
 import { cashBalance, generateCommissions, reconcileCommissions } from './commission-domain.js';
 import { netReceived, terminalSale, totalSale } from './pos-domain.js';
 export type Operator = { companyId: string; userId: string; membershipId: string; role: string };
@@ -150,6 +151,7 @@ export class OperationsService {
       }
       const fresh = await this.sale(tx, actor, sale.id); const pending = fresh.lines.some(l => !l.voidedAt && l.serviceId && !l.completedAt);
       await tx.posSale.update({ where: { id: sale.id }, data: { status: pending ? 'IN_PROGRESS' : 'AWAITING_PAYMENT' } });
+      if (action !== 'void') await saleEvent(tx, fresh, action === 'start' ? 'OP_ATTENDANCE_STARTED' : 'OP_SERVICE_COMPLETED', lineId, {__lineId:lineId,servico:line.name});
       await this.audit(tx, actor, `LINE_${action.toUpperCase()}`, { lineId, ...(action === 'void' ? { reason: string(body.reason, 'reason', 1000) } : {}) }, sale.id); await this.notify(tx, actor.companyId, fresh.lines.flatMap(l => l.professionalId ? [l.professionalId] : [])); return { id: lineId, action };
     });
   }
@@ -181,6 +183,7 @@ export class OperationsService {
       if (!sale.lines.some(l => !l.voidedAt) || netReceived(sale.payments, sale.refunds) + (body.amountCents as number) > sale.totalCents) throw new ConflictException('Recebimento maior que o saldo da comanda.');
       const cash = await this.openCash(tx, actor.companyId);
       const receipt = await tx.posReceipt.create({ data: { companyId: actor.companyId, saleId: id, cashSessionId: cash.id, idempotencyKey: key, amountCents: body.amountCents as number, method: body.method as PosPaymentMethod, reference, recordedById: actor.userId } });
+      await saleEvent(tx, sale, 'OP_RECEIPT_RECORDED', receipt.id, {__factId:receipt.id});
       await this.audit(tx, actor, 'RECEIPT_RECORDED', { receiptId: receipt.id, amountCents: receipt.amountCents, method: receipt.method }, id); await this.notify(tx, actor.companyId); return receipt;
     });
   }
@@ -193,6 +196,8 @@ export class OperationsService {
       if (netReceived(sale.payments, sale.refunds) !== sale.totalCents) throw new ConflictException('A comanda ainda possui saldo a receber.');
       await tx.posSale.update({ where: { id }, data: { status: 'PAID', finalizedAt: new Date(), finalizedById: actor.userId } });
       await generateCommissions(tx, actor, sale);
+      await scheduleFollowups(tx, sale);
+      await saleEvent(tx, sale, 'OP_SALE_PAID', sale.id);
       await this.audit(tx, actor, 'SALE_FINALIZED', { totalCents: sale.totalCents }, id); await this.notify(tx, actor.companyId, lines.flatMap(l => l.professionalId ? [l.professionalId] : [])); return this.sale(tx, actor, id);
     });
   }
@@ -210,11 +215,13 @@ export class OperationsService {
       const sale = await this.sale(tx, actor, receipt.saleId);
       if (['PAID', 'PARTIALLY_REFUNDED'].includes(sale.status)) await tx.posSale.update({ where: { id: sale.id }, data: { status: netReceived(sale.payments, sale.refunds) === 0 ? 'REFUNDED' : 'PARTIALLY_REFUNDED' } });
       await reconcileCommissions(tx, actor, sale, refund.id);
+      await tx.posFollowupJob.updateMany({where:{companyId:actor.companyId,saleId:sale.id,status:'PENDING'},data:{status:'CANCELLED',result:'SALE_REFUNDED'}});
+      await saleEvent(tx, sale, 'OP_REFUND_RECORDED', refund.id, {__factId:refund.id});
       await this.audit(tx, actor, 'REFUND_RECORDED', { refundId: refund.id, receiptId, amountCents: refund.amountCents, reason }, receipt.saleId); await this.notify(tx, actor.companyId, sale.lines.flatMap(l => l.professionalId ? [l.professionalId] : [])); return refund;
     });
   }
   async cancel(actor: Operator, id: string, input: unknown) {
     const body = object(input, ['reason']); const reason = string(body.reason, 'reason', 1000);
-    return this.change(actor, cashiers, async tx => { const sale = await this.sale(tx, actor, id); if (sale.status === 'CANCELLED') return sale; if (terminalSale(sale.status) || netReceived(sale.payments, sale.refunds) !== 0) throw new ConflictException('Estorne os recebimentos antes de cancelar uma comanda ainda não finalizada.'); await tx.posSale.update({ where: { id }, data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledById: actor.userId, cancellationReason: reason } }); await this.audit(tx, actor, 'SALE_CANCELLED', { reason }, id); await this.notify(tx, actor.companyId, sale.lines.flatMap(l => l.professionalId ? [l.professionalId] : [])); return this.sale(tx, actor, id); });
+    return this.change(actor, cashiers, async tx => { const sale = await this.sale(tx, actor, id); if (sale.status === 'CANCELLED') return sale; if (terminalSale(sale.status) || netReceived(sale.payments, sale.refunds) !== 0) throw new ConflictException('Estorne os recebimentos antes de cancelar uma comanda ainda não finalizada.'); await tx.posSale.update({ where: { id }, data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledById: actor.userId, cancellationReason: reason } }); await tx.posFollowupJob.updateMany({where:{companyId:actor.companyId,saleId:id,status:'PENDING'},data:{status:'CANCELLED',result:'SALE_CANCELLED'}});await saleEvent(tx,sale,'OP_SALE_CANCELLED',id);await this.audit(tx, actor, 'SALE_CANCELLED', { reason }, id); await this.notify(tx, actor.companyId, sale.lines.flatMap(l => l.professionalId ? [l.professionalId] : [])); return this.sale(tx, actor, id); });
   }
 }

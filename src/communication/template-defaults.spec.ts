@@ -3,11 +3,11 @@ import { EVENTS, variablesFor, templateContent } from './contracts.js';
 
 describe('global communication template defaults', () => {
   it('defines complete valid content for every real event and channel', () => {
-    expect(EVENTS).toHaveLength(13);
+    expect(EVENTS).toHaveLength(25);
     expect(GLOBAL_TEMPLATE_DEFAULTS).toHaveLength(EVENTS.length * 3);
     for (const row of GLOBAL_TEMPLATE_DEFAULTS) {
       expect(row.scope).toBe('GLOBAL');
-      expect(row.enabled).toBe(true);
+      expect(row.enabled).toBe(!row.event.startsWith('OP_'));
       expect(row.content.text).toBeTruthy();
       expect(() => templateContent(row.content, row.channel, row.event)).not.toThrow();
       const allowed = variablesFor(row.event);

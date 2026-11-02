@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { queueCustomerEvent } from '../operations/operational-messages.js';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { retryableBillingConflict, withBillingConflictRetry } from '../billing/transaction-conflict.js';
@@ -140,6 +141,7 @@ export class BookingsService {
         const recipients = await tx.membership.findMany({ where: { companyId: company.id, isActive: true, role: { in: ['OWNER', 'ADMIN', 'RECEPTIONIST'] } }, select: { userId: true, role: true } });
         if (recipients.length) await tx.notification.createMany({ data: recipients.map(({ userId, role }) => ({ userId, companyId: company.id, sourceKey: `booking-request:${created.id}`, type: 'BOOKING_REQUESTED', title: 'Nova solicitação de agendamento', message: 'Uma nova solicitação de agendamento aguarda análise.', actionUrl: role === 'RECEPTIONIST' ? '/painel/recepcionista' : '/painel/proprietario', actionLabel: 'Ver solicitação' })), skipDuplicates: true });
         await tx.$queryRaw`SELECT pg_notify('kalend_booking_events', ${JSON.stringify({ companyId: company.id, professionalIds: [...new Set(profiles.map(item => item.professionalId))] })})::text`;
+        await queueCustomerEvent(tx,company.id,customer.id,'OP_BOOKING_REQUESTED',created.id,{__bookingId:created.id,servico:profiles.map(p=>p.serviceName).join(', ').slice(0,500)});
         return created;
       }, { isolationLevel: 'Serializable', maxWait: 5000, timeout: 10000 });
     } catch (error) {
@@ -184,6 +186,7 @@ export class BookingsService {
       const result = await tx.bookingRequest.updateMany({ where: { id: requestId, companyId, status: 'REQUESTED' }, data: { status: decision } });
       if (result.count !== 1) throw new ConflictException('A solicitação foi processada por outra pessoa.');
       await tx.$queryRaw`SELECT pg_notify('kalend_booking_events', ${JSON.stringify({ companyId, professionalIds: [...new Set(request.items.map(item => item.professionalId))] })})::text`;
+      await queueCustomerEvent(tx,companyId,request.customerId,decision==='CONFIRMED'?'OP_BOOKING_CONFIRMED':'OP_BOOKING_REJECTED',request.id,{__bookingId:request.id,servico:request.items.map(i=>i.serviceName).join(', ').slice(0,500)});
       return tx.bookingRequest.findFirstOrThrow({ where: { id: requestId, companyId }, select: requestSelect });
     }, { isolationLevel: 'Serializable', maxWait: 5000, timeout: 10000 }));
   }

@@ -4,10 +4,22 @@ import { BillingModule } from '../billing/billing.module.js';
 import { TenantGuard, TenantRoles } from '../auth/tenant.guard.js';
 import { ProductAccessGuard } from '../billing/product-access.guard.js';
 import type { AuthRequest } from '../auth/auth.types.js';
+import { OperationalAutomations } from './automations.service.js';
 import { FinancialReportService } from './financial-report.service.js';
 import { CommissionsService } from './commissions.service.js';
 import { OperationsService, type Operator } from './operations.service.js';
 export const operator = (req: AuthRequest): Operator => ({ companyId: req.tenant!.companyId, userId: req.auth.user.id, membershipId: req.tenant!.membershipId, role: req.tenant!.role });
+@Controller('operations/automations')
+@UseGuards(TenantGuard,ProductAccessGuard)
+export class AutomationsController {
+ constructor(@Inject(OperationalAutomations)private readonly service:OperationalAutomations){}
+ @Get() @TenantRoles('OWNER','ADMIN') get(@Req()r:AuthRequest){return this.service.settings(operator(r));}
+ @Post('template') @TenantRoles('OWNER','ADMIN') template(@Req()r:AuthRequest,@Body()b:unknown){return this.service.template(operator(r),b);}
+ @Post('followup') @TenantRoles('OWNER','ADMIN') followup(@Req()r:AuthRequest,@Body()b:unknown){return this.service.followup(operator(r),b);}
+ @Post('run-due') @TenantRoles('OWNER','ADMIN') due(@Req()r:AuthRequest){return this.service.due([r.tenant!.companyId]);}
+ @Get('consent') @TenantRoles('CLIENT','OWNER','ADMIN','PROFESSIONAL','RECEPTIONIST') consent(@Req()r:AuthRequest){return this.service.consent(operator(r));}
+ @Post('consent') @TenantRoles('CLIENT','OWNER','ADMIN','PROFESSIONAL','RECEPTIONIST') saveConsent(@Req()r:AuthRequest,@Body()b:unknown){return this.service.consent(operator(r),b);}
+}
 @Controller('operations/financial-report')
 @UseGuards(TenantGuard, ProductAccessGuard)
 export class FinancialReportController {
@@ -46,5 +58,5 @@ export class OperationsController {
   @Post('receipts/:id/refund') @TenantRoles('OWNER', 'ADMIN') refund(@Req() r: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body() b: unknown) { return this.ops.refund(operator(r), id, b); }
   @Post('sales/:id/cancel') @TenantRoles('OWNER', 'ADMIN', 'RECEPTIONIST') cancel(@Req() r: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body() b: unknown) { return this.ops.cancel(operator(r), id, b); }
 }
-@Module({ imports: [AuthModule, BillingModule], controllers: [OperationsController, CommissionsController, FinancialReportController], providers: [OperationsService, CommissionsService, FinancialReportService], exports: [OperationsService] })
+@Module({ imports: [AuthModule, BillingModule], controllers: [OperationsController, CommissionsController, FinancialReportController, AutomationsController], providers: [OperationsService, CommissionsService, FinancialReportService, OperationalAutomations], exports: [OperationsService, OperationalAutomations] })
 export class OperationsModule {}

@@ -1,3 +1,4 @@
+import { OperationalAutomations } from '../operations/automations.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
@@ -44,6 +45,7 @@ if (
           ),
         );
       } else {
+        const operational = await app.get(OperationalAutomations).due();
         const temporal = await engine.temporal();
         const inbox = await app.get(NotificationsService).ingest();
         const batch = await engine.run();
@@ -52,6 +54,7 @@ if (
           phase: 'batch-complete',
           durationMs: Date.now() - startedAt,
           temporal,
+          operational,
           inbox,
           ...batch,
         }));

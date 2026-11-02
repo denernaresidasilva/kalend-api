@@ -1,3 +1,4 @@
+import { OPERATIONAL_EVENTS, OPERATIONAL_LABELS, operationalEvent } from './operational-events.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EVENTS, type Channel } from './contracts.js';
@@ -8,7 +9,7 @@ type EventCopy = { EMAIL: Copy; WHATSAPP: Copy; PUSH: Copy };
 type DefaultEvent = (typeof EVENTS)[number];
 
 const footer = '\n\nKalend\nOrganize. Atenda. Cresça.';
-export const DEFAULT_TEMPLATE_COPY: Record<DefaultEvent, EventCopy> = {
+const COMMERCIAL_TEMPLATE_COPY = {
   OWNER_WELCOME: {
     EMAIL: { subject: 'Bem-vindo ao Kalend! Sua conta está pronta.', text: 'Olá, {{nome}}!\n\nSua conta no Kalend foi criada com sucesso.\n\nEmpresa: {{empresa}}\nPlano: {{plano}}\nTeste grátis até: {{vencimento}}\nE-mail de acesso: {{email_acesso}}\n\nEntre no Kalend: {{url_acesso}}\n\nNenhuma senha ou código de acesso será enviado por e-mail.\n\nEquipe Kalend.' + footer },
     WHATSAPP: { text: 'Olá, {{nome}}! 👋\n\nSeja bem-vindo ao *Kalend*. ✨\n\nA empresa *{{empresa}}* já está pronta para começar.\n\nAgora você pode configurar:\n\n📅 Agenda\n👥 Equipe\n✂️ Serviços\n🕐 Horários\n📲 Comunicações\n📊 Gestão da empresa\n\nAcesse o Kalend e comece suas configurações.\n\nBem-vindo! 🚀' },
@@ -76,6 +77,11 @@ export const DEFAULT_TEMPLATE_COPY: Record<DefaultEvent, EventCopy> = {
   },
 };
 
+export const DEFAULT_TEMPLATE_COPY = { ...COMMERCIAL_TEMPLATE_COPY, ...Object.fromEntries(OPERATIONAL_EVENTS.map(event => {
+ const label=OPERATIONAL_LABELS[event],text=event==='OP_FOLLOW_UP'?'Olá, {{nome}}! Como foi seu atendimento de {{servico}} na {{empresa}}? Conte para nós.':`${label}. Olá, {{nome}}! {{empresa}}: {{servico}}. {{valor}}`;
+ return [event,{EMAIL:{subject:label,text},WHATSAPP:{text},PUSH:{title:label,text}}];
+})) } as Record<DefaultEvent, EventCopy>;
+
 const providerFor: Record<Channel, 'SMTP' | 'EVOLUTION' | 'PUSH_PENDING'> = {
   EMAIL: 'SMTP',
   WHATSAPP: 'EVOLUTION',
@@ -88,7 +94,7 @@ export const GLOBAL_TEMPLATE_DEFAULTS = EVENTS.flatMap((event) =>
     event,
     channel,
     provider: providerFor[channel],
-    enabled: true,
+    enabled: !operationalEvent(event),
     content: DEFAULT_TEMPLATE_COPY[event][channel],
   })),
 );

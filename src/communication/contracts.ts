@@ -1,6 +1,8 @@
+import { OPERATIONAL_EVENTS, operationalEvent } from './operational-events.js';
 import { BadRequestException } from '@nestjs/common';
 import { object, string } from '../common/validation.js';
 export const EVENTS = [
+  ...OPERATIONAL_EVENTS,
   'OWNER_WELCOME',
   'TRIAL_STARTED',
   'TRIAL_EXPIRING',
@@ -46,6 +48,7 @@ export function providerName(v: string): Provider {
   return v as Provider;
 }
 export function variablesFor(event: Event): string[] {
+  if (operationalEvent(event)) return ['nome','empresa','servico','valor','horario','pontos'];
   if (event === 'SECURITY_PASSWORD_CHANGED') return ['nome'];
   if (event === 'QA_COMMUNICATION_TEST') return ['nome', 'empresa'];
   if (event === 'OWNER_WELCOME') return ['nome', 'empresa', 'plano', 'vencimento', 'email_acesso', 'url_acesso'];

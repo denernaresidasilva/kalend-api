@@ -166,6 +166,7 @@ model Membership {
 // Tenant-owned operational catalog. Every business record carries companyId;
 // composite foreign keys below prevent cross-company references at the DB layer.
 model Service {
+  followupRules PosServiceFollowup[]
   commissionRules PosCommissionRule[]
   posLines PosSaleLine[]
   id              String   @id @default(uuid()) @db.Uuid
@@ -234,6 +235,8 @@ model ServiceProfessional {
 }
 
 model CustomerProfile {
+  messageConsents PosMessageConsent[]
+  followupJobs PosFollowupJob[]
   posSales PosSale[]
   userId      String? @db.Uuid
   user        User? @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -1029,6 +1032,7 @@ model PosCoupon {
   @@unique([companyId, code])
 }
 model PosSale {
+  followupJobs PosFollowupJob[]
   commissions PosCommission[]
   id String @id @default(uuid()) @db.Uuid
   companyId String @db.Uuid
@@ -1064,6 +1068,7 @@ model PosSale {
   @@index([companyId, status, createdAt])
 }
 model PosSaleLine {
+  followupJobs PosFollowupJob[]
   commissions PosCommission[]
   id String @id @default(uuid()) @db.Uuid
   companyId String @db.Uuid
@@ -1206,4 +1211,45 @@ model PosCommissionPayout {
   actorId String @db.Uuid
   createdAt DateTime @default(now())
   @@unique([companyId, idempotencyKey])
+}
+model PosMessageConsent {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ customerId String @db.Uuid
+ customer CustomerProfile @relation(fields:[customerId,companyId],references:[id,companyId],onDelete:Cascade)
+ email Boolean @default(false)
+ whatsapp Boolean @default(false)
+ push Boolean @default(false)
+ marketing Boolean @default(false)
+ emailSnapshot String?
+ phoneSnapshot String?
+ actorId String @db.Uuid
+ updatedAt DateTime @updatedAt
+ @@unique([customerId,companyId])
+}
+model PosServiceFollowup {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ serviceId String @db.Uuid
+ service Service @relation(fields:[serviceId,companyId],references:[id,companyId],onDelete:Cascade)
+ delayMinutes Int
+ enabled Boolean @default(false)
+ updatedAt DateTime @updatedAt
+ @@unique([serviceId,companyId])
+}
+model PosFollowupJob {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ saleId String @db.Uuid
+ sale PosSale @relation(fields:[saleId,companyId],references:[id,companyId],onDelete:Restrict)
+ lineId String @db.Uuid
+ line PosSaleLine @relation(fields:[lineId,companyId],references:[id,companyId],onDelete:Restrict)
+ customerId String @db.Uuid
+ customer CustomerProfile @relation(fields:[customerId,companyId],references:[id,companyId],onDelete:Restrict)
+ dueAt DateTime
+ status String @default("PENDING")
+ result String?
+ createdAt DateTime @default(now())
+ @@unique([lineId,companyId])
+ @@index([status,dueAt])
 }
