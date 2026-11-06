@@ -1,3 +1,4 @@
+import { waitlistLink } from '../bookings/waitlist-link.js';
 import { OPERATIONAL_EVENTS, OPERATIONAL_LABELS, operationalEvent } from '../communication/operational-events.js';
 import {
   BadRequestException,
@@ -14,6 +15,7 @@ import { communicationEventScope } from '../communication/event-scope.js';
 
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 export function safeNotificationUrl(value: unknown): string | null {
+  if(typeof value==='string'&&/^\/agendar\/[a-z0-9-]{1,100}\?opportunity=[a-f0-9-]{36}$/i.test(value))return value;
   return typeof value === 'string' &&
     [
       '/conta',
@@ -337,11 +339,11 @@ export class NotificationsService {
                 message: presentation[2],
                 createdAt: now,
                 actionUrl:
-                  event.event === 'SECURITY_PASSWORD_CHANGED'
+                  event.event==='OP_WAITLIST_AVAILABLE' ? waitlistLink(event.variables)??'/conta/notificacoes' : event.event === 'SECURITY_PASSWORD_CHANGED'
                     ? '/conta#seguranca'
                     : '/conta',
                 actionLabel:
-                  event.event === 'SECURITY_PASSWORD_CHANGED'
+                  event.event==='OP_WAITLIST_AVAILABLE' ? 'Ver oportunidade' : event.event === 'SECURITY_PASSWORD_CHANGED'
                     ? 'Ver segurança'
                     : 'Ver minha conta',
               })),

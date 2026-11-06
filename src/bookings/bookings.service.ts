@@ -1,3 +1,4 @@
+import { validateWaitlistConversion, completeWaitlistConversion } from './waitlist-conversion.js';
 import {
   BadRequestException,
   ConflictException,
@@ -48,7 +49,8 @@ export class BookingsService {
       select: { id: true, name: true, description: true, category: true, durationMinutes: true, priceCents: true, professionalLinks: { where: { professional: { active: true, membership: { isActive: true, role: { in: ['OWNER', 'ADMIN', 'PROFESSIONAL'] } } } }, select: { professional: { select: { id: true, displayName: true } } } } },
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
-    return { company: { name: company.name, slug: company.slug }, timezone: company.timezone, services: services.map(({ professionalLinks, ...service }) => ({ ...service, professionals: professionalLinks.map(({ professional }) => ({ id: professional.id, name: professional.displayName })) })) };
+    const waitlist=await this.prisma.waitlistSettings.findUnique({where:{companyId:company.id}});
+    return { company: { name: company.name, slug: company.slug }, waitlistEnabled:waitlist?.enabled??false, timezone: company.timezone, services: services.map(({ professionalLinks, ...service }) => ({ ...service, professionals: professionalLinks.map(({ professional }) => ({ id: professional.id, name: professional.displayName })) })) };
   }
 
   async availability(slug: string, serviceIdValue: unknown, dateValue: unknown, professionalIdValue?: unknown) {
@@ -83,10 +85,12 @@ export class BookingsService {
 
   async request(slug: string, input: unknown, retry = 0, authenticatedUserId?: string): Promise<PublicBookingRequest> {
     const company = await this.publicCompany(slug);
-    const body = object(input, ['idempotencyKey', 'customer', 'items', 'termsAccepted', 'marketingOptIn']);
+    const body = object(input, ['idempotencyKey', 'customer', 'items', 'termsAccepted', 'marketingOptIn', 'waitlistOpportunityId']);
     const idempotencyKey = string(body.idempotencyKey, 'idempotencyKey', 80);
     if (!/^[0-9a-f-]{36}$/i.test(idempotencyKey)) throw new BadRequestException('Chave de solicitação inválida.');
     if (body.termsAccepted !== true) throw new BadRequestException('Aceite os termos e o aviso de privacidade para continuar.');
+    const opportunityId=body.waitlistOpportunityId===undefined?null:uuid(body.waitlistOpportunityId);
+    if(opportunityId&&!authenticatedUserId)throw new ForbiddenException('Entre na sua conta para usar a oportunidade.');
     const marketingOptIn = body.marketingOptIn === true;
     if (body.marketingOptIn !== undefined && typeof body.marketingOptIn !== 'boolean') throw new BadRequestException('Consentimento inválido.');
     const customerInput = object(body.customer, ['name', 'email', 'phone']);
@@ -136,8 +140,10 @@ export class BookingsService {
           const customerConflicts = await tx.bookingRequestItem.findMany({ where: { companyId: company.id, startsAt: { lt: item.endsAt }, endsAt: { gt: item.startsAt }, request: { customerId: customer.id, OR: [{ status: 'CONFIRMED' }, { status: 'REQUESTED', holdExpiresAt: { gt: new Date() } }] } }, select: { startsAt: true, endsAt: true } });
           assertNoOverlap(item.startsAt, item.endsAt, customerConflicts);
         }
+        const opportunity=opportunityId?await validateWaitlistConversion(tx,company.id,customer.id,opportunityId,profiles):null;
         const consentedAt = new Date();
         const created = await tx.bookingRequest.create({ data: { companyId: company.id, customerId: customer.id, idempotencyKey, holdExpiresAt: new Date(Date.now() + 10 * 60_000), termsAcceptedAt: consentedAt, termsVersion: '2026-10-28', privacyVersion: '2026-10-28', marketingOptIn, marketingConsentedAt: marketingOptIn ? consentedAt : null, items: { create: profiles.map((item) => ({ serviceId: item.serviceId, professionalId: item.professionalId, serviceName: item.serviceName, durationMinutes: item.durationMinutes, priceCents: item.priceCents, startsAt: item.startsAt, endsAt: item.endsAt })) } }, select: publicRequestSelect });
+        if(opportunity)await tx.waitlistOpportunity.update({where:{id:opportunity.id},data:{status:'REQUESTED',requestId:created.id}});
         const recipients = await tx.membership.findMany({ where: { companyId: company.id, isActive: true, role: { in: ['OWNER', 'ADMIN', 'RECEPTIONIST'] } }, select: { userId: true, role: true } });
         if (recipients.length) await tx.notification.createMany({ data: recipients.map(({ userId, role }) => ({ userId, companyId: company.id, sourceKey: `booking-request:${created.id}`, type: 'BOOKING_REQUESTED', title: 'Nova solicitação de agendamento', message: 'Uma nova solicitação de agendamento aguarda análise.', actionUrl: role === 'RECEPTIONIST' ? '/painel/recepcionista' : '/painel/proprietario', actionLabel: 'Ver solicitação' })), skipDuplicates: true });
         await tx.$queryRaw`SELECT pg_notify('kalend_booking_events', ${JSON.stringify({ companyId: company.id, professionalIds: [...new Set(profiles.map(item => item.professionalId))] })})::text`;
@@ -183,6 +189,7 @@ export class BookingsService {
           assertNoOverlap(item.startsAt, item.endsAt, customerConflicts);
         }
       }
+      await completeWaitlistConversion(tx,companyId,requestId,request.customerId,decision,request.items);
       const result = await tx.bookingRequest.updateMany({ where: { id: requestId, companyId, status: 'REQUESTED' }, data: { status: decision } });
       if (result.count !== 1) throw new ConflictException('A solicitação foi processada por outra pessoa.');
       await tx.$queryRaw`SELECT pg_notify('kalend_booking_events', ${JSON.stringify({ companyId, professionalIds: [...new Set(request.items.map(item => item.professionalId))] })})::text`;
@@ -190,6 +197,15 @@ export class BookingsService {
       return tx.bookingRequest.findFirstOrThrow({ where: { id: requestId, companyId }, select: requestSelect });
     }, { isolationLevel: 'Serializable', maxWait: 5000, timeout: 10000 }));
   }
+
+  async cancel(companyId:string,requestId:string,actorId:string,reason:string){return withBillingConflictRetry(()=>this.prisma.$transaction(async tx=>{
+ const request=await tx.bookingRequest.findFirst({where:{id:requestId,companyId},include:{items:true}});if(!request)throw new NotFoundException();
+ if(request.status==='CANCELLED')return {id:request.id,status:request.status};if(!['REQUESTED','CONFIRMED'].includes(request.status))throw new ConflictException('Agendamento já encerrado.');
+ for(const key of [...new Set(request.items.map(i=>companyId+':professional:'+i.professionalId))].sort())await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key},0))::text`;
+ if(await tx.posSale.findFirst({where:{companyId,bookingRequestId:requestId,status:{not:'CANCELLED'}}}))throw new ConflictException('Encerre a comanda no PDV antes de cancelar o agendamento.');
+ await tx.bookingRequest.update({where:{id:requestId},data:{status:'CANCELLED'}});await completeWaitlistConversion(tx,companyId,requestId,request.customerId,'CANCELLED',request.items);
+ await tx.posAudit.create({data:{companyId,actorId,action:'BOOKING_CANCELLED',detail:{requestId,reason}}});await tx.$queryRaw`SELECT pg_notify('kalend_booking_events',${JSON.stringify({companyId,professionalIds:request.items.map(i=>i.professionalId)})})::text`;return{id:requestId,status:'CANCELLED'};
+ },{isolationLevel:'Serializable',timeout:10000}));}
 
   async agenda(companyId: string, role: string, membershipId: string, dateValue: unknown) {
     if (typeof dateValue !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) throw new BadRequestException('Informe uma data válida.');
@@ -345,7 +361,7 @@ export class BookingsService {
   }
 }
 
-function normalizePhone(value: string) {
+export function normalizePhone(value: string) {
   const digits = value.replace(/\D/g, '');
   const international = value.trim().startsWith('+') ? digits : digits.length >= 10 && digits.length <= 11 ? `55${digits}` : digits;
   if (!/^\d{10,15}$/.test(international)) throw new BadRequestException('Informe um telefone com DDI.');

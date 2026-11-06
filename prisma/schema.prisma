@@ -110,6 +110,8 @@ model User {
 }
 
 model Company {
+ waitlistSettings WaitlistSettings?
+ waitlistEntries WaitlistEntry[]
  loyaltySettings PosLoyaltySettings?
  loyaltyCards PosLoyaltyCard[]
   posCashSessions PosCashSession[]
@@ -168,6 +170,7 @@ model Membership {
 // Tenant-owned operational catalog. Every business record carries companyId;
 // composite foreign keys below prevent cross-company references at the DB layer.
 model Service {
+ waitlistEntries WaitlistEntry[]
   followupRules PosServiceFollowup[]
   commissionRules PosCommissionRule[]
   posLines PosSaleLine[]
@@ -191,6 +194,8 @@ model Service {
 }
 
 model ProfessionalProfile {
+ waitlistEntries WaitlistEntry[]
+ waitlistOpportunities WaitlistOpportunity[]
   commissionRules PosCommissionRule[]
   commissions PosCommission[]
   posLines PosSaleLine[]
@@ -237,6 +242,7 @@ model ServiceProfessional {
 }
 
 model CustomerProfile {
+ waitlistEntries WaitlistEntry[]
  loyaltyCard PosLoyaltyCard?
   messageConsents PosMessageConsent[]
   followupJobs PosFollowupJob[]
@@ -277,6 +283,7 @@ model CustomerActivation {
 }
 
 model BookingRequest {
+ waitlistOpportunity WaitlistOpportunity?
   posSale PosSale?
   id             String @id @default(uuid()) @db.Uuid
   companyId      String @db.Uuid
@@ -1299,4 +1306,56 @@ model PosLoyaltyEntry {
  createdAt DateTime @default(now())
  @@unique([companyId,sourceKey])
  @@index([companyId,cardId])
+}
+
+model WaitlistSettings {
+ companyId String @id @db.Uuid
+ company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+ enabled Boolean @default(false)
+ opportunityMinutes Int @default(30)
+ cancelOnConfirmation Boolean @default(true)
+ updatedAt DateTime @updatedAt
+}
+model WaitlistEntry {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+ customerId String @db.Uuid
+ customer CustomerProfile @relation(fields:[customerId,companyId],references:[id,companyId],onDelete:Restrict)
+ serviceId String @db.Uuid
+ service Service @relation(fields:[serviceId,companyId],references:[id,companyId],onDelete:Restrict)
+ professionalId String? @db.Uuid
+ professional ProfessionalProfile? @relation(fields:[professionalId,companyId],references:[id,companyId],onDelete:Restrict)
+ fromDate String
+ toDate String
+ weekdays Int[]
+ startMinute Int
+ endMinute Int
+ status String @default("WAITING")
+ idempotencyKey String
+ requestHash String
+ createdAt DateTime @default(now())
+ consentedAt DateTime
+ opportunities WaitlistOpportunity[]
+ @@unique([id,companyId])
+ @@unique([companyId,idempotencyKey])
+ @@index([companyId,status,createdAt])
+}
+model WaitlistOpportunity {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ entryId String @db.Uuid
+ entry WaitlistEntry @relation(fields:[entryId,companyId],references:[id,companyId],onDelete:Restrict)
+ professionalId String @db.Uuid
+ professional ProfessionalProfile @relation(fields:[professionalId,companyId],references:[id,companyId],onDelete:Restrict)
+ startsAt DateTime
+ expiresAt DateTime
+ status String @default("OFFERED")
+ requestId String? @unique @db.Uuid
+ request BookingRequest? @relation(fields:[requestId,companyId],references:[id,companyId],onDelete:Restrict)
+ createdAt DateTime @default(now())
+ @@unique([id,companyId])
+ @@unique([requestId,companyId])
+ @@unique([entryId,professionalId,startsAt])
+ @@index([companyId,status,expiresAt])
 }

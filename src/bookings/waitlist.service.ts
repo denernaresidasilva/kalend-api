@@ -1,0 +1,64 @@
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { AuthConfig } from '../auth/auth.config.js';
+import { createHash } from 'node:crypto';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { EntitlementsService } from '../billing/entitlements.service.js';
+import { withBillingConflictRetry } from '../billing/transaction-conflict.js';
+import { integer, object, string, uuid } from '../common/validation.js';
+import { OperationsService,type Operator } from '../operations/operations.service.js';
+import { queueCustomerEvent } from '../operations/operational-messages.js';
+import { wallClock } from './booking-domain.js';
+import { BookingsService,normalizePhone } from './bookings.service.js';
+import { waitPreferences,waitlistSlot } from './waitlist-domain.js';
+@Injectable()
+export class WaitlistService{
+ constructor(@Inject(PrismaService)private readonly db:PrismaService,@Inject(EntitlementsService)private readonly entitlements:EntitlementsService,@Inject(BookingsService)private readonly bookings:BookingsService,@Inject(OperationsService)private readonly ops:OperationsService){}
+ private async company(slug:string){const company=await this.db.company.findUnique({where:{slug,isActive:true,administrativeStatus:'ACTIVE'},include:{waitlistSettings:true}});if(!company||!company.waitlistSettings?.enabled)throw new NotFoundException('Lista de espera indisponível.');await this.entitlements.current(company.id);return company;}
+ async join(slug:string,input:unknown,userId?:string){const company=await this.company(slug),b=object(input,['idempotencyKey','preferences','customer','termsAccepted']),key=uuid(b.idempotencyKey),p=waitPreferences(b.preferences);if(b.termsAccepted!==true)throw new BadRequestException('Aceite os termos e o aviso de privacidade.');const c=object(b.customer,['name','email','phone']);const name=string(c.name,'name',160),email=string(c.email,'email',254).toLowerCase(),phone=normalizePhone(string(c.phone,'phone',32));if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!/^\+?[1-9]\d{9,14}$/.test(phone))throw new BadRequestException('Contato inválido.');
+ const hash=createHash('sha256').update(JSON.stringify({p,name,email,phone,userId:userId??null})).digest('hex');
+ return withBillingConflictRetry(()=>this.db.$transaction(async tx=>{
+ await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${company.id+':waitlist'},0))::text`;await this.entitlements.current(company.id,tx);
+ if(!await tx.waitlistSettings.findFirst({where:{companyId:company.id,enabled:true}}))throw new ConflictException('Lista desativada.');
+ const old=await tx.waitlistEntry.findUnique({where:{companyId_idempotencyKey:{companyId:company.id,idempotencyKey:key}}});if(old){if(old.requestHash!==hash)throw new ConflictException('Chave já utilizada.');return{id:old.id,status:old.status};}
+ const service=await tx.service.findFirst({where:{id:p.serviceId,companyId:company.id,active:true,public:true,professionalLinks:{some:{...(p.professionalId?{professionalId:p.professionalId}:{}),professional:{active:true,membership:{isActive:true,role:{in:['OWNER','ADMIN','PROFESSIONAL']}}}}}}});if(!service||p.endMinute-p.startMinute<service.durationMinutes)throw new BadRequestException('Serviço, profissional ou faixa indisponível.');
+ let customer=userId?await tx.customerProfile.findFirst({where:{companyId:company.id,userId}}):null;
+ if(!customer)customer=await tx.customerProfile.findFirst({where:{companyId:company.id,OR:[{email},{phone}]}});
+ if(customer?.userId&&customer.userId!==userId)throw new ForbiddenException('Entre na conta do cliente para continuar.');
+ if(!customer){await this.entitlements.assertLimit(tx,company.id,'clients',await tx.customerProfile.count({where:{companyId:company.id}}));customer=await tx.customerProfile.create({data:{companyId:company.id,name,email,phone}});}
+ if(await tx.waitlistEntry.count({where:{companyId:company.id,status:'WAITING',customerId:customer.id}})>=10||await tx.waitlistEntry.count({where:{companyId:company.id,status:'WAITING'}})>=1000)throw new ConflictException('Limite da lista de espera atingido.');
+ const duplicate=await tx.waitlistEntry.findFirst({where:{companyId:company.id,customerId:customer.id,serviceId:p.serviceId,status:'WAITING',requestHash:hash}});if(duplicate)return{id:duplicate.id,status:duplicate.status};
+ const entry=await tx.waitlistEntry.create({data:{companyId:company.id,customerId:customer.id,...p,idempotencyKey:key,requestHash:hash,consentedAt:new Date()}});await this.ops.notify(tx,company.id);return{id:entry.id,status:entry.status,activationRequired:!customer.userId};
+ },{isolationLevel:'Serializable',timeout:10000}));}
+ async settings(actor:Operator,input?:unknown){if(input===undefined)return{settings:await this.db.waitlistSettings.findUnique({where:{companyId:actor.companyId}})};const b=object(input,['enabled','opportunityMinutes','cancelOnConfirmation']);if(typeof b.enabled!=='boolean'||typeof b.cancelOnConfirmation!=='boolean')throw new BadRequestException('Configuração inválida.');integer(b.opportunityMinutes,'opportunityMinutes',5,1440);return this.ops.change(actor,['OWNER','ADMIN'],async tx=>{const data={enabled:b.enabled as boolean,opportunityMinutes:b.opportunityMinutes as number,cancelOnConfirmation:b.cancelOnConfirmation as boolean};const row=await tx.waitlistSettings.upsert({where:{companyId:actor.companyId},create:{companyId:actor.companyId,...data},update:data});await tx.posAudit.create({data:{companyId:actor.companyId,actorId:actor.userId,action:'WAITLIST_SETTINGS_SAVED',detail:data}});return row;});}
+ async board(actor:Operator){const companyId=actor.companyId;const[entries,opportunities,waiting,offered,filled,requested,expired]=await Promise.all([this.db.waitlistEntry.findMany({where:{companyId},include:{service:{select:{name:true}},professional:{select:{displayName:true}},customer:{select:{id:true,name:true,userId:true}}},orderBy:{createdAt:'desc'},take:100}),this.db.waitlistOpportunity.findMany({where:{companyId},orderBy:{createdAt:'desc'},take:100,select:{id:true,entryId:true,startsAt:true,expiresAt:true,status:true}}),this.db.waitlistEntry.count({where:{companyId,status:'WAITING'}}),this.db.waitlistOpportunity.count({where:{companyId}}),this.db.waitlistOpportunity.count({where:{companyId,status:'CONVERTED'}}),this.db.waitlistOpportunity.count({where:{companyId,requestId:{not:null}}}),this.db.waitlistOpportunity.count({where:{companyId,status:'EXPIRED'}})]);return{entries,opportunities,metrics:{waiting,offered,filled,requested,expired}};}
+ async mine(slug:string,userId:string){const company=await this.db.company.findUnique({where:{slug,isActive:true,administrativeStatus:'ACTIVE'}});if(!company)throw new NotFoundException();await this.entitlements.current(company.id);return this.db.waitlistEntry.findMany({where:{companyId:company.id,customer:{userId}},select:{id:true,status:true,fromDate:true,toDate:true,service:{select:{id:true,name:true}},opportunities:{where:{status:'OFFERED',expiresAt:{gt:new Date()}},select:{id:true,startsAt:true,expiresAt:true,professionalId:true},orderBy:{createdAt:'desc'}}},orderBy:{createdAt:'desc'},take:50});}
+ async cancel(slug:string,id:string,userId:string){const company=await this.db.company.findUnique({where:{slug}});if(!company)throw new NotFoundException();return withBillingConflictRetry(()=>this.db.$transaction(async tx=>{await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${company.id+':waitlist'},0))::text`;const row=await tx.waitlistEntry.findFirst({where:{id,companyId:company.id,customer:{userId}}});if(!row)throw new NotFoundException();await tx.waitlistOpportunity.updateMany({where:{companyId:company.id,entryId:id,status:'OFFERED'},data:{status:'CANCELLED'}});return tx.waitlistEntry.update({where:{id},data:{status:'CANCELLED'}});},{isolationLevel:'Serializable'}));}
+ async match(companyIds?:string[]){const configs=await this.db.waitlistSettings.findMany({where:{enabled:true,...(companyIds?{companyId:{in:companyIds}}:{})},include:{company:{select:{slug:true,timezone:true}}},take:50,orderBy:{companyId:'asc'}});const origin=new AuthConfig().origins()[0];if(!origin)return{companies:0,offered:0};let offered=0,scanned=0,attempts=0;companiesLoop:for(const cfg of configs){try{await this.entitlements.current(cfg.companyId);}catch(e){if(e instanceof ForbiddenException)continue;throw e;}
+ // Reuse the public availability service; creation rechecks under the tenant waitlist lock.
+ await this.db.waitlistOpportunity.updateMany({where:{companyId:cfg.companyId,status:'REQUESTED',request:{status:'REQUESTED',holdExpiresAt:{lte:new Date()}}},data:{status:'EXPIRED'}});
+ await this.db.waitlistOpportunity.updateMany({where:{companyId:cfg.companyId,status:'OFFERED',expiresAt:{lte:new Date()}},data:{status:'EXPIRED'}});
+ await this.db.waitlistEntry.updateMany({where:{companyId:cfg.companyId,status:'WAITING',toDate:{lt:new Intl.DateTimeFormat('en-CA',{timeZone:cfg.company.timezone}).format(new Date())}},data:{status:'EXPIRED'}});
+ const entries=await this.db.waitlistEntry.findMany({where:{companyId:cfg.companyId,status:'WAITING',customer:{userId:{not:null},user:{isActive:true}}},include:{service:true},orderBy:[{createdAt:'asc'},{id:'asc'}],take:100});
+ for(const entry of entries){const consent=await this.db.posMessageConsent.findUnique({where:{customerId_companyId:{customerId:entry.customerId,companyId:cfg.companyId}}});if(!consent||!await this.db.companyCommunicationTemplate.findFirst({where:{companyId:cfg.companyId,event:'OP_WAITLIST_AVAILABLE',enabled:true,channel:{in:([consent.email?'EMAIL':null,consent.whatsapp?'WHATSAPP':null,consent.push?'PUSH':null].filter(Boolean)) as never}}}))continue;if(await this.db.waitlistOpportunity.findFirst({where:{companyId:cfg.companyId,entryId:entry.id,status:{in:['OFFERED','REQUESTED']}}}))continue;
+ const today=new Intl.DateTimeFormat('en-CA',{timeZone:cfg.company.timezone}).format(new Date());let done=false;
+ for(let i=0;i<14&&!done;i++){const date=new Date(Math.max(Date.parse(entry.fromDate+'T12:00:00Z'),Date.parse(today+'T12:00:00Z'))+i*86400000).toISOString().slice(0,10);if(date>entry.toDate)break;if(!entry.weekdays.includes(new Date(date+'T12:00:00Z').getUTCDay()))continue;
+ if(++scanned>200)break companiesLoop;
+ let availability:Awaited<ReturnType<BookingsService['availability']>>;try{availability=await this.bookings.availability(cfg.company.slug,entry.serviceId,date,entry.professionalId??undefined);}catch(e){if(e instanceof NotFoundException||e instanceof ForbiddenException)break;throw e;}
+ for(const pro of availability.professionals){for(const slot of pro.slots){const startsAt=new Date(slot),clock=wallClock(startsAt,cfg.company.timezone);if(!waitlistSlot(entry,date,clock.weekday,clock.minute,entry.service.durationMinutes))continue;
+ if(++attempts>500)break companiesLoop;
+ const result=await withBillingConflictRetry(()=>this.db.$transaction(async tx=>{
+ await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${cfg.companyId+':waitlist'},0))::text`;
+ if(!await tx.waitlistEntry.findFirst({where:{id:entry.id,companyId:cfg.companyId,status:'WAITING'}})||!await tx.waitlistSettings.findFirst({where:{companyId:cfg.companyId,enabled:true}}))return false;
+ if(await tx.waitlistOpportunity.findFirst({where:{companyId:cfg.companyId,OR:[{entryId:entry.id,status:{in:['OFFERED','REQUESTED']}},{professionalId:pro.id,startsAt,status:'OFFERED',expiresAt:{gt:new Date()}},{entryId:entry.id,professionalId:pro.id,startsAt}]}}))return false;
+ const end=new Date(startsAt.getTime()+entry.service.durationMinutes*60000);
+ if(await tx.bookingRequest.findFirst({where:{companyId:cfg.companyId,OR:[{status:'CONFIRMED'},{status:'REQUESTED',holdExpiresAt:{gt:new Date()}}],items:{some:{professionalId:pro.id,startsAt:{lt:end},endsAt:{gt:startsAt}}}}}))return false;
+ // No reservation: the normal request transaction remains authoritative.
+ const offer=await tx.waitlistOpportunity.create({data:{companyId:cfg.companyId,entryId:entry.id,professionalId:pro.id,startsAt,expiresAt:new Date(Math.min(startsAt.getTime(),Date.now()+cfg.opportunityMinutes*60000))}});
+ const event=await queueCustomerEvent(tx,cfg.companyId,entry.customerId,'OP_WAITLIST_AVAILABLE',offer.id,{__opportunityId:offer.id,servico:entry.service.name,horario:new Intl.DateTimeFormat('pt-BR',{timeZone:cfg.company.timezone,dateStyle:'short',timeStyle:'short'}).format(startsAt),url_agenda:`${origin}/agendar/${encodeURIComponent(cfg.company.slug)}?opportunity=${offer.id}`});
+ if(!event){await tx.waitlistOpportunity.delete({where:{id:offer.id}});return false;}await this.ops.notify(tx,cfg.companyId);return true;
+ },{isolationLevel:'Serializable',timeout:10000}));if(result){offered++;done=true;break;}}
+ if(done)break;}
+ }
+ }
+ }return{companies:configs.length,offered};}
+}

@@ -1,3 +1,4 @@
+import { WaitlistService } from '../bookings/waitlist.service.js';
 import { OperationalAutomations } from '../operations/automations.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import 'reflect-metadata';
@@ -45,6 +46,7 @@ if (
           ),
         );
       } else {
+        const waitlist=await app.get(WaitlistService).match();
         const operational = await app.get(OperationalAutomations).due();
         const temporal = await engine.temporal();
         const inbox = await app.get(NotificationsService).ingest();
@@ -54,7 +56,7 @@ if (
           phase: 'batch-complete',
           durationMs: Date.now() - startedAt,
           temporal,
-          operational,
+          operational,waitlist,
           inbox,
           ...batch,
         }));

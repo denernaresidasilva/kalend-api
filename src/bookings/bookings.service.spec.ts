@@ -4,6 +4,7 @@ import { BookingsService } from './bookings.service.js';
 function setup() {
   const company = { id: '11111111-1111-4111-8111-111111111111', name: 'Estúdio QA', slug: 'estudio-qa', timezone: 'America/Sao_Paulo', isActive: true, administrativeStatus: 'ACTIVE' };
   const prisma = {
+    waitlistSettings: { findUnique:vi.fn().mockResolvedValue(null) },
     company: { findUnique: vi.fn().mockResolvedValue(company) },
     service: { findMany: vi.fn().mockResolvedValue([]) },
     membership: { findFirst: vi.fn().mockResolvedValue(null) },

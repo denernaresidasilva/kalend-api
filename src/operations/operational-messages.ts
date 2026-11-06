@@ -1,8 +1,9 @@
+import { assertAvailability } from '../bookings/booking-domain.js';
 import type { Prisma } from '@prisma/client';
 import { entitledWhere } from '../billing/commercial-policy.js';
 import { operationalEvent } from '../communication/operational-events.js';
 import type { Sale } from './operations.service.js';
-type DB=Pick<Prisma.TransactionClient,'customerProfile'|'posMessageConsent'|'companyCommunicationTemplate'|'globalCommunicationOutbox'|'posSale'|'bookingRequest'|'posReceipt'|'posRefund'|'posServiceFollowup'|'subscription'>;
+type DB=Pick<Prisma.TransactionClient,'customerProfile'|'posMessageConsent'|'companyCommunicationTemplate'|'globalCommunicationOutbox'|'posSale'|'bookingRequest'|'posReceipt'|'posRefund'|'posServiceFollowup'|'subscription'|'waitlistOpportunity'|'waitlistSettings'>;
 export async function queueCustomerEvent(tx:DB,companyId:string,customerId:string,event:string,key:string,variables:Prisma.InputJsonObject={}){
  if(!operationalEvent(event))return null;
  const customer=await tx.customerProfile.findFirst({where:{id:customerId,companyId,company:{isActive:true,administrativeStatus:'ACTIVE'}},include:{user:true}});if(!customer?.userId||!customer.user?.isActive||!await tx.subscription.findFirst({where:entitledWhere(companyId)}))return null;
@@ -23,6 +24,15 @@ export async function operationalRecipient(db:DB,event:{event:string;companyId:s
  if(channel==='PUSH'&&!consent.push)return null;
  if(!await db.subscription.findFirst({where:entitledWhere(event.companyId)}))return null;
  const configured=await db.companyCommunicationTemplate.findUnique({where:{companyId_event_channel:{companyId:event.companyId,event:event.event,channel:channel as never}}});if(!configured?.enabled)return null;
+ if(event.event==='OP_WAITLIST_AVAILABLE'){
+ if(typeof v.__opportunityId!=='string'||!await db.waitlistSettings.findFirst({where:{companyId:event.companyId,enabled:true}}))return null;
+ const offer=await db.waitlistOpportunity.findFirst({where:{id:v.__opportunityId,companyId:event.companyId,status:'OFFERED',expiresAt:{gt:new Date()},startsAt:{gt:new Date()},entry:{customerId,status:'WAITING'}},include:{entry:{include:{service:true,company:{select:{timezone:true}}}},professional:{include:{availability:true,membership:true}}}});
+ if(!offer||!offer.entry.service.active||!offer.entry.service.public||!offer.professional.active||!offer.professional.membership.isActive||!['OWNER','ADMIN','PROFESSIONAL'].includes(offer.professional.membership.role))return null;
+ try{assertAvailability(offer.startsAt,offer.entry.service.durationMinutes,offer.entry.company.timezone,offer.professional.availability.filter(a=>a.active));}catch{return null;}
+ const end=new Date(offer.startsAt.getTime()+offer.entry.service.durationMinutes*60000);
+ if(await db.bookingRequest.findFirst({where:{companyId:event.companyId,OR:[{status:'CONFIRMED'},{status:'REQUESTED',holdExpiresAt:{gt:new Date()}}],items:{some:{professionalId:offer.professionalId,startsAt:{lt:end},endsAt:{gt:offer.startsAt}}}}}))return null;
+ return {email:customer.user.email,phone:customer.phone,name:customer.name};}
+
  if(event.event.startsWith('OP_BOOKING_')){if(typeof v.__bookingId!=='string')return null;const expected=event.event==='OP_BOOKING_REQUESTED'?'REQUESTED':event.event==='OP_BOOKING_CONFIRMED'?'CONFIRMED':'REJECTED';if(!await db.bookingRequest.findFirst({where:{id:v.__bookingId,companyId:event.companyId,customerId,status:expected}}))return null;}
  else{
   if(typeof v.__saleId!=='string')return null;const sale=await db.posSale.findFirst({where:{id:v.__saleId,companyId:event.companyId,customerId},include:{lines:true}});if(!sale)return null;
