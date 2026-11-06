@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -56,7 +57,29 @@ export class PackagesService {
       'validityDays',
       'terms',
       'services',
+      'kind',
+      'cycleMonths',
+      'discountBps',
+      'loyaltyBonusPoints',
+      'renewalMode',
     ]);
+    const kind = b.kind ?? 'PACKAGE';
+    if (kind !== 'PACKAGE' && kind !== 'CLUB')
+      throw new BadRequestException('Tipo de oferta inválido.');
+    if (b.renewalMode !== undefined && b.renewalMode !== 'MANUAL_PDV')
+      throw new ServiceUnavailableException(
+        'MERCHANT_RECURRING_NOT_HOMOLOGATED',
+      );
+    if (kind === 'CLUB') {
+      integer(b.cycleMonths, 'cycleMonths', 1, 12);
+      integer(b.discountBps ?? 0, 'discountBps', 0, 10000);
+      integer(b.loyaltyBonusPoints ?? 0, 'loyaltyBonusPoints', 0, 10000);
+    } else if (
+      b.cycleMonths !== undefined ||
+      Number(b.discountBps ?? 0) !== 0 ||
+      Number(b.loyaltyBonusPoints ?? 0) !== 0
+    )
+      throw new BadRequestException('Benefícios recorrentes exigem clube.');
     const name = string(b.name, 'name', 120),
       description = string(b.description, 'description', 2000),
       terms = string(b.terms, 'terms', 2000);
@@ -64,10 +87,17 @@ export class PackagesService {
     integer(b.validityDays, 'validityDays', 1, 3650);
     if (
       !Array.isArray(b.services) ||
-      !b.services.length ||
+      (!b.services.length && kind !== 'CLUB') ||
       b.services.length > 20
     )
       throw new BadRequestException('Informe até 20 serviços.');
+    if (
+      kind === 'CLUB' &&
+      !b.services.length &&
+      !Number(b.discountBps ?? 0) &&
+      !Number(b.loyaltyBonusPoints ?? 0)
+    )
+      throw new BadRequestException('Clube exige sessões ou benefícios.');
     const items = b.services.map((raw) => {
       const i = object(raw, ['serviceId', 'sessions', 'professionalIds']);
       integer(i.sessions, 'sessions', 1, 100);
@@ -122,10 +152,20 @@ export class PackagesService {
         }
         snapshots.push({ ...i, listPriceCents: service.priceCents });
       }
+      if (
+        kind === 'CLUB' &&
+        Number(b.loyaltyBonusPoints ?? 0) > 0 &&
+        !(await tx.posLoyaltySettings.findFirst({
+          where: { companyId: actor.companyId, enabled: true },
+        }))
+      )
+        throw new ConflictException(
+          'Ative a fidelidade antes de oferecer pontos adicionais.',
+        );
       const product = await tx.posProduct.create({
         data: {
           companyId: actor.companyId,
-          name: 'Pacote: ' + name,
+          name: (kind === 'CLUB' ? 'Clube: ' : 'Pacote: ') + name,
           priceCents: b.priceCents as number,
         },
       });
@@ -136,6 +176,10 @@ export class PackagesService {
           name,
           description,
           validityDays: b.validityDays as number,
+          kind,
+          cycleMonths: kind === 'CLUB' ? (b.cycleMonths as number) : null,
+          discountBps: Number(b.discountBps ?? 0),
+          loyaltyBonusPoints: Number(b.loyaltyBonusPoints ?? 0),
           terms,
         },
       });
@@ -211,6 +255,14 @@ export class PackagesService {
             : {}),
       },
       include: {
+        subscriptionCycle: {
+          select: {
+            status: true,
+            startsAt: true,
+            endsAt: true,
+            subscription: { select: { status: true, suspensionReason: true } },
+          },
+        },
         sourceSale: {
           select: {
             totalCents: true,
@@ -218,7 +270,17 @@ export class PackagesService {
             refunds: { select: { amountCents: true } },
           },
         },
-        definition: { select: { name: true, terms: true, refundPolicy: true } },
+        definition: {
+          select: {
+            name: true,
+            terms: true,
+            refundPolicy: true,
+            kind: true,
+            cycleMonths: true,
+            discountBps: true,
+            loyaltyBonusPoints: true,
+          },
+        },
         customer: { select: { id: true, name: true } },
         sessions: { include: { service: { select: { name: true } } } },
         movements: {
@@ -237,6 +299,17 @@ export class PackagesService {
       take: 200,
     });
     return rows.map((w) => {
+      const now = new Date(),
+        cycleUsable =
+          !w.subscriptionCycle ||
+          (w.subscriptionCycle.status === 'PAID' &&
+            w.subscriptionCycle.subscription.status !== 'SUSPENDED'),
+        periodActive = !w.validFrom || w.validFrom <= now,
+        usable =
+          w.status === 'ACTIVE' &&
+          w.expiresAt > now &&
+          cycleUsable &&
+          periodActive;
       const sourceNet = Math.max(
           0,
           Math.min(
@@ -255,14 +328,17 @@ export class PackagesService {
         status:
           w.status === 'ACTIVE' && w.expiresAt <= new Date()
             ? 'EXPIRED'
-            : w.status,
+            : w.status === 'ACTIVE' && !periodActive
+              ? 'SCHEDULED'
+              : w.status === 'ACTIVE' && !cycleUsable
+                ? 'PAUSED'
+                : w.status,
         fundedCents,
         recoveryCents: Math.max(0, consumedValue - fundedCents),
-        usable: w.status === 'ACTIVE' && w.expiresAt > new Date(),
-        available:
-          w.status === 'ACTIVE' && w.expiresAt > new Date()
-            ? w.sessions.filter((s) => s.state === 'AVAILABLE').length
-            : 0,
+        usable,
+        available: usable
+          ? w.sessions.filter((s) => s.state === 'AVAILABLE').length
+          : 0,
         reserved: w.sessions.filter((s) => s.state === 'RESERVED').length,
         consumed: w.sessions.filter((s) => s.state === 'CONSUMED').length,
       };
@@ -412,6 +488,24 @@ export class PackagesService {
               status: 'ACTIVE',
               expiresAt: { gt: new Date() },
               sourceSale: { status: 'PAID' },
+              AND: [
+                {
+                  OR: [{ validFrom: null }, { validFrom: { lte: new Date() } }],
+                },
+                {
+                  OR: [
+                    { subscriptionCycle: null },
+                    {
+                      subscriptionCycle: {
+                        status: 'PAID',
+                        subscription: {
+                          status: { in: ['ACTIVE', 'CANCELLED'] },
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
             },
           },
           include: { wallet: true },

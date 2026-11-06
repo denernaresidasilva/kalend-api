@@ -1,3 +1,5 @@
+import { clientBenefits } from './client-subscription-domain.js';
+import { proportionFloor } from './pos-domain.js';
 import { grantPackages,consumePackages,releasePackageUses,suspendRefundedPackages,assertPackageSaleable } from './package-domain.js';
 import { attendanceEvent } from '../bookings/attendance-domain.js';
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
@@ -116,7 +118,7 @@ export class OperationsService {
       if (bookingRequestId) { const same = await tx.posSale.findFirst({ where: { companyId: actor.companyId, bookingRequestId } }); if (same) return this.sale(tx, actor, same.id); }
       if (customerId && !await tx.customerProfile.findFirst({ where: { id: customerId, companyId: actor.companyId } })) throw new NotFoundException('Cliente não encontrado.');
       const sale = await tx.posSale.create({ data: { companyId: actor.companyId, bookingRequestId, customerId: booking?.customerId ?? customerId, idempotencyKey: key, requestHash, openedById: actor.userId } });
-      if (booking) await tx.posSaleLine.createMany({ data: booking.items.map(item => ({ companyId: actor.companyId, saleId: sale.id, bookingItemId: item.id, serviceId: item.serviceId, professionalId: item.professionalId, name: item.serviceName, unitPriceCents: item.priceCents, quantity: 1 })) });
+      if (booking) await tx.posSaleLine.createMany({ data: booking.items.map(item => ({ companyId: actor.companyId, saleId: sale.id, bookingItemId: item.id, serviceId: item.serviceId, professionalId: item.professionalId, name: item.serviceName, unitPriceCents: item.priceCents,subscriptionDiscountCents:item.subscriptionDiscountCents,clientSubscriptionId:item.clientSubscriptionId, quantity: 1 })) });
       await this.recalculate(tx, await this.sale(tx, actor, sale.id)); await this.audit(tx, actor, 'SALE_OPENED', { bookingRequestId }, sale.id); await this.notify(tx, actor.companyId, booking?.items.map(i => i.professionalId)); return this.sale(tx, actor, sale.id);
     });
   }
@@ -133,7 +135,8 @@ export class OperationsService {
       } else {
         productId = uuid(body.productId); const product = await tx.posProduct.findFirst({ where: { id: productId, companyId: actor.companyId, active: true } }); if (!product) throw new BadRequestException('Produto indisponível nesta empresa.');const packageDefinition=await tx.posPackageDefinition.findUnique({where:{productId:product.id}});if(packageDefinition){await this.entitlements.assertFeature(actor.companyId,'packages',tx);await assertPackageSaleable(tx,actor.companyId,product.id);if((body.quantity??1)!==1||!sale.customerId)throw new ConflictException('Venda um pacote por item e identifique o cliente na comanda.');if(await tx.posSaleLine.count({where:{companyId:actor.companyId,saleId:id,product:{packageDefinition:{isNot:null}}}})>=10)throw new ConflictException('Limite de dez pacotes por comanda.');} name = product.name; unitPriceCents = product.priceCents;
       }
-      await tx.posSaleLine.create({ data: { companyId: actor.companyId, saleId: id, serviceId, productId, professionalId, name, unitPriceCents, quantity: (body.quantity ?? 1) as number } });
+      const benefit=serviceId?await clientBenefits(tx,actor.companyId,sale.customerId):null,subscriptionDiscountCents=benefit?proportionFloor(unitPriceCents,benefit.discountBps,10000):0;unitPriceCents-=subscriptionDiscountCents;
+      await tx.posSaleLine.create({ data: { companyId: actor.companyId, saleId: id,subscriptionDiscountCents,clientSubscriptionId:benefit?.discountSubscriptionId??null, serviceId, productId, professionalId, name, unitPriceCents, quantity: (body.quantity ?? 1) as number } });
       await this.recalculate(tx, await this.sale(tx, actor, id)); const fresh = await this.sale(tx, actor, id); await tx.posSale.update({ where: { id }, data: { status: fresh.lines.some(l => l.startedAt) ? 'IN_PROGRESS' : 'OPEN' } }); await this.audit(tx, actor, 'LINE_ADDED', { serviceId: serviceId ?? null, productId: productId ?? null, quantity: (body.quantity ?? 1) as number }, id); await this.notify(tx, actor.companyId, professionalId ? [professionalId] : []); return this.sale(tx, actor, id);
     });
   }

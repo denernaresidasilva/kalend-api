@@ -103,3 +103,19 @@ Interface: proprietário/recepção em Pacotes e PDV, cliente em Meus pacotes, s
 A fase 4 completa ainda NÃO está concluída: assinaturas/clubes do estabelecimento, ciclos e benefícios recorrentes permanecem pendentes; cobrança recorrente externa depende de gateway do estabelecimento homologado. Nenhuma assinatura SaaS Kalend é reutilizada como assinatura do cliente.
 
 Backup para a fase 4A: `booking-release-backup-OVYNHY`, restaurado com 67 tabelas, 31 migrations e 5 PaymentEvidence; identidade kalend_dev_migrator validada. Fonte de receita de caixa permanece PosReceipt/PosRefund, sem recebimento artificial ao consumir sessão.
+
+### Pacotes — homologação DEV 06/11/2026
+
+API `8379140` (Action `42210319695`) e Web `f77b0cb` (Action `42210989483`), ambos aprovados. Quatro jornadas reais DEV aprovadas: venda mobile liberando cinco sessões somente após pagamento; solicitação/aprovação/atendimento consumindo uma sessão sem novo recebimento; estorno parcial da compra revisando comissão já paga e fidelidade, com SSE profissional; saldos do cliente/proprietário em mobile/desktop sem overflow. Screenshots privados `/tmp/kalend2-packages-{client-mobile,owner-mobile,owner-desktop}.png`. Plano QA exclusivo restaurado após o ensaio; planos comerciais preservados. Evidência sanitizada `evidencias/kalend2-packages-dev-2026-11-06.json`.
+
+### Fase 4B — clubes de clientes: IMPLEMENTADA LOCALMENTE
+
+Renovação **manual no PDV**, ciclos de calendário no fuso da empresa, antecipação paga disponível somente no período correspondente, suspensão/reativação justificada, cancelamento pelo proprietário ou próprio cliente preservando período já pago. Sem consumo de sessões na solicitação. Desconto por serviço somente com benefício financiado vigente; preço acordado preservado na solicitação. Pontos adicionais separados dos pontos sobre serviços realmente pagos, com revisão proporcional após estorno da compra do clube. Taxa de adesão não cria receita duplicada nem comissão fictícia de serviço. Eventos e histórico imutáveis, isolamento por FKs compostas e controles no backend; direitos pelo módulo `packages` existente.
+
+Models novos: PosClientSubscription, PosClientSubscriptionCycle, PosClientSubscriptionEvent. Migration aditiva `20261106160000_client_subscription_cycles`; campos com padrão/nullable preservam pacotes anteriores. Endpoints `/operations/client-subscriptions`, `/mine`, `/:id/change`, `/:id/cancel`, `/reconcile`; ofertas e renovação reutilizam `/operations/packages/{definitions,sales}`. Contador/profissional sem acesso à lista de clientes. Recepção consulta/renova no PDV; mudanças de status somente proprietário/admin e cancelamento próprio pelo cliente. Interface nos painéis existentes. Correção relacionada: confirmação pública agora exibe o fuso do estabelecimento.
+
+Testes locais: 965 unitários API, 55 PostgreSQL nativo, 412 Web; builds aprovados. Resultado final de lint, backup, publicação e jornadas DEV será registrado após conclusão. Cobrança recorrente externa permanece DEPENDÊNCIA EXTERNA, sem gateway de estabelecimento homologado, sem uso de credenciais SaaS. Ciclos pendentes são avisos de renovação manual, não cobranças emitidas.
+
+Recuperação: migration aditiva testada em PostgreSQL descartável. Em falha, preservar as tabelas/histórico, desabilitar novas ofertas/cobranças e corrigir aditivamente; não executar downgrade destrutivo. Backup DEV fresco restaurado será confirmado antes do push. Nunca simular pagamento remoto nem mudar datas DEV para fingir vencimento.
+
+Preflight da fase 4B aprovado: develop sem divergência; migration com identidade exclusiva `kalend_dev_migrator`; backup `booking-release-backup-FqkTno` restaurado em instância temporária privada (74 tabelas, 32 migrations, 5 PaymentEvidence). Lint API sem avisos; 55 testes PostgreSQL repetidos após checks finais da migration, todos aprovados.

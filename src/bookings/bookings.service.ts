@@ -1,3 +1,5 @@
+import { clientBenefits } from '../operations/client-subscription-domain.js';
+import { proportionFloor } from '../operations/pos-domain.js';
 import { cancelBookingInTx } from './booking-cancellation.js';
 import { validateWaitlistConversion, completeWaitlistConversion } from './waitlist-conversion.js';
 import {
@@ -27,7 +29,7 @@ const publicRequestSelect = {
 } as const;
 type PublicBookingRequest = Prisma.BookingRequestGetPayload<{ select: typeof publicRequestSelect }>;
 
-type RequestedItem = { serviceId: string; professionalId: string; startsAt: Date; endsAt: Date; serviceName: string; durationMinutes: number; priceCents: number };
+type RequestedItem = { subscriptionDiscountCents?:number;clientSubscriptionId?:string|null; serviceId: string; professionalId: string; startsAt: Date; endsAt: Date; serviceName: string; durationMinutes: number; priceCents: number };
 
 @Injectable()
 export class BookingsService {
@@ -130,6 +132,7 @@ export class BookingsService {
           await this.entitlements.assertLimit(tx, company.id, 'clients', customerCount);
           customer = await tx.customerProfile.create({ data: { companyId: company.id, name, email, phone } });
         }
+        if(authenticatedUserId&&customer.userId===authenticatedUserId)for(const item of profiles){const benefit=await clientBenefits(tx,company.id,customer.id,item.startsAt);item.subscriptionDiscountCents=proportionFloor(item.priceCents,benefit.discountBps,10000);item.clientSubscriptionId=benefit.discountSubscriptionId;item.priceCents-=item.subscriptionDiscountCents;}
         const lockKeys = [
           ...new Set(profiles.map((item) => `${company.id}:professional:${item.professionalId}`)),
           `${company.id}:customer:${customer.id}`,
@@ -143,7 +146,7 @@ export class BookingsService {
         }
         const opportunity=opportunityId?await validateWaitlistConversion(tx,company.id,customer.id,opportunityId,profiles):null;
         const consentedAt = new Date();
-        const created = await tx.bookingRequest.create({ data: { companyId: company.id, customerId: customer.id, idempotencyKey, holdExpiresAt: new Date(Date.now() + 10 * 60_000), termsAcceptedAt: consentedAt, termsVersion: '2026-10-28', privacyVersion: '2026-10-28', marketingOptIn, marketingConsentedAt: marketingOptIn ? consentedAt : null, items: { create: profiles.map((item) => ({ serviceId: item.serviceId, professionalId: item.professionalId, serviceName: item.serviceName, durationMinutes: item.durationMinutes, priceCents: item.priceCents, startsAt: item.startsAt, endsAt: item.endsAt })) } }, select: publicRequestSelect });
+        const created = await tx.bookingRequest.create({ data: { companyId: company.id, customerId: customer.id, idempotencyKey, holdExpiresAt: new Date(Date.now() + 10 * 60_000), termsAcceptedAt: consentedAt, termsVersion: '2026-10-28', privacyVersion: '2026-10-28', marketingOptIn, marketingConsentedAt: marketingOptIn ? consentedAt : null, items: { create: profiles.map((item) => ({ serviceId: item.serviceId, professionalId: item.professionalId, serviceName: item.serviceName, durationMinutes: item.durationMinutes, priceCents: item.priceCents,subscriptionDiscountCents:item.subscriptionDiscountCents??0,clientSubscriptionId:item.clientSubscriptionId??null, startsAt: item.startsAt, endsAt: item.endsAt })) } }, select: publicRequestSelect });
         if(opportunity)await tx.waitlistOpportunity.update({where:{id:opportunity.id},data:{status:'REQUESTED',requestId:created.id}});
         const recipients = await tx.membership.findMany({ where: { companyId: company.id, isActive: true, role: { in: ['OWNER', 'ADMIN', 'RECEPTIONIST'] } }, select: { userId: true, role: true } });
         if (recipients.length) await tx.notification.createMany({ data: recipients.map(({ userId, role }) => ({ userId, companyId: company.id, sourceKey: `booking-request:${created.id}`, type: 'BOOKING_REQUESTED', title: 'Nova solicitação de agendamento', message: 'Uma nova solicitação de agendamento aguarda análise.', actionUrl: role === 'RECEPTIONIST' ? '/painel/recepcionista' : '/painel/proprietario', actionLabel: 'Ver solicitação' })), skipDuplicates: true });

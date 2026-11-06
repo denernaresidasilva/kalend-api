@@ -111,6 +111,7 @@ export class ConfirmationsService {
           include: {
             request: {
               include: {
+                company:{select:{timezone:true}},
                 customer: {
                   select: {
                     userId: true,
@@ -147,7 +148,7 @@ export class ConfirmationsService {
       expiresAt: invite.expiresAt,
       response: invite.confirmation.response,
       used: Boolean(invite.usedAt),
-      items: invite.confirmation.request.items,
+      items: invite.confirmation.request.items,timezone:invite.confirmation.request.company.timezone,
     };
   }
   async respond(input: unknown) {

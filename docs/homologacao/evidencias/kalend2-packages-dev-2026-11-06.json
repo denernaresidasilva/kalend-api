@@ -1,0 +1,22 @@
+{
+  "environment": "DEV",
+  "receipts": "QA manual attested POS only; no remote charges",
+  "results": [
+    {
+      "name": "mobile_POS_sale_releases_five_sessions_only_after_payment_without_premature_points",
+      "status": "PASS"
+    },
+    {
+      "name": "request_approval_attendance_consumes_one_paid_session_with_no_duplicate_cash_and_correct_points",
+      "status": "PASS"
+    },
+    {
+      "name": "source_refund_suspends_unused_credit_and_reconciles_paid_commission_and_loyalty_via_professional_SSE",
+      "status": "PASS"
+    },
+    {
+      "name": "owner_and_customer_package_balances_mobile_desktop",
+      "status": "PASS"
+    }
+  ]
+}

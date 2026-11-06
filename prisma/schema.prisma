@@ -110,6 +110,7 @@ model User {
 }
 
 model Company {
+ clientSubscriptions PosClientSubscription[]
  packageDefinitions PosPackageDefinition[]
  packageWallets PosPackageWallet[]
  aiAssistantSettings AiAssistantSettings?
@@ -252,6 +253,7 @@ model ServiceProfessional {
 }
 
 model CustomerProfile {
+ clientSubscriptions PosClientSubscription[]
  packageWallets PosPackageWallet[]
  waitlistEntries WaitlistEntry[]
  loyaltyCard PosLoyaltyCard?
@@ -322,6 +324,9 @@ model BookingRequest {
 }
 
 model BookingRequestItem {
+ subscriptionDiscountCents Int @default(0)
+ clientSubscriptionId String? @db.Uuid
+ clientSubscription PosClientSubscription? @relation(fields:[clientSubscriptionId,companyId],references:[id,companyId],onDelete:Restrict)
   posLines PosSaleLine[]
   id             String @id @default(uuid()) @db.Uuid
   companyId      String @db.Uuid
@@ -1095,6 +1100,9 @@ model PosSale {
   @@index([companyId, status, createdAt])
 }
 model PosSaleLine {
+ subscriptionDiscountCents Int @default(0)
+ clientSubscriptionId String? @db.Uuid
+ clientSubscription PosClientSubscription? @relation(fields:[clientSubscriptionId,companyId],references:[id,companyId],onDelete:Restrict)
  fundedPackageWallet PosPackageWallet?
  packageUses PosPackageUse[]
   followupJobs PosFollowupJob[]
@@ -1309,6 +1317,8 @@ model PosLoyaltyCard {
  @@unique([customerId,companyId])
 }
 model PosLoyaltyEntry {
+ clientSubscriptionCycleId String? @db.Uuid
+ clientSubscriptionCycle PosClientSubscriptionCycle? @relation(fields:[clientSubscriptionCycleId,companyId],references:[id,companyId],onDelete:Restrict)
  id String @id @default(uuid()) @db.Uuid
  companyId String @db.Uuid
  cardId String @db.Uuid
@@ -1503,6 +1513,11 @@ model AiToolAudit {
 }
 
 model PosPackageDefinition {
+ kind String @default("PACKAGE")
+ cycleMonths Int?
+ discountBps Int @default(0)
+ loyaltyBonusPoints Int @default(0)
+ clientSubscriptions PosClientSubscription[]
  id String @id @default(uuid()) @db.Uuid
  companyId String @db.Uuid
  company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
@@ -1543,6 +1558,8 @@ model PosPackageProfessional {
  @@unique([packageServiceId,professionalId])
 }
 model PosPackageWallet {
+ validFrom DateTime?
+ subscriptionCycle PosClientSubscriptionCycle?
  id String @id @default(uuid()) @db.Uuid
  companyId String @db.Uuid
  company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
@@ -1610,6 +1627,63 @@ model PosPackageMovement {
  type String
  sourceKey String
  units Int
+ actorId String @db.Uuid
+ reason String
+ createdAt DateTime @default(now())
+ @@unique([companyId,sourceKey])
+}
+
+model PosClientSubscription {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ customerId String @db.Uuid
+ customer CustomerProfile @relation(fields:[customerId,companyId],references:[id,companyId],onDelete:Restrict)
+ definitionId String @db.Uuid
+ definition PosPackageDefinition @relation(fields:[definitionId,companyId],references:[id,companyId],onDelete:Restrict)
+ status String @default("ACTIVE")
+ suspensionReason String?
+ renewalMode String @default("MANUAL_PDV")
+ nextRenewalAt DateTime
+ fundedCycles Int @default(0)
+ cancelledAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ cycles PosClientSubscriptionCycle[]
+ events PosClientSubscriptionEvent[]
+ discountedLines PosSaleLine[]
+ discountedBookings BookingRequestItem[]
+ @@unique([id,companyId])
+ @@unique([companyId,customerId,definitionId])
+ @@index([companyId,status,nextRenewalAt])
+}
+model PosClientSubscriptionCycle {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ subscriptionId String @db.Uuid
+ subscription PosClientSubscription @relation(fields:[subscriptionId,companyId],references:[id,companyId],onDelete:Restrict)
+ ordinal Int
+ startsAt DateTime
+ endsAt DateTime
+ status String @default("DUE")
+ sourceWalletId String? @db.Uuid
+ sourceWallet PosPackageWallet? @relation(fields:[sourceWalletId,companyId],references:[id,companyId],onDelete:Restrict)
+ paidAt DateTime?
+ createdAt DateTime @default(now())
+ loyaltyEntries PosLoyaltyEntry[]
+ @@unique([id,companyId])
+ @@unique([sourceWalletId,companyId])
+ @@unique([subscriptionId,ordinal])
+ @@index([companyId,startsAt,endsAt,status])
+}
+model PosClientSubscriptionEvent {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ subscriptionId String @db.Uuid
+ subscription PosClientSubscription @relation(fields:[subscriptionId,companyId],references:[id,companyId],onDelete:Restrict)
+ sourceKey String
+ requestHash String?
+ type String
  actorId String @db.Uuid
  reason String
  createdAt DateTime @default(now())

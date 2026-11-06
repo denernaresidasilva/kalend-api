@@ -1,3 +1,7 @@
+import {
+  prepareClientCycle,
+  fundClientCycle,
+} from './client-subscription-domain.js';
 import { ConflictException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { Operator, Sale } from './operations.service.js';
@@ -15,7 +19,10 @@ export async function assertPackageSaleable(
     where: { companyId, productId, active: true, product: { active: true } },
     include: { services: { include: { professionals: true, service: true } } },
   });
-  if (!definition || !definition.services.length)
+  if (
+    !definition ||
+    (!definition.services.length && definition.kind !== 'CLUB')
+  )
     throw new ConflictException('Pacote não disponível para nova venda.');
   for (const item of definition.services) {
     if (
@@ -93,11 +100,20 @@ export async function grantPackages(
         })),
       ),
       values = weightedCents(
-        amount,
+        definition.kind === 'CLUB'
+          ? Math.min(
+              amount,
+              units.reduce((n, u) => n + u.weight, 0),
+            )
+          : amount,
         units.map((u) => u.weight),
       );
-    if (!units.length || units.length > 100)
+    if ((!units.length && definition.kind !== 'CLUB') || units.length > 100)
       throw new ConflictException('Definição do pacote sem sessões válidas.');
+    const cycle =
+      definition.kind === 'CLUB'
+        ? await prepareClientCycle(tx, actor, definition, sale.customerId)
+        : null;
     const wallet = await tx.posPackageWallet.create({
       data: {
         companyId: sale.companyId,
@@ -106,19 +122,26 @@ export async function grantPackages(
         sourceLineId: line.id,
         sourceSaleId: sale.id,
         originalCents: amount,
-        expiresAt: new Date(Date.now() + definition.validityDays * 86400000),
+        validFrom: cycle?.startsAt ?? null,
+        expiresAt:
+          cycle?.endsAt ??
+          new Date(Date.now() + definition.validityDays * 86400000),
       },
     });
-    await tx.posPackageSession.createMany({
-      data: units.map((u, i) => ({
-        companyId: sale.companyId,
-        walletId: wallet.id,
-        serviceId: u.serviceId,
-        ordinal: i + 1,
-        valueCents: values[i],
-        eligibleProfessionalIds: u.eligibleProfessionalIds,
-      })),
-    });
+    const fundedCycle = cycle
+      ? await fundClientCycle(tx, actor, cycle, wallet.id)
+      : null;
+    if (units.length)
+      await tx.posPackageSession.createMany({
+        data: units.map((u, i) => ({
+          companyId: sale.companyId,
+          walletId: wallet.id,
+          serviceId: u.serviceId,
+          ordinal: i + 1,
+          valueCents: values[i],
+          eligibleProfessionalIds: u.eligibleProfessionalIds,
+        })),
+      });
     await tx.posPackageMovement.create({
       data: {
         companyId: sale.companyId,
@@ -134,11 +157,14 @@ export async function grantPackages(
       tx,
       sale.companyId,
       sale.customerId,
-      'OP_PACKAGE_CREDITED',
+      definition.kind === 'CLUB'
+        ? 'OP_CLIENT_SUBSCRIPTION_PAID'
+        : 'OP_PACKAGE_CREDITED',
       wallet.id,
       {
         __saleId: sale.id,
         __walletId: wallet.id,
+        __clientCycleId: fundedCycle?.id ?? null,
         servico: definition.name,
         valor: new Intl.NumberFormat('pt-BR', {
           style: 'currency',
@@ -155,7 +181,16 @@ export async function consumePackages(
 ) {
   const uses = await tx.posPackageUse.findMany({
     where: { companyId: sale.companyId, saleId: sale.id, status: 'RESERVED' },
-    include: { session: { include: { wallet: true } }, line: true },
+    include: {
+      session: {
+        include: {
+          wallet: {
+            include: { subscriptionCycle: { include: { subscription: true } } },
+          },
+        },
+      },
+      line: true,
+    },
   });
   for (const use of uses) {
     const wallet = use.session.wallet;
@@ -163,6 +198,10 @@ export async function consumePackages(
       use.line.voidedAt ||
       !use.line.completedAt ||
       wallet.status !== 'ACTIVE' ||
+      (wallet.validFrom !== null && wallet.validFrom > use.line.completedAt!) ||
+      (wallet.subscriptionCycle !== null &&
+        (wallet.subscriptionCycle.status !== 'PAID' ||
+          wallet.subscriptionCycle.subscription.status === 'SUSPENDED')) ||
       wallet.expiresAt < use.line.completedAt ||
       wallet.customerId !== sale.customerId ||
       use.session.state !== 'RESERVED'
@@ -267,6 +306,10 @@ export async function suspendRefundedPackages(
     where: { companyId: actor.companyId, sourceSaleId: sourceSale.id },
   });
   for (const wallet of wallets) {
+    await tx.posClientSubscriptionCycle.updateMany({
+      where: { companyId: actor.companyId, sourceWalletId: wallet.id },
+      data: { status: 'REFUND_REVIEW' },
+    });
     await tx.posPackageWallet.update({
       where: { id: wallet.id },
       data: { status: 'SUSPENDED' },
@@ -293,7 +336,18 @@ export async function suspendRefundedPackages(
     });
     for (const use of affected)
       if (use.line.professionalId) professionalIds.add(use.line.professionalId);
-    for (const saleId of new Set(affected.map((a) => a.saleId))) {
+    const bonusAffected = await tx.posLoyaltyEntry.findMany({
+      where: {
+        companyId: actor.companyId,
+        kind: 'MEMBERSHIP_BONUS',
+        clientSubscriptionCycle: { sourceWalletId: wallet.id },
+      },
+      select: { saleId: true },
+    });
+    for (const saleId of new Set([
+      ...affected.map((a) => a.saleId),
+      ...bonusAffected.map((a) => a.saleId),
+    ])) {
       const sale = await tx.posSale.findUniqueOrThrow({
         where: { id: saleId },
         include: { payments: true, refunds: true },

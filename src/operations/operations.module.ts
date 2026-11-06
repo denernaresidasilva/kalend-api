@@ -1,3 +1,5 @@
+import { object } from '../common/validation.js';
+import { ClientSubscriptionsService } from './client-subscriptions.service.js';
 import { PackagesService } from './packages.service.js';
 import { Body, Controller, Get, Inject, Module, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
@@ -11,6 +13,16 @@ import { FinancialReportService } from './financial-report.service.js';
 import { CommissionsService } from './commissions.service.js';
 import { OperationsService, type Operator } from './operations.service.js';
 export const operator = (req: AuthRequest): Operator => ({ companyId: req.tenant!.companyId, userId: req.auth.user.id, membershipId: req.tenant!.membershipId, role: req.tenant!.role });
+@Controller('operations/client-subscriptions')
+@UseGuards(TenantGuard,ProductAccessGuard)
+export class ClientSubscriptionsController{
+ constructor(@Inject(ClientSubscriptionsService)private readonly service:ClientSubscriptionsService){}
+ @Get()@TenantRoles('OWNER','ADMIN','RECEPTIONIST')list(@Req()r:AuthRequest){return this.service.list(operator(r));}
+ @Get('mine')@TenantRoles('CLIENT')mine(@Req()r:AuthRequest){return this.service.list(operator(r),true);}
+ @Post(':id/cancel')@TenantRoles('CLIENT')cancel(@Req()r:AuthRequest,@Param('id',new ParseUUIDPipe())id:string,@Body()b:unknown){const input=object(b,['reason','idempotencyKey']);return this.service.change(operator(r),id,{...input,action:'CANCEL'});}
+ @Post(':id/change')@TenantRoles('OWNER','ADMIN')change(@Req()r:AuthRequest,@Param('id',new ParseUUIDPipe())id:string,@Body()b:unknown){return this.service.change(operator(r),id,b);}
+ @Post('reconcile')@TenantRoles('OWNER','ADMIN')reconcile(@Req()r:AuthRequest){return this.service.reconcile([r.tenant!.companyId]);}
+}
 @Controller('operations/packages')
 @UseGuards(TenantGuard,ProductAccessGuard)
 export class PackagesController{
@@ -84,5 +96,5 @@ export class OperationsController {
   @Post('receipts/:id/refund') @TenantRoles('OWNER', 'ADMIN') refund(@Req() r: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body() b: unknown) { return this.ops.refund(operator(r), id, b); }
   @Post('sales/:id/cancel') @TenantRoles('OWNER', 'ADMIN', 'RECEPTIONIST') cancel(@Req() r: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body() b: unknown) { return this.ops.cancel(operator(r), id, b); }
 }
-@Module({ imports: [AuthModule, BillingModule], controllers: [PackagesController,LoyaltyController, OperationsController, CommissionsController, FinancialReportController, AutomationsController], providers: [PackagesService,LoyaltyService, OperationsService, CommissionsService, FinancialReportService, OperationalAutomations], exports: [OperationsService, OperationalAutomations] })
+@Module({ imports: [AuthModule, BillingModule], controllers: [ClientSubscriptionsController,PackagesController,LoyaltyController, OperationsController, CommissionsController, FinancialReportController, AutomationsController], providers: [ClientSubscriptionsService,PackagesService,LoyaltyService, OperationsService, CommissionsService, FinancialReportService, OperationalAutomations], exports: [ClientSubscriptionsService,OperationsService, OperationalAutomations] })
 export class OperationsModule {}
