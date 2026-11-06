@@ -1,0 +1,22 @@
+{
+  "environment": "DEV",
+  "billing": "manual attested POS in exclusive QA company; no external charges",
+  "results": [
+    {
+      "name": "paid_POS_cycle_only_no_fee_points_and_tenant_role_isolation",
+      "status": "PASS"
+    },
+    {
+      "name": "actual_service_discount_and_separate_paid_service_points_plus_bonus",
+      "status": "PASS"
+    },
+    {
+      "name": "owner_mobile_suspend_resume_paid_period_with_history_and_responsiveness",
+      "status": "PASS"
+    },
+    {
+      "name": "own_client_cancellation_preserves_paid_period_then_source_refund_revises_bonus_only",
+      "status": "PASS"
+    }
+  ]
+}

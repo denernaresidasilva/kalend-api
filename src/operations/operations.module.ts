@@ -1,7 +1,9 @@
+import{GiftCardsService}from'./gift-cards.service.js';
+import{SecretVault}from'../billing/secret-vault.js';
 import { object } from '../common/validation.js';
 import { ClientSubscriptionsService } from './client-subscriptions.service.js';
 import { PackagesService } from './packages.service.js';
-import { Body, Controller, Get, Inject, Module, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, Inject, Module, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { BillingModule } from '../billing/billing.module.js';
 import { TenantGuard, TenantRoles } from '../auth/tenant.guard.js';
@@ -13,6 +15,17 @@ import { FinancialReportService } from './financial-report.service.js';
 import { CommissionsService } from './commissions.service.js';
 import { OperationsService, type Operator } from './operations.service.js';
 export const operator = (req: AuthRequest): Operator => ({ companyId: req.tenant!.companyId, userId: req.auth.user.id, membershipId: req.tenant!.membershipId, role: req.tenant!.role });
+@Controller('operations/gift-cards')
+@UseGuards(TenantGuard,ProductAccessGuard)
+export class GiftCardsController{
+ constructor(@Inject(GiftCardsService)private readonly service:GiftCardsService){}
+ @Get('status')@TenantRoles('OWNER','ADMIN','RECEPTIONIST')status(@Req()r:AuthRequest){return this.service.status(operator(r));}
+ @Get()@TenantRoles('OWNER','ADMIN','RECEPTIONIST')list(@Req()r:AuthRequest){return this.service.list(operator(r));}
+ @Get('mine')@TenantRoles('CLIENT')mine(@Req()r:AuthRequest){return this.service.list(operator(r),true);}
+ @Post('sales')@TenantRoles('OWNER','ADMIN','RECEPTIONIST')sell(@Req()r:AuthRequest,@Body()b:unknown){return this.service.sell(operator(r),b);}
+ @Post(':id/code')@Header('Cache-Control','no-store')@TenantRoles('OWNER','ADMIN','RECEPTIONIST','CLIENT')code(@Req()r:AuthRequest,@Param('id',new ParseUUIDPipe())id:string){return this.service.code(operator(r),id);}
+ @Post('sales/:id/redeem')@TenantRoles('OWNER','ADMIN','RECEPTIONIST')redeem(@Req()r:AuthRequest,@Param('id',new ParseUUIDPipe())id:string,@Body()b:unknown){return this.service.redeem(operator(r),id,b);}
+}
 @Controller('operations/client-subscriptions')
 @UseGuards(TenantGuard,ProductAccessGuard)
 export class ClientSubscriptionsController{
@@ -96,5 +109,5 @@ export class OperationsController {
   @Post('receipts/:id/refund') @TenantRoles('OWNER', 'ADMIN') refund(@Req() r: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body() b: unknown) { return this.ops.refund(operator(r), id, b); }
   @Post('sales/:id/cancel') @TenantRoles('OWNER', 'ADMIN', 'RECEPTIONIST') cancel(@Req() r: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body() b: unknown) { return this.ops.cancel(operator(r), id, b); }
 }
-@Module({ imports: [AuthModule, BillingModule], controllers: [ClientSubscriptionsController,PackagesController,LoyaltyController, OperationsController, CommissionsController, FinancialReportController, AutomationsController], providers: [ClientSubscriptionsService,PackagesService,LoyaltyService, OperationsService, CommissionsService, FinancialReportService, OperationalAutomations], exports: [ClientSubscriptionsService,OperationsService, OperationalAutomations] })
+@Module({ imports: [AuthModule, BillingModule], controllers: [GiftCardsController,ClientSubscriptionsController,PackagesController,LoyaltyController, OperationsController, CommissionsController, FinancialReportController, AutomationsController], providers: [GiftCardsService,SecretVault,ClientSubscriptionsService,PackagesService,LoyaltyService, OperationsService, CommissionsService, FinancialReportService, OperationalAutomations], exports: [ClientSubscriptionsService,OperationsService, OperationalAutomations] })
 export class OperationsModule {}

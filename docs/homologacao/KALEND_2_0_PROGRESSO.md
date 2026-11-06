@@ -7,8 +7,8 @@ Base confirmada em 06/11/2026: API `21f077e`, Web `193fbb1`, develop igual ao re
 | 1 | Lista de espera inteligente | HOMOLOGADA EM DEV |
 | 2 | Confirmação, comparecimento e sinal | PUBLICADA EM DEV |
 | 3 | Assistente IA WhatsApp | DEPENDÊNCIA EXTERNA |
-| 4 | Pacotes e assinaturas de clientes | EM DESENVOLVIMENTO |
-| 5 | Cartão-presente | NÃO INICIADA |
+| 4 | Pacotes e assinaturas de clientes | PUBLICADA EM DEV |
+| 5 | Cartão-presente | EM DESENVOLVIMENTO |
 | 6 | Estoque | NÃO INICIADA |
 | 7 | Inteligência do negócio | NÃO INICIADA |
 | 8 | Atribuição de campanhas | NÃO INICIADA |
@@ -119,3 +119,17 @@ Testes locais: 965 unitários API, 55 PostgreSQL nativo, 412 Web; builds aprovad
 Recuperação: migration aditiva testada em PostgreSQL descartável. Em falha, preservar as tabelas/histórico, desabilitar novas ofertas/cobranças e corrigir aditivamente; não executar downgrade destrutivo. Backup DEV fresco restaurado será confirmado antes do push. Nunca simular pagamento remoto nem mudar datas DEV para fingir vencimento.
 
 Preflight da fase 4B aprovado: develop sem divergência; migration com identidade exclusiva `kalend_dev_migrator`; backup `booking-release-backup-FqkTno` restaurado em instância temporária privada (74 tabelas, 32 migrations, 5 PaymentEvidence). Lint API sem avisos; 55 testes PostgreSQL repetidos após checks finais da migration, todos aprovados.
+
+### Clubes — homologação da operação manual em DEV
+
+API `cd556c5` / Action `42214082726`; Web `14a1f77` / Action `42214187152`, ambas aprovadas. Quatro jornadas DEV aprovadas: ciclo creditado só após pagamento e isolamento; desconto real de 10% com pontos separados; suspensão/reativação mobile pelo proprietário; cancelamento pelo cliente mantendo período pago, seguido de estorno que reverte somente bônus financiado. A primeira execução antecipou leitura de estado do botão após a resposta; teste corrigido para aguardar renderização e repetido com sucesso. Fixtures anteriores foram canceladas/estornadas exclusivamente na empresa QA. Plano temporário restaurado. Screenshots `/tmp/kalend2-clubs-{owner-mobile,owner-desktop,client-mobile}.png`; evidência sanitizada anexa. Ledger/checksums das cinco migrations 2.0 conferidos, PaymentEvidence permanece 5 total/3 APPLIED. **Pacotes e clubes com renovação manual HOMOLOGADOS EM DEV**. Recorrência por gateway permanece DEPENDÊNCIA EXTERNA; fase 4 completa não é declarada homologada externamente.
+
+## Fase 5 — cartão-presente: IMPLEMENTADA LOCALMENTE
+
+Models PosGiftCard/PosGiftCardMovement; migration aditiva `20261106170000_gift_cards`, enum operacional GIFT_CARD e FKs compostas de tenant. Saldo crédito somente após compra exclusiva integral paga/finalizada. Código aleatório de 192 bits, hash para busca e cifragem AES-GCM com escopo por empresa/cartão no cofre existente; listas e Outbox não expõem código. Exibição autenticada auditada e no-store. Destinatário identificado, mensagem e validade; crédito disponível no painel do cliente. Aviso digital pela infraestrutura existente somente com cliente ativado, canal/consentimento/template habilitados, com revalidação antes de envio; link de painel autenticado, sem segredo. Sem alegação de entrega externa homologada.
+
+API `/operations/gift-cards/{status,mine,sales}`, GET lista, POST `/:id/code`, POST `/sales/:id/redeem`. Owner/admin/recepção vendem/resgatam; cliente vê somente seus cartões/código. Contador/profissional sem acesso ao cadastro ou códigos. Direito válido `gift_cards` exigido para novas vendas/resgates; planos comerciais preservados. Comandas de compra não aceitam itens adicionais/descontos e não podem ser financiadas por outro cartão. Resgate parcial em serviços do destinatário, pagamento dividido com métodos existentes, histórico financeiro e saldo transacionais/idempotentes. Elegibilidade inicial é **somente serviços**, sem produtos/pacotes/clubes, e sem transferência entre pessoas. Regras de elegibilidade fina por serviço continuam evolução possível; não há resgate em agendamento público nesta fase.
+
+Estorno de resgate restaura saldo, sem saque e sem prorrogar validade. Estorno da compra limitado ao saldo ainda não utilizado; para devolver financiamento já consumido é necessário restaurar os resgates correspondentes. Estorno integral encerra cartão; cancelamento de venda não paga não gera crédito. Histórico imutável. Relatório financeiro distingue recebimentos/devoluções externos dos resgates/restaurações internos, sem duplicar dinheiro. Comissões/pontos somente sobre atendimento legítimo e valor financiado; compra isolada não gera pontos de serviço.
+
+Validação local: 967 testes unitários API, 61 PostgreSQL nativo (concorrência, isolamento, permissões, repetição, cancelamento, estorno, expiração, código e consentimento), 412 Web; builds/lint aprovados. Rotas Web reutilizam proprietário/recepção/cliente e PDV, com código ocultável e formulário de resgate. Mobile/desktop e jornadas reais aguardam DEV. Backup `booking-release-backup-zlagAb` restaurado: 77 tabelas, 33 migrations, 5 PaymentEvidence. Migrations aditivas preservam histórico. Recuperação: bloquear novas vendas/resgates e corrigir aditivamente; não remover ledger nem fazer downgrade do enum após movimentações.

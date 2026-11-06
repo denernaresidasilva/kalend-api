@@ -78,7 +78,7 @@ const COMMERCIAL_TEMPLATE_COPY = {
 };
 
 export const DEFAULT_TEMPLATE_COPY = { ...COMMERCIAL_TEMPLATE_COPY, ...Object.fromEntries(OPERATIONAL_EVENTS.map(event => {
- const label=OPERATIONAL_LABELS[event],text=event==='OP_APPOINTMENT_CONFIRMATION'?'Olá, {{nome}}! Confirme sua presença para {{servico}} em {{horario}} na {{empresa}}: {{url_confirmacao}}. No link você também pode pedir reagendamento ou cancelar.':event==='OP_WAITLIST_AVAILABLE'?'Olá, {{nome}}! Surgiu uma oportunidade para {{servico}} em {{horario}} na {{empresa}}. Consulte antes do prazo: {{url_agenda}}. O horário depende da disponibilidade e aprovação.':event==='OP_FOLLOW_UP'?'Olá, {{nome}}! Como foi seu atendimento de {{servico}} na {{empresa}}? Conte para nós.':`${label}. Olá, {{nome}}! {{empresa}}: {{servico}}. {{valor}}`;
+ const label=OPERATIONAL_LABELS[event],text=event==='OP_GIFT_CARD_READY'?'Olá, {{nome}}! Seu cartão-presente da {{empresa}} está disponível. Entre na sua conta para consultar o saldo, a validade e o código de uso: {{url_agenda}}.':event==='OP_APPOINTMENT_CONFIRMATION'?'Olá, {{nome}}! Confirme sua presença para {{servico}} em {{horario}} na {{empresa}}: {{url_confirmacao}}. No link você também pode pedir reagendamento ou cancelar.':event==='OP_WAITLIST_AVAILABLE'?'Olá, {{nome}}! Surgiu uma oportunidade para {{servico}} em {{horario}} na {{empresa}}. Consulte antes do prazo: {{url_agenda}}. O horário depende da disponibilidade e aprovação.':event==='OP_FOLLOW_UP'?'Olá, {{nome}}! Como foi seu atendimento de {{servico}} na {{empresa}}? Conte para nós.':`${label}. Olá, {{nome}}! {{empresa}}: {{servico}}. {{valor}}`;
  return [event,{EMAIL:{subject:label,text},WHATSAPP:{text},PUSH:{title:label,text}}];
 })) } as Record<DefaultEvent, EventCopy>;
 

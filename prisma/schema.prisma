@@ -110,6 +110,7 @@ model User {
 }
 
 model Company {
+ giftCards PosGiftCard[]
  clientSubscriptions PosClientSubscription[]
  packageDefinitions PosPackageDefinition[]
  packageWallets PosPackageWallet[]
@@ -253,6 +254,7 @@ model ServiceProfessional {
 }
 
 model CustomerProfile {
+ giftCards PosGiftCard[]
  clientSubscriptions PosClientSubscription[]
  packageWallets PosPackageWallet[]
  waitlistEntries WaitlistEntry[]
@@ -1005,6 +1007,7 @@ enum PosSaleStatus {
   CANCELLED
 }
 enum PosPaymentMethod {
+  GIFT_CARD
   CASH
   PIX
   DEBIT_CARD
@@ -1032,6 +1035,7 @@ model PosCashSession {
   @@index([companyId, openedAt])
 }
 model PosProduct {
+ giftCard PosGiftCard?
  packageDefinition PosPackageDefinition?
   id String @id @default(uuid()) @db.Uuid
   companyId String @db.Uuid
@@ -1061,6 +1065,7 @@ model PosCoupon {
   @@unique([companyId, code])
 }
 model PosSale {
+ issuedGiftCard PosGiftCard?
  fundedPackageWallets PosPackageWallet[]
  packageUses PosPackageUse[]
  loyaltyEntries PosLoyaltyEntry[]
@@ -1131,6 +1136,7 @@ model PosSaleLine {
 }
 // Operational receipts are manually attested settlements, never SaaS Payment rows.
 model PosReceipt {
+ giftRedemption PosGiftCardMovement?
   id String @id @default(uuid()) @db.Uuid
   companyId String @db.Uuid
   saleId String @db.Uuid
@@ -1149,6 +1155,7 @@ model PosReceipt {
   @@index([companyId, saleId])
 }
 model PosRefund {
+ giftMovement PosGiftCardMovement?
   id String @id @default(uuid()) @db.Uuid
   companyId String @db.Uuid
   saleId String @db.Uuid
@@ -1162,6 +1169,7 @@ model PosRefund {
   reason String
   recordedById String @db.Uuid
   createdAt DateTime @default(now())
+  @@unique([id,companyId])
   @@unique([companyId, idempotencyKey])
   @@index([companyId, saleId])
 }
@@ -1688,4 +1696,53 @@ model PosClientSubscriptionEvent {
  reason String
  createdAt DateTime @default(now())
  @@unique([companyId,sourceKey])
+}
+
+model PosGiftCard {
+ productId String @unique @db.Uuid
+ product PosProduct @relation(fields:[productId,companyId],references:[id,companyId],onDelete:Restrict)
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ sourceSaleId String @unique @db.Uuid
+ sourceSale PosSale @relation(fields:[sourceSaleId,companyId],references:[id,companyId],onDelete:Restrict)
+ recipientId String @db.Uuid
+ recipient CustomerProfile @relation(fields:[recipientId,companyId],references:[id,companyId],onDelete:Restrict)
+ message String
+ codeHash String @unique
+ codeEncrypted String
+ suffix String
+ faceCents Int
+ balanceCents Int @default(0)
+ status String @default("PENDING")
+ validityDays Int
+ expiresAt DateTime?
+ creditedAt DateTime?
+ createdAt DateTime @default(now())
+ movements PosGiftCardMovement[]
+ @@unique([id,companyId])
+ @@unique([productId,companyId])
+ @@unique([sourceSaleId,companyId])
+ @@index([companyId,recipientId,status])
+}
+model PosGiftCardMovement {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ cardId String @db.Uuid
+ card PosGiftCard @relation(fields:[cardId,companyId],references:[id,companyId],onDelete:Restrict)
+ sourceKey String
+ requestHash String?
+ type String
+ deltaCents Int
+ balanceAfterCents Int
+ receiptId String? @unique @db.Uuid
+ receipt PosReceipt? @relation(fields:[receiptId,companyId],references:[id,companyId],onDelete:Restrict)
+ refundId String? @unique @db.Uuid
+ refund PosRefund? @relation(fields:[refundId,companyId],references:[id,companyId],onDelete:Restrict)
+ actorId String @db.Uuid
+ reason String
+ createdAt DateTime @default(now())
+ @@unique([companyId,sourceKey])
+ @@unique([receiptId,companyId])
+ @@unique([refundId,companyId])
 }

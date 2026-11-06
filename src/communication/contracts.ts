@@ -49,7 +49,7 @@ export function providerName(v: string): Provider {
 }
 export function variablesFor(event: Event): string[] {
   if(event==='OP_APPOINTMENT_CONFIRMATION')return ['nome','empresa','servico','valor','horario','pontos','url_confirmacao'];
-  if (event==='OP_WAITLIST_AVAILABLE') return ['nome','empresa','servico','valor','horario','pontos','url_agenda'];
+  if (event==='OP_WAITLIST_AVAILABLE'||event==='OP_GIFT_CARD_READY') return ['nome','empresa','servico','valor','horario','pontos','url_agenda'];
   if (operationalEvent(event)) return ['nome','empresa','servico','valor','horario','pontos'];
   if (event === 'SECURITY_PASSWORD_CHANGED') return ['nome'];
   if (event === 'QA_COMMUNICATION_TEST') return ['nome', 'empresa'];
