@@ -3,7 +3,7 @@ import { EVENTS, variablesFor, templateContent } from './contracts.js';
 
 describe('global communication template defaults', () => {
   it('defines complete valid content for every real event and channel', () => {
-    expect(EVENTS).toHaveLength(27);
+    expect(EVENTS).toHaveLength(30);
     expect(GLOBAL_TEMPLATE_DEFAULTS).toHaveLength(EVENTS.length * 3);
     for (const row of GLOBAL_TEMPLATE_DEFAULTS) {
       expect(row.scope).toBe('GLOBAL');

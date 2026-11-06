@@ -1,0 +1,24 @@
+{
+  "environment": "DEV",
+  "scope": "LOCAL_CONTRACT_ONLY",
+  "aiConversations": "NOT_HOMOLOGATED",
+  "externalMessagesSent": false,
+  "results": [
+    {
+      "name": "ai_contract_module_rights_real_tools_and_no_unconfigured_provider_activation",
+      "status": "PASS"
+    },
+    {
+      "name": "tenant_usage_isolation_and_explicit_unavailable_conversation_metrics",
+      "status": "PASS"
+    },
+    {
+      "name": "ai_owner_mobile_desktop_real_catalog_and_visible_remote_dependency",
+      "status": "PASS"
+    },
+    {
+      "name": "agenda_configuration_reuses_existing_operational_components",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { PackagesService } from './packages.service.js';
 import { Body, Controller, Get, Inject, Module, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { BillingModule } from '../billing/billing.module.js';
@@ -10,6 +11,21 @@ import { FinancialReportService } from './financial-report.service.js';
 import { CommissionsService } from './commissions.service.js';
 import { OperationsService, type Operator } from './operations.service.js';
 export const operator = (req: AuthRequest): Operator => ({ companyId: req.tenant!.companyId, userId: req.auth.user.id, membershipId: req.tenant!.membershipId, role: req.tenant!.role });
+@Controller('operations/packages')
+@UseGuards(TenantGuard,ProductAccessGuard)
+export class PackagesController{
+ constructor(@Inject(PackagesService)private readonly service:PackagesService){}
+ @Get('status')@TenantRoles('OWNER','ADMIN','RECEPTIONIST')status(@Req()r:AuthRequest){return this.service.status(operator(r));}
+ @Get('definitions')@TenantRoles('OWNER','ADMIN','RECEPTIONIST')definitions(@Req()r:AuthRequest){return this.service.definitions(operator(r));}
+ @Post('definitions')@TenantRoles('OWNER','ADMIN')create(@Req()r:AuthRequest,@Body()b:unknown){return this.service.create(operator(r),b);}
+ @Post('definitions/:id/deactivate')@TenantRoles('OWNER','ADMIN')deactivate(@Req()r:AuthRequest,@Param('id',new ParseUUIDPipe())id:string){return this.service.deactivate(operator(r),id);}
+ @Get('wallets')@TenantRoles('OWNER','ADMIN','RECEPTIONIST')wallets(@Req()r:AuthRequest,@Query('customerId')customerId?:string){return this.service.wallets(operator(r),false,customerId);}
+ @Get('mine')@TenantRoles('CLIENT')mine(@Req()r:AuthRequest){return this.service.wallets(operator(r),true);}
+ @Post('sales')@TenantRoles('OWNER','ADMIN','RECEPTIONIST')sell(@Req()r:AuthRequest,@Body()b:unknown){return this.service.sell(operator(r),b);}
+ @Post('lines/:id/reserve')@TenantRoles('OWNER','ADMIN','RECEPTIONIST')reserve(@Req()r:AuthRequest,@Param('id',new ParseUUIDPipe())id:string,@Body()b:unknown){return this.service.reserve(operator(r),id,b);}
+ @Post('uses/:id/release')@TenantRoles('OWNER','ADMIN','RECEPTIONIST')release(@Req()r:AuthRequest,@Param('id',new ParseUUIDPipe())id:string,@Body()b:unknown){return this.service.release(operator(r),id,b);}
+ @Post('uses/:id/restore')@TenantRoles('OWNER','ADMIN')restore(@Req()r:AuthRequest,@Param('id',new ParseUUIDPipe())id:string,@Body()b:unknown){return this.service.restore(operator(r),id,b);}
+}
 @Controller('operations/loyalty')
 @UseGuards(TenantGuard,ProductAccessGuard)
 export class LoyaltyController {
@@ -68,5 +84,5 @@ export class OperationsController {
   @Post('receipts/:id/refund') @TenantRoles('OWNER', 'ADMIN') refund(@Req() r: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body() b: unknown) { return this.ops.refund(operator(r), id, b); }
   @Post('sales/:id/cancel') @TenantRoles('OWNER', 'ADMIN', 'RECEPTIONIST') cancel(@Req() r: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body() b: unknown) { return this.ops.cancel(operator(r), id, b); }
 }
-@Module({ imports: [AuthModule, BillingModule], controllers: [LoyaltyController, OperationsController, CommissionsController, FinancialReportController, AutomationsController], providers: [LoyaltyService, OperationsService, CommissionsService, FinancialReportService, OperationalAutomations], exports: [OperationsService, OperationalAutomations] })
+@Module({ imports: [AuthModule, BillingModule], controllers: [PackagesController,LoyaltyController, OperationsController, CommissionsController, FinancialReportController, AutomationsController], providers: [PackagesService,LoyaltyService, OperationsService, CommissionsService, FinancialReportService, OperationalAutomations], exports: [OperationsService, OperationalAutomations] })
 export class OperationsModule {}

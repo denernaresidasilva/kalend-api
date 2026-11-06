@@ -1,3 +1,4 @@
+import { grantPackages,consumePackages,releasePackageUses,suspendRefundedPackages,assertPackageSaleable } from './package-domain.js';
 import { attendanceEvent } from '../bookings/attendance-domain.js';
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type PosPaymentMethod } from '@prisma/client';
@@ -15,8 +16,9 @@ type Tx = Prisma.TransactionClient;
 const managers = ['OWNER', 'ADMIN'];
 const cashiers = [...managers, 'RECEPTIONIST'];
 const workers = [...cashiers, 'PROFESSIONAL'];
-const saleInclude = { customer: { select: { id: true, name: true } }, lines: { include: { professional: { select: { id: true, membershipId: true, displayName: true } } }, orderBy: { createdAt: 'asc' as const } }, payments: { orderBy: { createdAt: 'asc' as const } }, refunds: { orderBy: { createdAt: 'asc' as const } } } as const;
-export type Sale = Prisma.PosSaleGetPayload<{ include: typeof saleInclude }>;
+const baseSaleInclude = { customer: { select: { id: true, name: true } }, lines: { include: { professional: { select: { id: true, membershipId: true, displayName: true } } }, orderBy: { createdAt: 'asc' as const } }, payments: { orderBy: { createdAt: 'asc' as const } }, refunds: { orderBy: { createdAt: 'asc' as const } } } as const;
+const saleInclude = { customer: { select: { id: true, name: true } }, lines: { include: { packageUses:{where:{status:{in:['RESERVED','CONSUMED'] as string[]}},select:{id:true,sessionId:true,status:true,allocatedCents:true,originalUnitPriceCents:true,session:{select:{wallet:{select:{id:true,definition:{select:{name:true}}}}}}}}, professional: { select: { id: true, membershipId: true, displayName: true } } }, orderBy: { createdAt: 'asc' as const } }, payments: { orderBy: { createdAt: 'asc' as const } }, refunds: { orderBy: { createdAt: 'asc' as const } } } as const;
+export type Sale = Prisma.PosSaleGetPayload<{ include: typeof baseSaleInclude }>;
 @Injectable()
 export class OperationsService {
   constructor(@Inject(PrismaService) private readonly db: PrismaService, @Inject(EntitlementsService) private readonly entitlements: EntitlementsService) {}
@@ -31,18 +33,18 @@ export class OperationsService {
       return work(tx);
     }, { isolationLevel: 'Serializable', maxWait: 5000, timeout: 10000 }));
   }
-  private async sale(tx: Tx, actor: Operator, id: string) {
+  async sale(tx: Tx, actor: Operator, id: string) {
     const sale = await tx.posSale.findFirst({ where: { id, companyId: actor.companyId }, include: saleInclude });
     if (!sale) throw new NotFoundException('Comanda não encontrada.');
     return sale;
   }
-  private editable(sale: Sale) { if (terminalSale(sale.status) || sale.payments.length) throw new ConflictException('A comanda já possui recebimento ou está encerrada.'); }
+  assertEditable(sale: Sale) { if (terminalSale(sale.status) || sale.payments.length) throw new ConflictException('A comanda já possui recebimento ou está encerrada.'); }
   private async audit(tx: Tx, actor: Operator, action: string, detail: Prisma.InputJsonObject, saleId?: string) { await tx.posAudit.create({ data: { companyId: actor.companyId, actorId: actor.userId, saleId, action, detail } }); }
   async notify(tx: Tx, companyId: string, professionalIds: string[] = []) {
     const ids = [...new Set(professionalIds)];
     for (let i = 0; i < Math.max(1, ids.length); i += 8) await tx.$queryRaw`SELECT pg_notify('kalend_booking_events', ${JSON.stringify({ companyId, professionalIds: ids.slice(i, i + 8) })})::text`;
   }
-  private async recalculate(tx: Tx, sale: Sale) {
+  async recalculate(tx: Tx, sale: Sale) {
     const totals = totalSale(sale.lines, sale.discountCents);
     return tx.posSale.update({ where: { id: sale.id }, data: totals });
   }
@@ -122,14 +124,14 @@ export class OperationsService {
     const body = object(input, ['serviceId', 'productId', 'professionalId', 'quantity']); integer(body.quantity ?? 1, 'quantity', 1, 100);
     if ((body.serviceId !== undefined) === (body.productId !== undefined)) throw new BadRequestException('Escolha um serviço ou produto.');
     return this.change(actor, cashiers, async tx => {
-      const sale = await this.sale(tx, actor, id); this.editable(sale); if (sale.lines.length >= 100) throw new BadRequestException('Limite de itens atingido.');
+      const sale = await this.sale(tx, actor, id); this.assertEditable(sale); if (sale.lines.length >= 100) throw new BadRequestException('Limite de itens atingido.');
       let name: string, unitPriceCents: number; let serviceId: string | undefined, productId: string | undefined, professionalId: string | undefined;
       if (body.serviceId) {
         serviceId = uuid(body.serviceId); professionalId = uuid(body.professionalId);
         const service = await tx.service.findFirst({ where: { id: serviceId, companyId: actor.companyId, active: true, professionalLinks: { some: { professionalId, professional: { active: true, membership: { isActive: true, role: { in: ['OWNER', 'ADMIN', 'PROFESSIONAL'] } } } } } } });
         if (!service) throw new BadRequestException('Serviço ou profissional indisponível nesta empresa.'); name = service.name; unitPriceCents = service.priceCents;
       } else {
-        productId = uuid(body.productId); const product = await tx.posProduct.findFirst({ where: { id: productId, companyId: actor.companyId, active: true } }); if (!product) throw new BadRequestException('Produto indisponível nesta empresa.'); name = product.name; unitPriceCents = product.priceCents;
+        productId = uuid(body.productId); const product = await tx.posProduct.findFirst({ where: { id: productId, companyId: actor.companyId, active: true } }); if (!product) throw new BadRequestException('Produto indisponível nesta empresa.');const packageDefinition=await tx.posPackageDefinition.findUnique({where:{productId:product.id}});if(packageDefinition){await this.entitlements.assertFeature(actor.companyId,'packages',tx);await assertPackageSaleable(tx,actor.companyId,product.id);if((body.quantity??1)!==1||!sale.customerId)throw new ConflictException('Venda um pacote por item e identifique o cliente na comanda.');if(await tx.posSaleLine.count({where:{companyId:actor.companyId,saleId:id,product:{packageDefinition:{isNot:null}}}})>=10)throw new ConflictException('Limite de dez pacotes por comanda.');} name = product.name; unitPriceCents = product.priceCents;
       }
       await tx.posSaleLine.create({ data: { companyId: actor.companyId, saleId: id, serviceId, productId, professionalId, name, unitPriceCents, quantity: (body.quantity ?? 1) as number } });
       await this.recalculate(tx, await this.sale(tx, actor, id)); const fresh = await this.sale(tx, actor, id); await tx.posSale.update({ where: { id }, data: { status: fresh.lines.some(l => l.startedAt) ? 'IN_PROGRESS' : 'OPEN' } }); await this.audit(tx, actor, 'LINE_ADDED', { serviceId: serviceId ?? null, productId: productId ?? null, quantity: (body.quantity ?? 1) as number }, id); await this.notify(tx, actor.companyId, professionalId ? [professionalId] : []); return this.sale(tx, actor, id);
@@ -143,7 +145,8 @@ export class OperationsService {
       if (actor.role === 'PROFESSIONAL' && line.professional?.membershipId !== actor.membershipId) throw new ForbiddenException('Este atendimento pertence a outro profissional.');
       if (line.voidedAt) throw new ConflictException('Item cancelado.');
       if (action === 'void') {
-        this.editable(sale); if (line.startedAt) throw new ConflictException('Atendimento já iniciado.');
+        this.assertEditable(sale); if (line.startedAt) throw new ConflictException('Atendimento já iniciado.');
+        await releasePackageUses(tx,actor,sale.id,string(body.reason,'reason',1000),lineId);
         await tx.posSaleLine.update({ where: { id: lineId }, data: { voidedAt: new Date() } }); await this.recalculate(tx, await this.sale(tx, actor, sale.id));
       } else {
         if (action === 'start' && (!line.professional?.active || !await tx.membership.findFirst({ where: { id: line.professional.membershipId, companyId: actor.companyId, isActive: true, role: { in: ['OWNER', 'ADMIN', 'PROFESSIONAL'] } } }))) throw new ConflictException('Profissional indisponível.');
@@ -159,12 +162,12 @@ export class OperationsService {
   }
   async discount(actor: Operator, id: string, input: unknown) {
     const body = object(input, ['amountCents', 'reason']); integer(body.amountCents, 'amountCents', 0, 1_000_000_000); const reason = string(body.reason, 'reason', 1000);
-    return this.change(actor, managers, async tx => { const sale = await this.sale(tx, actor, id); this.editable(sale); const totals = totalSale(sale.lines, body.amountCents as number); await tx.posSale.update({ where: { id }, data: { ...totals, discountReason: reason, couponId: null } }); await this.audit(tx, actor, 'DISCOUNT_AUTHORIZED', { amountCents: body.amountCents as number, reason }, id); return this.sale(tx, actor, id); });
+    return this.change(actor, managers, async tx => { const sale = await this.sale(tx, actor, id); this.assertEditable(sale); const totals = totalSale(sale.lines, body.amountCents as number); await tx.posSale.update({ where: { id }, data: { ...totals, discountReason: reason, couponId: null } }); await this.audit(tx, actor, 'DISCOUNT_AUTHORIZED', { amountCents: body.amountCents as number, reason }, id); return this.sale(tx, actor, id); });
   }
   async coupon(actor: Operator, id: string, input: unknown) {
     const body = object(input, ['code']); const code = string(body.code, 'code', 40).toUpperCase();
     return this.change(actor, cashiers, async tx => {
-      const sale = await this.sale(tx, actor, id); this.editable(sale);
+      const sale = await this.sale(tx, actor, id); this.assertEditable(sale);
       const coupon = await tx.posCoupon.findUnique({ where: { companyId_code: { companyId: actor.companyId, code } } });
       if (!coupon || !coupon.active || (coupon.expiresAt && coupon.expiresAt <= new Date()) || sale.subtotalCents < coupon.minSubtotalCents) throw new ConflictException('Cupom indisponível para esta comanda.');
       const uses = await tx.posSale.count({ where: { companyId: actor.companyId, couponId: coupon.id, id: { not: id }, status: { not: 'CANCELLED' } } });
@@ -197,6 +200,8 @@ export class OperationsService {
       if (!lines.length || lines.some(l => l.serviceId && !l.completedAt)) throw new ConflictException('Conclua todos os atendimentos da comanda.');
       if (netReceived(sale.payments, sale.refunds) !== sale.totalCents) throw new ConflictException('A comanda ainda possui saldo a receber.');
       await tx.posSale.update({ where: { id }, data: { status: 'PAID', finalizedAt: new Date(), finalizedById: actor.userId } });
+      if(await tx.posPackageDefinition.count({where:{companyId:actor.companyId,productId:{in:sale.lines.flatMap(l=>l.productId?[l.productId]:[])}}})||await tx.posPackageUse.count({where:{companyId:actor.companyId,saleId:sale.id,status:'RESERVED'}}))await this.entitlements.assertFeature(actor.companyId,'packages',tx);
+      await grantPackages(tx,actor,sale);await consumePackages(tx,actor,sale);
       await generateCommissions(tx, actor, sale);
       await scheduleFollowups(tx, sale);
       await confirmLoyalty(tx, sale);
@@ -218,15 +223,16 @@ export class OperationsService {
       const refund = await tx.posRefund.create({ data: { companyId: actor.companyId, saleId: receipt.saleId, receiptId, cashSessionId: cash.id, idempotencyKey: key, amountCents: body.amountCents as number, reason, recordedById: actor.userId } });
       const sale = await this.sale(tx, actor, receipt.saleId);
       if (['PAID', 'PARTIALLY_REFUNDED'].includes(sale.status)) await tx.posSale.update({ where: { id: sale.id }, data: { status: netReceived(sale.payments, sale.refunds) === 0 ? 'REFUNDED' : 'PARTIALLY_REFUNDED' } });
+      const packageProfessionalIds=await suspendRefundedPackages(tx,actor,sale,refund.id);
       await reconcileCommissions(tx, actor, sale, refund.id);
       await reverseLoyalty(tx, sale, refund.id);
       await tx.posFollowupJob.updateMany({where:{companyId:actor.companyId,saleId:sale.id,status:'PENDING'},data:{status:'CANCELLED',result:'SALE_REFUNDED'}});
       await saleEvent(tx, sale, 'OP_REFUND_RECORDED', refund.id, {__factId:refund.id});
-      await this.audit(tx, actor, 'REFUND_RECORDED', { refundId: refund.id, receiptId, amountCents: refund.amountCents, reason }, receipt.saleId); await this.notify(tx, actor.companyId, sale.lines.flatMap(l => l.professionalId ? [l.professionalId] : [])); return refund;
+      await this.audit(tx, actor, 'REFUND_RECORDED', { refundId: refund.id, receiptId, amountCents: refund.amountCents, reason }, receipt.saleId); await this.notify(tx, actor.companyId, [...sale.lines.flatMap(l => l.professionalId ? [l.professionalId] : []),...packageProfessionalIds]); return refund;
     });
   }
   async cancel(actor: Operator, id: string, input: unknown) {
     const body = object(input, ['reason']); const reason = string(body.reason, 'reason', 1000);
-    return this.change(actor, cashiers, async tx => { const sale = await this.sale(tx, actor, id); if (sale.status === 'CANCELLED') return sale; if (terminalSale(sale.status) || netReceived(sale.payments, sale.refunds) !== 0) throw new ConflictException('Estorne os recebimentos antes de cancelar uma comanda ainda não finalizada.'); await tx.posSale.update({ where: { id }, data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledById: actor.userId, cancellationReason: reason } }); await tx.posFollowupJob.updateMany({where:{companyId:actor.companyId,saleId:id,status:'PENDING'},data:{status:'CANCELLED',result:'SALE_CANCELLED'}});await saleEvent(tx,sale,'OP_SALE_CANCELLED',id);await this.audit(tx, actor, 'SALE_CANCELLED', { reason }, id); await this.notify(tx, actor.companyId, sale.lines.flatMap(l => l.professionalId ? [l.professionalId] : [])); return this.sale(tx, actor, id); });
+    return this.change(actor, cashiers, async tx => { const sale = await this.sale(tx, actor, id); if (sale.status === 'CANCELLED') return sale; if (terminalSale(sale.status) || netReceived(sale.payments, sale.refunds) !== 0) throw new ConflictException('Estorne os recebimentos antes de cancelar uma comanda ainda não finalizada.'); await releasePackageUses(tx,actor,id,reason);await tx.posSale.update({ where: { id }, data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledById: actor.userId, cancellationReason: reason } }); await tx.posFollowupJob.updateMany({where:{companyId:actor.companyId,saleId:id,status:'PENDING'},data:{status:'CANCELLED',result:'SALE_CANCELLED'}});await saleEvent(tx,sale,'OP_SALE_CANCELLED',id);await this.audit(tx, actor, 'SALE_CANCELLED', { reason }, id); await this.notify(tx, actor.companyId, sale.lines.flatMap(l => l.professionalId ? [l.professionalId] : [])); return this.sale(tx, actor, id); });
   }
 }

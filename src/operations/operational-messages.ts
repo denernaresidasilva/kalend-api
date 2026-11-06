@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { entitledWhere } from '../billing/commercial-policy.js';
 import { operationalEvent } from '../communication/operational-events.js';
 import type { Sale } from './operations.service.js';
-type DB=Pick<Prisma.TransactionClient,'customerProfile'|'posMessageConsent'|'companyCommunicationTemplate'|'globalCommunicationOutbox'|'posSale'|'bookingRequest'|'posReceipt'|'posRefund'|'posServiceFollowup'|'subscription'|'waitlistOpportunity'|'waitlistSettings'|'bookingConfirmationInvitation'|'bookingConfirmationSettings'>;
+type DB=Pick<Prisma.TransactionClient,'customerProfile'|'posMessageConsent'|'companyCommunicationTemplate'|'globalCommunicationOutbox'|'posSale'|'bookingRequest'|'posReceipt'|'posRefund'|'posServiceFollowup'|'subscription'|'waitlistOpportunity'|'waitlistSettings'|'bookingConfirmationInvitation'|'bookingConfirmationSettings'|'posPackageWallet'|'posPackageUse'>;
 export async function queueCustomerEvent(tx:DB,companyId:string,customerId:string,event:string,key:string,variables:Prisma.InputJsonObject={}){
  if(!operationalEvent(event))return null;
  const customer=await tx.customerProfile.findFirst({where:{id:customerId,companyId,company:{isActive:true,administrativeStatus:'ACTIVE'}},include:{user:true}});if(!customer?.userId||!customer.user?.isActive||!await tx.subscription.findFirst({where:entitledWhere(companyId)}))return null;
@@ -24,6 +24,8 @@ export async function operationalRecipient(db:DB,event:{event:string;companyId:s
  if(channel==='PUSH'&&!consent.push)return null;
  if(!await db.subscription.findFirst({where:entitledWhere(event.companyId)}))return null;
  const configured=await db.companyCommunicationTemplate.findUnique({where:{companyId_event_channel:{companyId:event.companyId,event:event.event,channel:channel as never}}});if(!configured?.enabled)return null;
+ if(event.event==='OP_PACKAGE_CREDITED'){if(typeof v.__walletId!=='string'||!await db.posPackageWallet.findFirst({where:{id:v.__walletId,companyId:event.companyId,customerId,status:'ACTIVE',sourceSale:{status:'PAID'}}}))return null;return {email:customer.user.email,phone:customer.phone,name:customer.name};}
+ if(event.event==='OP_PACKAGE_USED'||event.event==='OP_PACKAGE_RESTORED'){if(typeof v.__packageUseId!=='string'||!await db.posPackageUse.findFirst({where:{id:v.__packageUseId,companyId:event.companyId,status:event.event==='OP_PACKAGE_USED'?'CONSUMED':'REVERSED',session:{wallet:{customerId}}}}))return null;return {email:customer.user.email,phone:customer.phone,name:customer.name};}
  if(event.event==='OP_APPOINTMENT_CONFIRMATION'){
  if(typeof v.__confirmationInvitationId!=='string'||!await db.bookingConfirmationSettings.findFirst({where:{companyId:event.companyId,enabled:true,channels:{has:channel}}})||!await db.bookingConfirmationInvitation.findFirst({where:{id:v.__confirmationInvitationId,companyId:event.companyId,usedAt:null,expiresAt:{gt:new Date()},confirmation:{response:null,startsAt:{gt:new Date()},request:{customerId,status:'CONFIRMED'}}}}))return null;
  return {email:customer.user.email,phone:customer.phone,name:customer.name};}

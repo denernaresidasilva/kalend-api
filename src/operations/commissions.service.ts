@@ -1,10 +1,9 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { proportionFloor, netReceived } from './pos-domain.js';
 import type { PosPaymentMethod } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { OperationsService, type Operator } from './operations.service.js';
-import { cashBalance, commissionPreview } from './commission-domain.js';
+import { cashBalance, commissionPreview, commissionEarned } from './commission-domain.js';
 import { integer, object, string, uuid } from '../common/validation.js';
 @Injectable()
 export class CommissionsService {
@@ -43,7 +42,7 @@ export class CommissionsService {
  async adjust(actor:Operator,id:string,input:unknown){
   const b=object(input,['deltaCents','reason','idempotencyKey']);integer(b.deltaCents,'deltaCents',-100_000_000,100_000_000);const reason=string(b.reason,'reason',1000),key=uuid(b.idempotencyKey),requestHash=createHash('sha256').update(JSON.stringify({delta:b.deltaCents,reason,id})).digest('hex');
   return this.ops.change(actor,['OWNER','ADMIN'],async tx=>{const old=await tx.posCommissionAdjustment.findUnique({where:{companyId_sourceKey:{companyId:actor.companyId,sourceKey:key}}});if(old){if(old.commissionId!==id||old.requestHash!==requestHash)throw new ConflictException('Chave já utilizada.');return old;}
-   const c=await tx.posCommission.findFirst({where:{id,companyId:actor.companyId},include:{sale:{include:{refunds:true,payments:true}},payouts:true}});if(!c)throw new NotFoundException('Comissão não encontrada.');const adjustmentCents=c.adjustmentCents+(b.deltaCents as number),basis=c.originalCents+adjustmentCents;if(basis<0||basis>c.baseCents)throw new BadRequestException('Ajuste fora do valor líquido do serviço.');const settled=Math.min(c.sale.totalCents,Math.max(0,netReceived(c.sale.payments,c.sale.refunds))),amountCents=c.sale.totalCents?proportionFloor(basis,settled,c.sale.totalCents):0,paid=c.payouts.reduce((n,p)=>n+p.amountCents,0);
+   const c=await tx.posCommission.findFirst({where:{id,companyId:actor.companyId},include:{sale:{include:{refunds:true,payments:true}},payouts:true}});if(!c)throw new NotFoundException('Comissão não encontrada.');const adjustmentCents=c.adjustmentCents+(b.deltaCents as number),basis=c.originalCents+adjustmentCents;if(basis<0||basis>c.baseCents)throw new BadRequestException('Ajuste fora do valor líquido do serviço.');const amountCents=await commissionEarned(tx,c,c.sale,basis),paid=c.payouts.reduce((n,p)=>n+p.amountCents,0);
    const adjustment=await tx.posCommissionAdjustment.create({data:{companyId:actor.companyId,commissionId:id,sourceKey:key,requestHash,deltaCents:amountCents-c.amountCents,reason,actorId:actor.userId}});await tx.posCommission.update({where:{id},data:{adjustmentCents,amountCents,status:!amountCents?'REVERSED':paid>=amountCents?'PAID':c.releasedAt?'PAYABLE':'GENERATED'}});await this.ops.notify(tx,actor.companyId,[c.professionalId]);return adjustment;
   });
  }

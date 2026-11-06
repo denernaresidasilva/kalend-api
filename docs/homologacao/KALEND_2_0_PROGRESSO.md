@@ -7,7 +7,7 @@ Base confirmada em 06/11/2026: API `21f077e`, Web `193fbb1`, develop igual ao re
 | 1 | Lista de espera inteligente | HOMOLOGADA EM DEV |
 | 2 | Confirmação, comparecimento e sinal | PUBLICADA EM DEV |
 | 3 | Assistente IA WhatsApp | DEPENDÊNCIA EXTERNA |
-| 4 | Pacotes e assinaturas de clientes | NÃO INICIADA |
+| 4 | Pacotes e assinaturas de clientes | EM DESENVOLVIMENTO |
 | 5 | Cartão-presente | NÃO INICIADA |
 | 6 | Estoque | NÃO INICIADA |
 | 7 | Inteligência do negócio | NÃO INICIADA |
@@ -83,3 +83,23 @@ Testes locais: 956 unitários API, 43 PostgreSQL nativo (incluindo ferramentas r
 ### Publicação do contrato de IA — 06/11/2026
 
 API `7355cf2`, Web `3598ed4`; Actions `42205265176` e `42205668550` aprovados. API DEV validou módulo do plano, ferramentas reais, rejeição de ativação sem provedor, rejeição de SQL/pedidos privados sem autenticação própria e isolamento dos indicadores. Interface móvel identificou overflow nas opções de configuração: correção em homologação, sem declarar o ensaio visual aprovado ainda. Plano exclusivo de QA foi criado sem alterar os planos comerciais, somente na assinatura MANUAL/SANDBOX/TRIALING da empresa `qa-booking-*`, e restaurado em seguida. IA remota e canal WhatsApp continuam pendentes; não há conversas ou custos externos homologados.
+
+### Validação visual do contrato de IA — 06/11/2026
+
+Correção mobile Web `d0f42ff` (Actions `42206779678` aprovado). Quatro verificações reais do contrato aprovadas: direitos e ferramentas, isolamento de uso, interface desktop/mobile sem overflow e página de configurações de agenda. Provedor continua indisponível e conversas WhatsApp NÃO HOMOLOGADAS. Plano QA novamente restaurado após o ensaio, sem mudanças nos planos comerciais. Evidências sanitizadas anexadas. Screenshots `/tmp/kalend2-ai-contract-{mobile,desktop}.png`. Commit de preservação dos testes nativos API `d891d03`, Actions `42206778038` aprovado.
+
+## Fase 4A — pacotes de sessões
+
+Implementado localmente: definição imutável/versionável por nova definição, serviços/quantidades, preço, validade, profissionais elegíveis e condições; produto virtual no PosProduct existente, venda atômica com cliente no PDV, liberação após pagamento integral positivo e finalização; sessões individualizadas com seleção/consumo/liberação/restauração auditados. Nenhuma sessão é consumida por solicitação de agenda. Seleção não consome; finalização exige serviço concluído e origem paga/ativa.
+
+A utilização zera a parcela a cobrar do item e referencia o crédito pago; NÃO cria recebimento fictício nem repete receita de caixa. Comissão usa valor econômico alocado da sessão, e fidelidade só considera serviço concluído/financiado. Compra mista exclui o valor antecipado do pacote dos pontos, evitando pontuação dupla no uso. Estorno da compra suspende usos futuros e revisa proporcionalmente comissões/pontos das sessões já consumidas, preservando pagamentos e histórico. Restauração por revisão só em comanda integralmente coberta, sem recebimento de caixa; exige OWNER/ADMIN e motivo, não devolve dinheiro, revisa comissão/pontos e preserva atendimento histórico.
+
+Models: PosPackageDefinition/Service/Professional/Wallet/Session/Use/Movement. Migration `20261106150000_customer_packages`, índices únicos por uso ativo/linha/sessão, FKs por tenant e ledger imutável. Não há migração ou substituição de dados financeiros anteriores. Direitos `packages` exigidos no plano para criação, venda e utilização; não são concedidos automaticamente.
+
+API `/operations/packages`: GET status/definitions/wallets/mine; POST definitions, definitions/:id/deactivate, sales, lines/:id/reserve, uses/:id/release, uses/:id/restore. OWNER/ADMIN gerenciam definições/revisões; recepção vende/seleciona/libera; CLIENT lê apenas seus saldos; profissional/contador não recebem dados de outros clientes. Templates OP_PACKAGE_CREDITED/USED/RESTORED reutilizam Outbox e consentimentos, desativados inicialmente.
+
+Interface: proprietário/recepção em Pacotes e PDV, cliente em Meus pacotes, seleção de saldo por serviço/cliente/profissional e restauração autorizada. Testes locais: 49 cenários PostgreSQL, 961 unitários API, 412 Web, builds/lint aprovados. Cobertura inclui concorrência, saldo, expiração, tenant/cliente, valores em centavos, pagamentos e comissões estornadas e prevenção de pontos duplicados. DEV da fase 4A aguarda publicação.
+
+A fase 4 completa ainda NÃO está concluída: assinaturas/clubes do estabelecimento, ciclos e benefícios recorrentes permanecem pendentes; cobrança recorrente externa depende de gateway do estabelecimento homologado. Nenhuma assinatura SaaS Kalend é reutilizada como assinatura do cliente.
+
+Backup para a fase 4A: `booking-release-backup-OVYNHY`, restaurado com 67 tabelas, 31 migrations e 5 PaymentEvidence; identidade kalend_dev_migrator validada. Fonte de receita de caixa permanece PosReceipt/PosRefund, sem recebimento artificial ao consumir sessão.

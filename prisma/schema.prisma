@@ -110,6 +110,8 @@ model User {
 }
 
 model Company {
+ packageDefinitions PosPackageDefinition[]
+ packageWallets PosPackageWallet[]
  aiAssistantSettings AiAssistantSettings?
  aiToolAudits AiToolAudit[]
  confirmationSettings BookingConfirmationSettings?
@@ -173,6 +175,8 @@ model Membership {
 // Tenant-owned operational catalog. Every business record carries companyId;
 // composite foreign keys below prevent cross-company references at the DB layer.
 model Service {
+ packageServices PosPackageService[]
+ packageSessions PosPackageSession[]
  depositPolicies BookingDepositPolicy[]
  waitlistEntries WaitlistEntry[]
   followupRules PosServiceFollowup[]
@@ -198,6 +202,7 @@ model Service {
 }
 
 model ProfessionalProfile {
+ packageEligibility PosPackageProfessional[]
  depositPolicies BookingDepositPolicy[]
  waitlistEntries WaitlistEntry[]
  waitlistOpportunities WaitlistOpportunity[]
@@ -247,6 +252,7 @@ model ServiceProfessional {
 }
 
 model CustomerProfile {
+ packageWallets PosPackageWallet[]
  waitlistEntries WaitlistEntry[]
  loyaltyCard PosLoyaltyCard?
   messageConsents PosMessageConsent[]
@@ -1021,6 +1027,7 @@ model PosCashSession {
   @@index([companyId, openedAt])
 }
 model PosProduct {
+ packageDefinition PosPackageDefinition?
   id String @id @default(uuid()) @db.Uuid
   companyId String @db.Uuid
   company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
@@ -1049,6 +1056,8 @@ model PosCoupon {
   @@unique([companyId, code])
 }
 model PosSale {
+ fundedPackageWallets PosPackageWallet[]
+ packageUses PosPackageUse[]
  loyaltyEntries PosLoyaltyEntry[]
   followupJobs PosFollowupJob[]
   commissions PosCommission[]
@@ -1086,6 +1095,8 @@ model PosSale {
   @@index([companyId, status, createdAt])
 }
 model PosSaleLine {
+ fundedPackageWallet PosPackageWallet?
+ packageUses PosPackageUse[]
   followupJobs PosFollowupJob[]
   commissions PosCommission[]
   id String @id @default(uuid()) @db.Uuid
@@ -1489,4 +1500,118 @@ model AiToolAudit {
  createdAt DateTime @default(now())
  @@unique([companyId,requestKey])
  @@index([companyId,createdAt])
+}
+
+model PosPackageDefinition {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ productId String @unique @db.Uuid
+ product PosProduct @relation(fields:[productId,companyId],references:[id,companyId],onDelete:Restrict)
+ name String
+ description String
+ validityDays Int
+ terms String
+ refundPolicy String @default("SUSPEND_ON_REFUND")
+ active Boolean @default(true)
+ createdAt DateTime @default(now())
+ services PosPackageService[]
+ wallets PosPackageWallet[]
+ @@unique([productId,companyId])
+ @@unique([id,companyId])
+}
+model PosPackageService {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ definitionId String @db.Uuid
+ definition PosPackageDefinition @relation(fields:[definitionId,companyId],references:[id,companyId],onDelete:Restrict)
+ serviceId String @db.Uuid
+ service Service @relation(fields:[serviceId,companyId],references:[id,companyId],onDelete:Restrict)
+ sessions Int
+ listPriceCents Int
+ professionals PosPackageProfessional[]
+ @@unique([id,companyId])
+ @@unique([definitionId,serviceId])
+}
+model PosPackageProfessional {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ packageServiceId String @db.Uuid
+ packageService PosPackageService @relation(fields:[packageServiceId,companyId],references:[id,companyId],onDelete:Restrict)
+ professionalId String @db.Uuid
+ professional ProfessionalProfile @relation(fields:[professionalId,companyId],references:[id,companyId],onDelete:Restrict)
+ @@unique([packageServiceId,professionalId])
+}
+model PosPackageWallet {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ customerId String @db.Uuid
+ customer CustomerProfile @relation(fields:[customerId,companyId],references:[id,companyId],onDelete:Restrict)
+ definitionId String @db.Uuid
+ definition PosPackageDefinition @relation(fields:[definitionId,companyId],references:[id,companyId],onDelete:Restrict)
+ sourceLineId String @db.Uuid
+ sourceLine PosSaleLine @relation(fields:[sourceLineId,companyId],references:[id,companyId],onDelete:Restrict)
+ sourceSaleId String @db.Uuid
+ sourceSale PosSale @relation(fields:[sourceSaleId,companyId],references:[id,companyId],onDelete:Restrict)
+ originalCents Int
+ status String @default("ACTIVE")
+ expiresAt DateTime
+ createdAt DateTime @default(now())
+ sessions PosPackageSession[]
+ movements PosPackageMovement[]
+ @@unique([id,companyId])
+ @@unique([sourceLineId,companyId])
+ @@index([companyId,customerId,status])
+}
+model PosPackageSession {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ walletId String @db.Uuid
+ wallet PosPackageWallet @relation(fields:[walletId,companyId],references:[id,companyId],onDelete:Restrict)
+ serviceId String @db.Uuid
+ service Service @relation(fields:[serviceId,companyId],references:[id,companyId],onDelete:Restrict)
+ ordinal Int
+ valueCents Int
+ eligibleProfessionalIds String[] @db.Uuid
+ state String @default("AVAILABLE")
+ uses PosPackageUse[]
+ @@unique([id,companyId])
+ @@unique([walletId,ordinal])
+}
+model PosPackageUse {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ sessionId String @db.Uuid
+ session PosPackageSession @relation(fields:[sessionId,companyId],references:[id,companyId],onDelete:Restrict)
+ saleId String @db.Uuid
+ sale PosSale @relation(fields:[saleId,companyId],references:[id,companyId],onDelete:Restrict)
+ lineId String @db.Uuid
+ line PosSaleLine @relation(fields:[lineId,companyId],references:[id,companyId],onDelete:Restrict)
+ originalUnitPriceCents Int
+ allocatedCents Int
+ status String @default("RESERVED")
+ idempotencyKey String
+ requestHash String
+ createdAt DateTime @default(now())
+ consumedAt DateTime?
+ movements PosPackageMovement[]
+ @@unique([id,companyId])
+ @@unique([companyId,idempotencyKey])
+ @@index([companyId,saleId,status])
+}
+model PosPackageMovement {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ walletId String @db.Uuid
+ wallet PosPackageWallet @relation(fields:[walletId,companyId],references:[id,companyId],onDelete:Restrict)
+ useId String? @db.Uuid
+ use PosPackageUse? @relation(fields:[useId,companyId],references:[id,companyId],onDelete:Restrict)
+ type String
+ sourceKey String
+ units Int
+ actorId String @db.Uuid
+ reason String
+ createdAt DateTime @default(now())
+ @@unique([companyId,sourceKey])
 }
