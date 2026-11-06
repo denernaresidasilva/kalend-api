@@ -6,7 +6,7 @@ Base confirmada em 06/11/2026: API `21f077e`, Web `193fbb1`, develop igual ao re
 |---|---|---|
 | 1 | Lista de espera inteligente | HOMOLOGADA EM DEV |
 | 2 | Confirmação, comparecimento e sinal | PUBLICADA EM DEV |
-| 3 | Assistente IA WhatsApp | IMPLEMENTADA LOCALMENTE |
+| 3 | Assistente IA WhatsApp | DEPENDÊNCIA EXTERNA |
 | 4 | Pacotes e assinaturas de clientes | NÃO INICIADA |
 | 5 | Cartão-presente | NÃO INICIADA |
 | 6 | Estoque | NÃO INICIADA |
@@ -79,3 +79,7 @@ Models: AiAssistantSettings/AiToolAudit; migration `20261106140000_ai_assistant_
 **DEPENDÊNCIA EXTERNA / trabalho ainda pendente na fase 3:** adaptador remoto de IA, credenciais e homologação; ingestão de mensagens WhatsApp no assistente, consentimento/opt-out por conversa, entrega de respostas e transferência humana operacional, histórico autorizado/limpeza e atribuição de solicitações/agendamentos. O webhook Evolution atual conserva sua validação por instância e ainda não encaminha mensagens ao assistente. Referência oficial do evento [MESSAGES_UPSERT](https://github.com/evolution-foundation/evolution-docs/blob/main/docs/02-Configuration/Webhooks.md). Contrato e configuração não são atendimento por IA concluído.
 
 Testes locais: 956 unitários API, 43 PostgreSQL nativo (incluindo ferramentas reais, isolamento, direitos de plano, prompt malicioso, quotas e idempotência), 412 Web, build/lint aprovados. DEV do contrato aguarda publicação; não existe homologação remota de IA.
+
+### Publicação do contrato de IA — 06/11/2026
+
+API `7355cf2`, Web `3598ed4`; Actions `42205265176` e `42205668550` aprovados. API DEV validou módulo do plano, ferramentas reais, rejeição de ativação sem provedor, rejeição de SQL/pedidos privados sem autenticação própria e isolamento dos indicadores. Interface móvel identificou overflow nas opções de configuração: correção em homologação, sem declarar o ensaio visual aprovado ainda. Plano exclusivo de QA foi criado sem alterar os planos comerciais, somente na assinatura MANUAL/SANDBOX/TRIALING da empresa `qa-booking-*`, e restaurado em seguida. IA remota e canal WhatsApp continuam pendentes; não há conversas ou custos externos homologados.
