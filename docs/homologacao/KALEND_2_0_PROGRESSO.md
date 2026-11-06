@@ -5,8 +5,8 @@ Base confirmada em 06/11/2026: API `21f077e`, Web `193fbb1`, develop igual ao re
 | Fase | Módulo | Estado |
 |---|---|---|
 | 1 | Lista de espera inteligente | HOMOLOGADA EM DEV |
-| 2 | Confirmação, comparecimento e sinal | IMPLEMENTADA LOCALMENTE |
-| 3 | Assistente IA WhatsApp | NÃO INICIADA |
+| 2 | Confirmação, comparecimento e sinal | PUBLICADA EM DEV |
+| 3 | Assistente IA WhatsApp | IMPLEMENTADA LOCALMENTE |
 | 4 | Pacotes e assinaturas de clientes | NÃO INICIADA |
 | 5 | Cartão-presente | NÃO INICIADA |
 | 6 | Estoque | NÃO INICIADA |
@@ -61,3 +61,21 @@ Sinal antecipado: **DEPENDÊNCIA EXTERNA**. Regras por serviço/profissional em 
 Rotas Web: `/confirmar-agendamento` (capacidade temporária, sem dados pessoais ou pagamento), painéis de confirmação/comparecimento/sinal no proprietário e comparecimento na recepção. API: POST `/public/booking-confirmation/{view,respond}`; GET/POST `/booking/confirmations/settings`, POST `.../run-due`, GET `.../customers/:id/history`, POST `.../requests/:id/{review,reschedule}`; GET/POST `/booking/deposit-policies` somente OWNER/ADMIN. Reagendamento/revisão também permitem recepção, com justificativa. Histórico não é exposto a contador ou profissional indiscriminadamente.
 
 Backup antes da publicação: `booking-release-backup-uOsX2X`, restaurado com 59 tabelas/29 migrations/5 PaymentEvidence. A fase completa ainda não está homologada: confirmação/reagendamento aguardam DEV; cobrança e aplicação/reembolso do sinal no PDV dependem de homologação de gateway do estabelecimento. Contrato e rascunhos não representam integração financeira concluída.
+
+### Homologação da parte operacional da fase 2 — 06/11/2026
+
+API `c6121fa`, Web `8418aec`; pushes develop/Actions `42203115311` e `42203311730` aprovados. Quatro jornadas reais DEV aprovadas: confirmação pelo link no celular (token removido da URL e referrer protegido), reagendamento transacional/idempotente invalidando o link anterior, cancelamento protegido pela comanda e histórico, rascunho de sinal que rejeita ativação e não credita pagamento. Screenshots `/tmp/kalend2-confirmation-{mobile,owner-desktop}.png`. Contrato de leitura de token exclusivamente na fixture QA foi corrigido no ensaio; tokens/credenciais não estão nas evidências. Confirmações/reagendamento estão **HOMOLOGADOS EM DEV**; cobrança de sinal continua **DEPENDÊNCIA EXTERNA**. A fase 2 completa não está declarada concluída.
+
+## Fase 3 — contrato local de IA
+
+Implementado localmente: settings isolados por empresa, módulo `ai_assistant` exigido no plano vigente, nome/tom/boas-vindas/informações/horário/limites/retenção; interface de provedor e implementação que recusa operação sem provedor configurado. Nenhuma chave foi criada e não há adaptador remoto habilitado.
+
+Ferramentas autorizadas usam BookingsService e permissões existentes: catálogo público, disponibilidade, informações cadastradas, preparo de link/rascunho para solicitação, consulta de pedidos próprios somente com contexto CLIENT autenticado, encaminhamento para contato humano. Ferramentas não executam SQL recebido, pagamentos, descontos ou confirmação de agenda. A classificação do provedor só seleciona ferramentas; preços/horários são retornados pelo backend. Link de rascunho é revalidado na agenda pública e não reserva horário.
+
+Contrato local de classificação com reserva prévia de franquia/custo, teto por chamada, prazo de 12s, limites diários e por plano, chave idempotente e retenção conservadora da reserva em falha incerta. Não armazena a mensagem original. Provedores de teste existem somente nos testes; produção permanece UNCONFIGURED. Métricas de conversas/atribuição são `null` (não disponíveis), verificações locais têm identificação TOOL_PROBE e custos ausentes não são exibidos como zero.
+
+Models: AiAssistantSettings/AiToolAudit; migration `20261106140000_ai_assistant_contract`. API OWNER/ADMIN: GET/POST `/assistant/settings`, GET `/assistant/dashboard`, POST `/assistant/tools` com limitação de taxa. Nenhum endpoint HTTP expõe execução do provedor. Web: `/conta/configuracoes/inteligencia-artificial`; nova página `/conta/configuracoes/agenda` reutiliza componentes já implementados. Super Admin continua decidindo os direitos pelo PlanFeature existente; preços e planos comerciais não são alterados automaticamente.
+
+**DEPENDÊNCIA EXTERNA / trabalho ainda pendente na fase 3:** adaptador remoto de IA, credenciais e homologação; ingestão de mensagens WhatsApp no assistente, consentimento/opt-out por conversa, entrega de respostas e transferência humana operacional, histórico autorizado/limpeza e atribuição de solicitações/agendamentos. O webhook Evolution atual conserva sua validação por instância e ainda não encaminha mensagens ao assistente. Referência oficial do evento [MESSAGES_UPSERT](https://github.com/evolution-foundation/evolution-docs/blob/main/docs/02-Configuration/Webhooks.md). Contrato e configuração não são atendimento por IA concluído.
+
+Testes locais: 956 unitários API, 43 PostgreSQL nativo (incluindo ferramentas reais, isolamento, direitos de plano, prompt malicioso, quotas e idempotência), 412 Web, build/lint aprovados. DEV do contrato aguarda publicação; não existe homologação remota de IA.

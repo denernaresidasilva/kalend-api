@@ -1,3 +1,4 @@
+import { AssistantModule } from './assistant/assistant.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { CommunicationModule } from './communication/communication.module.js';
 import { AuthModule } from './auth/auth.module.js';
@@ -18,6 +19,7 @@ import { BookingsModule } from './bookings/bookings.module.js';
 
 @Module({
   imports: [
+    AssistantModule,
     PrismaModule,
     NotificationsModule,
     CommunicationModule,

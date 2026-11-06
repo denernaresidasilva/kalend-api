@@ -1,0 +1,22 @@
+{
+  "environment": "DEV",
+  "externalDelivery": "Not asserted; no external collections or merchant gateway homologation",
+  "results": [
+    {
+      "name": "temporary_link_mobile_presence_idempotent_queue_permissions_and_token_privacy",
+      "status": "PASS"
+    },
+    {
+      "name": "transactional_reschedule_replay_and_old_link_invalidation",
+      "status": "PASS"
+    },
+    {
+      "name": "client_cancellation_preserves_POS_integrity_and_cancellation_history",
+      "status": "PASS"
+    },
+    {
+      "name": "deposit_draft_isolated_from_financial_confirmation_and_saas",
+      "status": "PASS"
+    }
+  ]
+}

@@ -17,6 +17,6 @@ import { BookingsService } from './bookings.service.js';
   imports: [AuthModule, BillingModule, OperationsModule],
   controllers: [DepositPoliciesController,PublicConfirmationsController,TenantConfirmationsController,PublicWaitlistController,TenantWaitlistController,BookingCancellationController,PublicBookingsController, TenantBookingsController],
   providers: [DepositPoliciesService,ReschedulingService,ConfirmationsService,WaitlistService, BookingsService, BookingEventsService, CustomerAccessService],
-  exports:[WaitlistService,ConfirmationsService],
+  exports:[BookingsService,WaitlistService,ConfirmationsService],
 })
 export class BookingsModule {}

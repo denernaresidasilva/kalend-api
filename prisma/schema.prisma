@@ -110,6 +110,8 @@ model User {
 }
 
 model Company {
+ aiAssistantSettings AiAssistantSettings?
+ aiToolAudits AiToolAudit[]
  confirmationSettings BookingConfirmationSettings?
  waitlistSettings WaitlistSettings?
  waitlistEntries WaitlistEntry[]
@@ -1449,4 +1451,42 @@ model BookingDepositPolicy {
  enabled Boolean @default(false)
  updatedAt DateTime @updatedAt
  @@unique([companyId,serviceId,professionalId])
+}
+
+model AiAssistantSettings {
+ companyId String @id @db.Uuid
+ company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+ enabled Boolean @default(false)
+ name String @default("Assistente")
+ welcome String @default("Olá! Posso ajudar a consultar serviços e horários. Peça atendimento humano quando preferir.")
+ tone String @default("NEUTRAL")
+ businessInfo String @default("")
+ schedule Json @default("[]")
+ humanHandoff Boolean @default(true)
+ maxMessagesPerDay Int @default(50)
+ maxInputTokens Int @default(2000)
+ maxOutputTokens Int @default(300)
+ maxEstimatedCostCents Int @default(1000)
+ historyEnabled Boolean @default(false)
+ retentionDays Int @default(7)
+ updatedAt DateTime @updatedAt
+}
+model AiToolAudit {
+ requestKey String?
+ requestHash String?
+ decision Json?
+ reservedCents Int @default(0)
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ actorId String @db.Uuid
+ tool String
+ status String
+ provider String
+ inputTokens Int @default(0)
+ outputTokens Int @default(0)
+ estimatedCostCents Int?
+ createdAt DateTime @default(now())
+ @@unique([companyId,requestKey])
+ @@index([companyId,createdAt])
 }
