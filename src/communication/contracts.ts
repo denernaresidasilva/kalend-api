@@ -48,6 +48,7 @@ export function providerName(v: string): Provider {
   return v as Provider;
 }
 export function variablesFor(event: Event): string[] {
+  if(event==='OP_APPOINTMENT_CONFIRMATION')return ['nome','empresa','servico','valor','horario','pontos','url_confirmacao'];
   if (event==='OP_WAITLIST_AVAILABLE') return ['nome','empresa','servico','valor','horario','pontos','url_agenda'];
   if (operationalEvent(event)) return ['nome','empresa','servico','valor','horario','pontos'];
   if (event === 'SECURITY_PASSWORD_CHANGED') return ['nome'];
@@ -107,6 +108,7 @@ export function renderText(source: string, event: Event, values: Variables) {
   return result;
 }
 export type Message = {
+  actionPath?:string;
   globalRecipientUserId?: string;
   // Optional destination for authenticated Super Admin tests only. Never persisted.
   globalTestNumber?: string;

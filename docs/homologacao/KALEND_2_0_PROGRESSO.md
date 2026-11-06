@@ -4,8 +4,8 @@ Base confirmada em 06/11/2026: API `21f077e`, Web `193fbb1`, develop igual ao re
 
 | Fase | Módulo | Estado |
 |---|---|---|
-| 1 | Lista de espera inteligente | IMPLEMENTADA LOCALMENTE |
-| 2 | Confirmação, comparecimento e sinal | NÃO INICIADA |
+| 1 | Lista de espera inteligente | HOMOLOGADA EM DEV |
+| 2 | Confirmação, comparecimento e sinal | IMPLEMENTADA LOCALMENTE |
 | 3 | Assistente IA WhatsApp | NÃO INICIADA |
 | 4 | Pacotes e assinaturas de clientes | NÃO INICIADA |
 | 5 | Cartão-presente | NÃO INICIADA |
@@ -41,3 +41,23 @@ Em implementação: cadastro público e autenticado, preferências de serviço/p
 - Prioridade FIFO entre entradas compatíveis; busca limitada às próximas 14 datas, até 100 entradas por empresa e 200 consultas de agenda/500 candidatos por lote, no máximo 50 empresas. Os limites de lote não representam homologação de escala; otimização/paginação por cursor permanece necessária para grandes volumes.
 - Testes: regressão API (945 aprovações antes dos dois novos casos finais), 33 casos PostgreSQL nativo, 411 Web, builds e lint. Resultado final e DEV serão anexados após publicação, incluindo screenshots.
 - Recuperação: backup DEV `booking-release-backup-Vil0DM` restaurado em cluster privado (56 tabelas, 28 migrations, 5 PaymentEvidence); alvo da migration confirmado como kalend_dev/kalend_dev_migrator. Nenhuma mudança em PROD/main ou controles administrativos.
+
+### Homologação DEV da lista de espera — 06/11/2026
+
+API `2692ccb`, Web `590fa30` e correção mobile `a388ca3`; pushes normais em develop, Actions `42199676885`, `42199952363` e `42201899638` aprovados. Quatro jornadas reais aprovadas: cadastro mobile sem oferta de horário ocupado; cancelamento liberando oportunidade única em duas buscas concorrentes; link autenticado convertendo para solicitação/aprovação/agenda; painel do cliente e indicadores do proprietário. Formulário também verificado aberto em 390px sem overflow. Screenshots privados: `/tmp/kalend2-waitlist-{form-mobile,public-mobile,client-mobile,owner-desktop}.png`. JSON sanitizado anexado ao diretório de evidências. Houve correções do teste para seleção por atributo e múltiplos registros de QA; o parsing do corpo pela automação de navegador foi substituído por leitura pela API autenticada, preservando submissão e mensagem de sucesso reais na interface. Nenhum envio externo foi alegado (somente Outbox/Push QA).
+
+## Fase 2 — implementação em andamento
+
+Confirmação opt-in por canal, antecedência, prazo e até três lembretes; links de capacidade com token aleatório de 256 bits, hash na tabela de convites, expiração e uso idempotente. O link é removido da barra após leitura e usa referrer no-referrer. Respostas: confirmar, pedir reagendamento ou cancelar. Reagendamento efetivo é feito pelo operador autorizado, valida disponibilidade e sobreposição em transação, preserva preço/duração acordados e invalida links antigos. Agendamento com comanda ativa exige tratamento no PDV.
+
+Comparecimento registra conclusões legítimas do PDV, cancelamentos, confirmações, pedidos e mudanças de horário e revisões justificadas; histórico imutável e sem classificação punitiva. O padrão sem resposta preserva agendamento; regra de cancelar exige DELIVERED/READ e nenhuma comanda ativa, caso contrário encaminha para revisão. Configuração atual é relida na transação da regra. Push usa somente caminhos internos explicitamente permitidos; dispositivos externos não homologados nesta etapa.
+
+Sinal antecipado: **DEPENDÊNCIA EXTERNA**. Regras por serviço/profissional em rascunho, fixo/percentual com cálculo em centavos e saldo previsto. Contrato de provedor separado de billing SaaS; ativação/cobrança indisponível até existir gateway do estabelecimento homologado. Nenhum crédito no PDV, pagamento real ou integração externa é afirmado. Homologação de cobrança, confirmação financeira, aplicação no PDV e reembolso do sinal continuam pendentes.
+
+### Fase 2 — resultado local e escopo de publicação
+
+953 testes unitários API, 40 testes PostgreSQL nativo e 412 Web aprovados; builds e lint aprovados. Migration aditiva `20261106130000_booking_confirmations`: BookingConfirmationSettings, BookingConfirmation, BookingConfirmationInvitation, BookingAttendanceEvent, BookingScheduleChange e BookingDepositPolicy; histórico e mudanças de horário com trigger de imutabilidade, FKs por tenant, unicidade de convite/etapa e política padrão de sinal.
+
+Rotas Web: `/confirmar-agendamento` (capacidade temporária, sem dados pessoais ou pagamento), painéis de confirmação/comparecimento/sinal no proprietário e comparecimento na recepção. API: POST `/public/booking-confirmation/{view,respond}`; GET/POST `/booking/confirmations/settings`, POST `.../run-due`, GET `.../customers/:id/history`, POST `.../requests/:id/{review,reschedule}`; GET/POST `/booking/deposit-policies` somente OWNER/ADMIN. Reagendamento/revisão também permitem recepção, com justificativa. Histórico não é exposto a contador ou profissional indiscriminadamente.
+
+Backup antes da publicação: `booking-release-backup-uOsX2X`, restaurado com 59 tabelas/29 migrations/5 PaymentEvidence. A fase completa ainda não está homologada: confirmação/reagendamento aguardam DEV; cobrança e aplicação/reembolso do sinal no PDV dependem de homologação de gateway do estabelecimento. Contrato e rascunhos não representam integração financeira concluída.

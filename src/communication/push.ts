@@ -1,3 +1,4 @@
+import { operationalPushPath } from '../bookings/confirmation-link.js';
 import {
   BadRequestException,
   ConflictException,
@@ -154,7 +155,7 @@ export function pushPayload(m: Message) {
   )
     throw new TransportFailure('PERMANENT');
   // Plain strings only. Frontend must use Notification title/body, never innerHTML.
-  const payload = JSON.stringify({ version: 1, title: m.title, body: m.text, url: '/conta/notificacoes' });
+  const payload = JSON.stringify({ version: 1, title: m.title, body: m.text, url: operationalPushPath(m.actionPath)??'/conta/notificacoes',...(operationalPushPath(m.actionPath)?{actions:[{action:'open',title:'Ver atendimento'}]}:{}) });
   if (Buffer.byteLength(payload) > 3000)
     throw new TransportFailure('PERMANENT');
   return payload;

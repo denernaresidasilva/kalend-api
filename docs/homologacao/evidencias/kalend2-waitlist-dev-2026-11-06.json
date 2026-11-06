@@ -1,0 +1,22 @@
+{
+  "environment": "DEV",
+  "externalDelivery": "Not asserted; push-only QA, no email or WhatsApp",
+  "results": [
+    {
+      "name": "public_mobile_wait_preferences_no_offer_for_occupied_slot",
+      "status": "PASS"
+    },
+    {
+      "name": "cancelled_slot_matches_one_consented_owned_opportunity_concurrently",
+      "status": "PASS"
+    },
+    {
+      "name": "authenticated_link_converts_through_request_approval_and_agenda",
+      "status": "PASS"
+    },
+    {
+      "name": "customer_status_and_owner_metrics_desktop_mobile",
+      "status": "PASS"
+    }
+  ]
+}

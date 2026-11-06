@@ -110,6 +110,7 @@ model User {
 }
 
 model Company {
+ confirmationSettings BookingConfirmationSettings?
  waitlistSettings WaitlistSettings?
  waitlistEntries WaitlistEntry[]
  loyaltySettings PosLoyaltySettings?
@@ -170,6 +171,7 @@ model Membership {
 // Tenant-owned operational catalog. Every business record carries companyId;
 // composite foreign keys below prevent cross-company references at the DB layer.
 model Service {
+ depositPolicies BookingDepositPolicy[]
  waitlistEntries WaitlistEntry[]
   followupRules PosServiceFollowup[]
   commissionRules PosCommissionRule[]
@@ -194,6 +196,7 @@ model Service {
 }
 
 model ProfessionalProfile {
+ depositPolicies BookingDepositPolicy[]
  waitlistEntries WaitlistEntry[]
  waitlistOpportunities WaitlistOpportunity[]
   commissionRules PosCommissionRule[]
@@ -283,6 +286,8 @@ model CustomerActivation {
 }
 
 model BookingRequest {
+ scheduleChanges BookingScheduleChange[]
+ confirmation BookingConfirmation?
  waitlistOpportunity WaitlistOpportunity?
   posSale PosSale?
   id             String @id @default(uuid()) @db.Uuid
@@ -1358,4 +1363,90 @@ model WaitlistOpportunity {
  @@unique([requestId,companyId])
  @@unique([entryId,professionalId,startsAt])
  @@index([companyId,status,expiresAt])
+}
+
+model BookingConfirmationSettings {
+ companyId String @id @db.Uuid
+ company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+ enabled Boolean @default(false)
+ leadMinutes Int @default(1440)
+ responseMinutes Int @default(120)
+ reminderMinutes Int[] @default([])
+ channels String[] @default(["PUSH"])
+ noResponseRule String @default("NONE")
+ updatedAt DateTime @updatedAt
+}
+model BookingConfirmation {
+ revision Int @default(0)
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ requestId String @db.Uuid
+ request BookingRequest @relation(fields:[requestId,companyId],references:[id,companyId],onDelete:Restrict)
+ startsAt DateTime
+ deadlineAt DateTime
+ response String?
+ responseAt DateTime?
+ deadlineResult String?
+ createdAt DateTime @default(now())
+ invitations BookingConfirmationInvitation[]
+ events BookingAttendanceEvent[]
+ @@unique([id,companyId])
+ @@unique([requestId,companyId])
+ @@index([companyId,deadlineAt])
+}
+model BookingConfirmationInvitation {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ confirmationId String @db.Uuid
+ confirmation BookingConfirmation @relation(fields:[confirmationId,companyId],references:[id,companyId],onDelete:Restrict)
+ stage String
+ tokenHash String @unique @db.Char(64)
+ expiresAt DateTime
+ usedAt DateTime?
+ action String?
+ outboxId String? @db.Uuid
+ createdAt DateTime @default(now())
+ @@unique([confirmationId,stage])
+ @@index([expiresAt])
+}
+model BookingAttendanceEvent {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ confirmationId String @db.Uuid
+ confirmation BookingConfirmation @relation(fields:[confirmationId,companyId],references:[id,companyId],onDelete:Restrict)
+ type String
+ sourceKey String
+ actorId String? @db.Uuid
+ reason String?
+ createdAt DateTime @default(now())
+ @@unique([companyId,sourceKey])
+}
+
+model BookingScheduleChange {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ requestId String @db.Uuid
+ request BookingRequest @relation(fields:[requestId,companyId],references:[id,companyId],onDelete:Restrict)
+ idempotencyKey String
+ requestHash String
+ actorId String @db.Uuid
+ reason String
+ before Json
+ after Json
+ createdAt DateTime @default(now())
+ @@unique([companyId,idempotencyKey])
+}
+
+model BookingDepositPolicy {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ serviceId String @db.Uuid
+ service Service @relation(fields:[serviceId,companyId],references:[id,companyId],onDelete:Restrict)
+ professionalId String? @db.Uuid
+ professional ProfessionalProfile? @relation(fields:[professionalId,companyId],references:[id,companyId],onDelete:Restrict)
+ percentBps Int?
+ fixedCents Int?
+ enabled Boolean @default(false)
+ updatedAt DateTime @updatedAt
+ @@unique([companyId,serviceId,professionalId])
 }

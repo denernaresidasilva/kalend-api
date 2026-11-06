@@ -1,3 +1,5 @@
+import { confirmationLink } from '../bookings/confirmation-link.js';
+import { waitlistLink } from '../bookings/waitlist-link.js';
 import { operationalEvent } from './operational-events.js';
 import { operationalRecipient } from '../operations/operational-messages.js';
 import { qaRecoverableCompany } from '../billing/company-policy.js';
@@ -634,6 +636,8 @@ export class CommunicationEngine {
                       message.html = `<p>${escapeHtml(message.text).replace(/\n/g, '<br>')}</p>`;
                     }
                   }
+                  if(t.channel==='PUSH'&&event.event==='OP_APPOINTMENT_CONFIRMATION')message.actionPath=confirmationLink(event.variables)??undefined;
+                  if(t.channel==='PUSH'&&event.event==='OP_WAITLIST_AVAILABLE')message.actionPath=waitlistLink(event.variables)??undefined;
                   if (t.channel === 'PUSH') pushPayload(message);
                 } catch {
                   if (status !== 'UNSENDABLE') status = 'UNSENDABLE';

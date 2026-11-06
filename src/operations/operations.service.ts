@@ -1,3 +1,4 @@
+import { attendanceEvent } from '../bookings/attendance-domain.js';
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type PosPaymentMethod } from '@prisma/client';
 import { createHash } from 'node:crypto';
@@ -199,6 +200,7 @@ export class OperationsService {
       await generateCommissions(tx, actor, sale);
       await scheduleFollowups(tx, sale);
       await confirmLoyalty(tx, sale);
+      if(sale.bookingRequestId)await attendanceEvent(tx,sale.companyId,sale.bookingRequestId,'COMPLETED','SALE:'+sale.id,actor.userId);
       await saleEvent(tx, sale, 'OP_SALE_PAID', sale.id);
       await this.audit(tx, actor, 'SALE_FINALIZED', { totalCents: sale.totalCents }, id); await this.notify(tx, actor.companyId, lines.flatMap(l => l.professionalId ? [l.professionalId] : [])); return this.sale(tx, actor, id);
     });

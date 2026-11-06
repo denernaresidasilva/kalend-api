@@ -1,3 +1,7 @@
+import { DepositPoliciesService } from './deposit-contract.js';
+import { ReschedulingService } from './rescheduling.service.js';
+import { ConfirmationsService } from './confirmations.service.js';
+import { PublicConfirmationsController,TenantConfirmationsController,DepositPoliciesController } from './confirmations.controller.js';
 import { WaitlistService } from './waitlist.service.js';
 import { OperationsModule } from '../operations/operations.module.js';
 import { PublicWaitlistController,TenantWaitlistController,BookingCancellationController } from './waitlist.controller.js';
@@ -11,8 +15,8 @@ import { BookingsService } from './bookings.service.js';
 
 @Module({
   imports: [AuthModule, BillingModule, OperationsModule],
-  controllers: [PublicWaitlistController,TenantWaitlistController,BookingCancellationController,PublicBookingsController, TenantBookingsController],
-  providers: [WaitlistService, BookingsService, BookingEventsService, CustomerAccessService],
-  exports:[WaitlistService],
+  controllers: [DepositPoliciesController,PublicConfirmationsController,TenantConfirmationsController,PublicWaitlistController,TenantWaitlistController,BookingCancellationController,PublicBookingsController, TenantBookingsController],
+  providers: [DepositPoliciesService,ReschedulingService,ConfirmationsService,WaitlistService, BookingsService, BookingEventsService, CustomerAccessService],
+  exports:[WaitlistService,ConfirmationsService],
 })
 export class BookingsModule {}

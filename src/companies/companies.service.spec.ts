@@ -21,6 +21,8 @@ function setup(existing = false) {
   };
   const db = {
     subscriptionEntitlement: { create: vi.fn(), count: vi.fn().mockResolvedValue(0) },
+    bookingDepositPolicy: { count: vi.fn().mockResolvedValue(0) },
+    bookingConfirmation: { count: vi.fn().mockResolvedValue(0) },
     waitlistEntry: { count: vi.fn().mockResolvedValue(0) },
     posLoyaltyCard: { count: vi.fn().mockResolvedValue(0) },
     posSale: { count: vi.fn().mockResolvedValue(0) },
@@ -256,7 +258,7 @@ describe('manual company', () => {
       .rejects.toThrow('gestão de assinaturas');
     expect(db.subscription.update).not.toHaveBeenCalled();
   });
-  it.each(['waitlistEntry', 'posLoyaltyCard', 'payment', 'webhookEvent', 'subscriptionEntitlement', 'subscription'] as const)(
+  it.each(['bookingDepositPolicy', 'bookingConfirmation', 'waitlistEntry', 'posLoyaltyCard', 'payment', 'webhookEvent', 'subscriptionEntitlement', 'subscription'] as const)(
     'preserves companies with %s financial history before any external cleanup', async (model) => {
       const { db } = setup();
       db.company.findUnique.mockResolvedValue({

@@ -1,3 +1,4 @@
+import { ConfirmationsService } from '../bookings/confirmations.service.js';
 import { WaitlistService } from '../bookings/waitlist.service.js';
 import { OperationalAutomations } from '../operations/automations.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
@@ -46,6 +47,7 @@ if (
           ),
         );
       } else {
+        const confirmations=await app.get(ConfirmationsService).due();
         const waitlist=await app.get(WaitlistService).match();
         const operational = await app.get(OperationalAutomations).due();
         const temporal = await engine.temporal();
@@ -56,7 +58,7 @@ if (
           phase: 'batch-complete',
           durationMs: Date.now() - startedAt,
           temporal,
-          operational,waitlist,
+          operational,waitlist,confirmations,
           inbox,
           ...batch,
         }));

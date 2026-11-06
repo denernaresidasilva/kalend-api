@@ -3,12 +3,12 @@ import type { Prisma } from '@prisma/client';
 import { entitledWhere } from '../billing/commercial-policy.js';
 import { operationalEvent } from '../communication/operational-events.js';
 import type { Sale } from './operations.service.js';
-type DB=Pick<Prisma.TransactionClient,'customerProfile'|'posMessageConsent'|'companyCommunicationTemplate'|'globalCommunicationOutbox'|'posSale'|'bookingRequest'|'posReceipt'|'posRefund'|'posServiceFollowup'|'subscription'|'waitlistOpportunity'|'waitlistSettings'>;
+type DB=Pick<Prisma.TransactionClient,'customerProfile'|'posMessageConsent'|'companyCommunicationTemplate'|'globalCommunicationOutbox'|'posSale'|'bookingRequest'|'posReceipt'|'posRefund'|'posServiceFollowup'|'subscription'|'waitlistOpportunity'|'waitlistSettings'|'bookingConfirmationInvitation'|'bookingConfirmationSettings'>;
 export async function queueCustomerEvent(tx:DB,companyId:string,customerId:string,event:string,key:string,variables:Prisma.InputJsonObject={}){
  if(!operationalEvent(event))return null;
  const customer=await tx.customerProfile.findFirst({where:{id:customerId,companyId,company:{isActive:true,administrativeStatus:'ACTIVE'}},include:{user:true}});if(!customer?.userId||!customer.user?.isActive||!await tx.subscription.findFirst({where:entitledWhere(companyId)}))return null;
  const consent=await tx.posMessageConsent.findUnique({where:{customerId_companyId:{customerId,companyId}}});if(!consent||(event==='OP_FOLLOW_UP'&&!consent.marketing))return null;
- const requested=(['EMAIL','WHATSAPP','PUSH']as const).filter(channel=>channel==='EMAIL'?consent.email:channel==='WHATSAPP'?consent.whatsapp:consent.push);
+ const requested=(['EMAIL','WHATSAPP','PUSH']as const).filter(channel=>channel==='EMAIL'?consent.email:channel==='WHATSAPP'?consent.whatsapp:consent.push).filter(channel=>!Array.isArray(variables.__allowedChannels)||variables.__allowedChannels.includes(channel));
  const enabled=await tx.companyCommunicationTemplate.findMany({where:{companyId,event,enabled:true,channel:{in:[...requested]}},select:{channel:true}});if(!enabled.length)return null;
  return tx.globalCommunicationOutbox.upsert({where:{businessKey:`POS:${event}:${key}:${customer.userId}`},create:{scope:'COMPANY',event,businessKey:`POS:${event}:${key}:${customer.userId}`,companyId,userId:customer.userId,variables:{servico:'',valor:'',horario:'',pontos:'',...variables,__customerId:customerId,__channels:enabled.map(x=>x.channel)}},update:{}});
 }
@@ -24,6 +24,9 @@ export async function operationalRecipient(db:DB,event:{event:string;companyId:s
  if(channel==='PUSH'&&!consent.push)return null;
  if(!await db.subscription.findFirst({where:entitledWhere(event.companyId)}))return null;
  const configured=await db.companyCommunicationTemplate.findUnique({where:{companyId_event_channel:{companyId:event.companyId,event:event.event,channel:channel as never}}});if(!configured?.enabled)return null;
+ if(event.event==='OP_APPOINTMENT_CONFIRMATION'){
+ if(typeof v.__confirmationInvitationId!=='string'||!await db.bookingConfirmationSettings.findFirst({where:{companyId:event.companyId,enabled:true,channels:{has:channel}}})||!await db.bookingConfirmationInvitation.findFirst({where:{id:v.__confirmationInvitationId,companyId:event.companyId,usedAt:null,expiresAt:{gt:new Date()},confirmation:{response:null,startsAt:{gt:new Date()},request:{customerId,status:'CONFIRMED'}}}}))return null;
+ return {email:customer.user.email,phone:customer.phone,name:customer.name};}
  if(event.event==='OP_WAITLIST_AVAILABLE'){
  if(typeof v.__opportunityId!=='string'||!await db.waitlistSettings.findFirst({where:{companyId:event.companyId,enabled:true}}))return null;
  const offer=await db.waitlistOpportunity.findFirst({where:{id:v.__opportunityId,companyId:event.companyId,status:'OFFERED',expiresAt:{gt:new Date()},startsAt:{gt:new Date()},entry:{customerId,status:'WAITING'}},include:{entry:{include:{service:true,company:{select:{timezone:true}}}},professional:{include:{availability:true,membership:true}}}});
