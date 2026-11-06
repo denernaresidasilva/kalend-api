@@ -1,0 +1,22 @@
+{
+  "environment": "DEV",
+  "billing": "QA manual attested payments; prepaid redemption is not new cash; no external charges",
+  "results": [
+    {
+      "name": "mobile_gift_sale_releases_credit_only_after_payment_and_protects_codes_by_tenant_role",
+      "status": "PASS"
+    },
+    {
+      "name": "authenticated_recipient_views_and_hides_code_with_mobile_balance_history",
+      "status": "PASS"
+    },
+    {
+      "name": "mobile_partial_redemption_split_with_cash_and_legitimate_completed_service",
+      "status": "PASS"
+    },
+    {
+      "name": "refund_restores_card_only_blocks_spent_funding_refund_and_financial_report_excludes_duplicate_cash",
+      "status": "PASS"
+    }
+  ]
+}

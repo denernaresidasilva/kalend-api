@@ -110,6 +110,9 @@ model User {
 }
 
 model Company {
+ inventoryCategories PosInventoryCategory[]
+ inventorySuppliers PosInventorySupplier[]
+ inventoryOperations PosInventoryOperation[]
  giftCards PosGiftCard[]
  clientSubscriptions PosClientSubscription[]
  packageDefinitions PosPackageDefinition[]
@@ -177,6 +180,7 @@ model Membership {
 // Tenant-owned operational catalog. Every business record carries companyId;
 // composite foreign keys below prevent cross-company references at the DB layer.
 model Service {
+ materials PosServiceMaterial[]
  packageServices PosPackageService[]
  packageSessions PosPackageSession[]
  depositPolicies BookingDepositPolicy[]
@@ -1035,6 +1039,18 @@ model PosCashSession {
   @@index([companyId, openedAt])
 }
 model PosProduct {
+ stockManaged Boolean @default(false)
+ stockMilli Int @default(0)
+ minimumMilli Int @default(0)
+ unit String @default("UN")
+ costCents Int @default(0)
+ barcode String?
+ location String @default("")
+ categoryId String? @db.Uuid
+ category PosInventoryCategory? @relation(fields:[categoryId,companyId],references:[id,companyId],onDelete:Restrict)
+ lots PosInventoryLot[]
+ materials PosServiceMaterial[]
+
  giftCard PosGiftCard?
  packageDefinition PosPackageDefinition?
   id String @id @default(uuid()) @db.Uuid
@@ -1046,6 +1062,7 @@ model PosProduct {
   lines PosSaleLine[]
   createdAt DateTime @default(now())
   @@unique([id, companyId])
+  @@unique([companyId,barcode])
   @@index([companyId, active])
 }
 model PosCoupon {
@@ -1105,6 +1122,7 @@ model PosSale {
   @@index([companyId, status, createdAt])
 }
 model PosSaleLine {
+ inventoryMovements PosInventoryMovement[]
  subscriptionDiscountCents Int @default(0)
  clientSubscriptionId String? @db.Uuid
  clientSubscription PosClientSubscription? @relation(fields:[clientSubscriptionId,companyId],references:[id,companyId],onDelete:Restrict)
@@ -1745,4 +1763,82 @@ model PosGiftCardMovement {
  @@unique([companyId,sourceKey])
  @@unique([receiptId,companyId])
  @@unique([refundId,companyId])
+}
+
+model PosInventoryCategory {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ name String
+ products PosProduct[]
+ @@unique([id,companyId])
+ @@unique([companyId,name])
+}
+model PosInventorySupplier {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ name String
+ contact String @default("")
+ lots PosInventoryLot[]
+ @@unique([id,companyId])
+ @@unique([companyId,name])
+}
+model PosInventoryLot {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ productId String @db.Uuid
+ product PosProduct @relation(fields:[productId,companyId],references:[id,companyId],onDelete:Restrict)
+ supplierId String? @db.Uuid
+ supplier PosInventorySupplier? @relation(fields:[supplierId,companyId],references:[id,companyId],onDelete:Restrict)
+ code String
+ expiresAt DateTime?
+ quantityMilli Int
+ unitCostCents Int
+ createdAt DateTime @default(now())
+ movements PosInventoryMovement[]
+ @@unique([id,companyId])
+ @@index([companyId,productId,expiresAt])
+}
+model PosServiceMaterial {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ serviceId String @db.Uuid
+ service Service @relation(fields:[serviceId,companyId],references:[id,companyId],onDelete:Restrict)
+ productId String @db.Uuid
+ product PosProduct @relation(fields:[productId,companyId],references:[id,companyId],onDelete:Restrict)
+ quantityMilli Int
+ @@unique([companyId,serviceId,productId])
+}
+model PosInventoryOperation {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ sourceKey String
+ requestHash String
+ type String
+ actorId String @db.Uuid
+ reason String
+ createdAt DateTime @default(now())
+ movements PosInventoryMovement[]
+ @@unique([id,companyId])
+ @@unique([companyId,sourceKey])
+}
+model PosInventoryMovement {
+ id String @id @default(uuid()) @db.Uuid
+ companyId String @db.Uuid
+ operationId String @db.Uuid
+ operation PosInventoryOperation @relation(fields:[operationId,companyId],references:[id,companyId],onDelete:Restrict)
+ lotId String @db.Uuid
+ lot PosInventoryLot @relation(fields:[lotId,companyId],references:[id,companyId],onDelete:Restrict)
+ lineId String? @db.Uuid
+ line PosSaleLine? @relation(fields:[lineId,companyId],references:[id,companyId],onDelete:Restrict)
+ quantityMilli Int
+ costMilliCents BigInt
+ restoreOfId String? @db.Uuid
+ restoreOf PosInventoryMovement? @relation("InventoryReturns",fields:[restoreOfId,companyId],references:[id,companyId],onDelete:Restrict)
+ returns PosInventoryMovement[] @relation("InventoryReturns")
+ @@unique([id,companyId])
+ createdAt DateTime @default(now())
+ @@index([companyId,lineId])
 }

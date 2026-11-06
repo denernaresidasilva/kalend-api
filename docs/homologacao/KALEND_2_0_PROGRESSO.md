@@ -8,8 +8,8 @@ Base confirmada em 06/11/2026: API `21f077e`, Web `193fbb1`, develop igual ao re
 | 2 | Confirmação, comparecimento e sinal | PUBLICADA EM DEV |
 | 3 | Assistente IA WhatsApp | DEPENDÊNCIA EXTERNA |
 | 4 | Pacotes e assinaturas de clientes | PUBLICADA EM DEV |
-| 5 | Cartão-presente | EM DESENVOLVIMENTO |
-| 6 | Estoque | NÃO INICIADA |
+| 5 | Cartão-presente | HOMOLOGADA EM DEV |
+| 6 | Estoque | EM DESENVOLVIMENTO |
 | 7 | Inteligência do negócio | NÃO INICIADA |
 | 8 | Atribuição de campanhas | NÃO INICIADA |
 | 9 | Múltiplas unidades | NÃO INICIADA |
@@ -133,3 +133,17 @@ API `/operations/gift-cards/{status,mine,sales}`, GET lista, POST `/:id/code`, P
 Estorno de resgate restaura saldo, sem saque e sem prorrogar validade. Estorno da compra limitado ao saldo ainda não utilizado; para devolver financiamento já consumido é necessário restaurar os resgates correspondentes. Estorno integral encerra cartão; cancelamento de venda não paga não gera crédito. Histórico imutável. Relatório financeiro distingue recebimentos/devoluções externos dos resgates/restaurações internos, sem duplicar dinheiro. Comissões/pontos somente sobre atendimento legítimo e valor financiado; compra isolada não gera pontos de serviço.
 
 Validação local: 967 testes unitários API, 61 PostgreSQL nativo (concorrência, isolamento, permissões, repetição, cancelamento, estorno, expiração, código e consentimento), 412 Web; builds/lint aprovados. Rotas Web reutilizam proprietário/recepção/cliente e PDV, com código ocultável e formulário de resgate. Mobile/desktop e jornadas reais aguardam DEV. Backup `booking-release-backup-zlagAb` restaurado: 77 tabelas, 33 migrations, 5 PaymentEvidence. Migrations aditivas preservam histórico. Recuperação: bloquear novas vendas/resgates e corrigir aditivamente; não remover ledger nem fazer downgrade do enum após movimentações.
+
+### Cartão-presente — homologação DEV
+
+API `67e89fc` / Action `42215819859`, Web `4c36572` / Action `42215822659`, ambas aprovadas. Quatro jornadas reais aprovadas: venda mobile, crédito somente após pagamento e permissões; destinatário autenticado exibe/oculta código; resgate parcial na interface com saldo em dinheiro e atendimento legítimo; estorno restaura saldo sem saque, protege financiamento já usado e relatório não duplica caixa. Screenshots sem código visível: `/tmp/kalend2-gift-cards-{client-mobile,owner-mobile,owner-desktop}.png`. Evidência sanitizada anexa. Plano QA exclusivo restaurado; ledger/checksums das seis migrations 2.0 conferidos, PaymentEvidence preservados 5/3 APPLIED. Sem entrega externa ou cobrança remota alegada.
+
+## Fase 6 — estoque: IMPLEMENTADA LOCALMENTE
+
+Cadastro PosProduct existente ampliado com ativação explícita, saldo físico e mínimo em milésimos da unidade, custo padrão, preço, categoria, código de barras e localização. Produtos antigos permanecem sem controle automático até configuração. Models novos: PosInventoryCategory/Supplier/Lot/Operation/Movement e PosServiceMaterial. Migration `20261106180000_inventory` aditiva, limites/sinais no banco, FKs compostas e histórico de operações/movimentos imutável. Cartões-presente e pacotes não são produtos físicos.
+
+Entradas com fornecedor/lote/custo/validade; consumo interno, ajuste positivo/negativo, perda e inventário por contagem física. Devolução vinculada à saída original com limite e motivo, sem alterar custo/validade histórica. Materiais por serviço, fracionados até 0,001 unidade. Produtos vendidos e materiais são baixados uma única vez na transação de finalização; insuficiência reverte toda a finalização sem gerar comissões/pontos indevidos. FEFO usa lotes válidos por vencimento; negativo é bloqueado. Estorno financeiro não presume devolução física. Controle de unidade preservado após o primeiro lote; desativar exige saldo zero e ausência de receitas de materiais. Transferências entre unidades aguardam fase 9; não há unidade fictícia.
+
+Endpoints `/operations/inventory`, `/references`, `/products/:id`, `/services/:id/materials`, `/movements`, `/movements/:id/restore`. Owner/admin configuram e movimentam; recepção/contador consultam, sem escrita; profissional/cliente sem acesso genérico. Direito `inventory` para novas operações/baixas. Relatório inclui saldo válido, mínimo, custo físico incluindo vencidos, lotes próximos do vencimento, histórico, custo efetivamente consumido por serviço, produtos vendidos e parados em 30 dias. Totais SQL sobre todos os dados; listagens limitadas e identificadas (500 produtos/lotes, 200 movimentos, 1.000 vínculos; rankings 100/20). Grandes volumes/paginação adicional ainda não homologados. Alertas nesta etapa são visuais no painel, sem disparo externo de estoque.
+
+968 testes unitários API, 67 PostgreSQL nativo e 412 Web aprovados; builds/lint aprovados. Backup DEV `booking-release-backup-hZDkaw` restaurado: 79 tabelas, 34 migrations, 5 PaymentEvidence. Preflight/deploy/jornadas/screenshot DEV serão anexados. Recuperação preserva lotes e movimentos; corrigir aditivamente, sem reset/recalcular o passado, e bloquear novas operações caso necessário.

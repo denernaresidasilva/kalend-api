@@ -1,3 +1,4 @@
+import{consumeInventory}from'./inventory-domain.js';
 import {creditGiftCard,assertGiftSource,assertGiftSourceRefund,refundGiftCard} from './gift-card-domain.js';
 import { clientBenefits } from './client-subscription-domain.js';
 import { proportionFloor } from './pos-domain.js';
@@ -206,6 +207,7 @@ export class OperationsService {
       if (netReceived(sale.payments, sale.refunds) !== sale.totalCents) throw new ConflictException('A comanda ainda possui saldo a receber.');
       await tx.posSale.update({ where: { id }, data: { status: 'PAID', finalizedAt: new Date(), finalizedById: actor.userId } });
       if(await tx.posPackageDefinition.count({where:{companyId:actor.companyId,productId:{in:sale.lines.flatMap(l=>l.productId?[l.productId]:[])}}})||await tx.posPackageUse.count({where:{companyId:actor.companyId,saleId:sale.id,status:'RESERVED'}}))await this.entitlements.assertFeature(actor.companyId,'packages',tx);
+      if(await consumeInventory(tx,actor,sale))await this.entitlements.assertFeature(actor.companyId,'inventory',tx);
       await grantPackages(tx,actor,sale);await consumePackages(tx,actor,sale);if(sale.issuedGiftCard){await this.entitlements.assertFeature(actor.companyId,'gift_cards',tx);await creditGiftCard(tx,actor,sale);}
       await generateCommissions(tx, actor, sale);
       await scheduleFollowups(tx, sale);
